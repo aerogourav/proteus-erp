@@ -1,0 +1,10 @@
+import type { Metadata } from "next";
+import { ArrowRight, Database, ShieldCheck } from "lucide-react";
+import { SiteFooter } from "@/components/marketing/site-footer";
+import { SiteHeader } from "@/components/marketing/site-header";
+
+export const metadata: Metadata = { title: "Data handling | PROTEUS", description: "What the PROTEUS synthetic demonstration stores and what it does not do." };
+
+export default function PrivacyPage() {
+  return <><SiteHeader /><main id="top" className="marketing-page"><section className="marketing-page-hero"><div className="page-container privacy-copy"><span className="section-index">DATA HANDLING · DEMONSTRATION</span><h1>Know where the <em>demo data lives.</em></h1><p>The PROTEUS demo is a local product exploration, not a production service for confidential company records.</p><div className="privacy-facts"><article><Database size={20} /><h2>Browser-local settings</h2><p>Configuration edits, CRM opportunities, and synthetic documents created in the demo are saved in this browser’s local storage. They do not sync to another browser or user. Reset in the configuration screen to restore sample settings and clear browser-created opportunities and documents.</p></article><article><ShieldCheck size={20} /><h2>Current product limits</h2><p>This application does not provide accounts, authentication, server-side authorization, a shared backend, or a production security review. Local storage is not encrypted by this application and should not contain confidential information.</p></article></div><p className="privacy-note">The included manufacturing company, employees, records, identifiers, dates, and activity are fictional synthetic examples. No customer drawing files or confidential manufacturing documents are included. The contact form validates only in the browser, sends nothing, and stores no submission. There is no connected AI provider or external integration in this demo.</p><a className="button button-primary" href="/demo">Return to the synthetic demo <ArrowRight size={16} /></a></div></section></main><SiteFooter /></>;
+}
