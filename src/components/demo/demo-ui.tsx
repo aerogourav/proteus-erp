@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { AlertTriangle, ArrowRight, Check, CircleDot, ClipboardList, FileClock, FileStack, GitBranch, Info, Layers3 } from "lucide-react";
-import { activity, getOrderDocuments, getRecordHref, parts, productionOrders, type EngineeringDocument, type Part, type ProductionOrder } from "@/lib/demo-data";
+import { getOrderDocuments, getRecordHref, type ActivityEvent, type EngineeringDocument, type Part, type ProductionOrder } from "@/lib/demo-data";
 import { evaluateOrderCompleteness, evaluatePartCompleteness, type CompletenessIssue } from "@/lib/configuration-rules";
 import { useDemoConfiguration } from "@/components/demo/configuration-context";
+import { useDemoBusinessRecords } from "@/components/demo/business-records-context";
 import styles from "./demo.module.css";
 
 export function PageHeader({ eyebrow, title, description, meta }: { eyebrow: string; title: string; description: string; meta?: React.ReactNode }) {
@@ -30,6 +31,7 @@ export function CompletenessPanel({ issues, compact = false }: { issues: Complet
 
 export function DocumentRows({ rows }: { rows: EngineeringDocument[] }) {
   const { documentTypeFor } = useDemoConfiguration();
+  const { parts } = useDemoBusinessRecords();
   return <div className={styles.tableWrap}><table className={styles.table}><thead><tr><th>Document</th><th>Type</th><th>Part</th><th>Revision</th><th>Status</th><th>Updated</th></tr></thead><tbody>{rows.map((document) => {
     const part = parts.find((item) => item.id === document.partId);
     return <tr key={document.id}><td><Link className={styles.recordLink} href={`/demo/documents/${document.id}`}>{document.number}<span className={styles.subText}>{document.title}</span></Link></td><td>{documentTypeFor(document)?.name ?? document.type}</td><td>{part && <Link className={styles.recordLink} href={`/demo/parts/${part.id}`}>{part.number}<span className={styles.subText}>{part.name}</span></Link>}</td><td>Rev {document.revision}</td><td><StatusPill status={document.status} /></td><td>{document.updated}</td></tr>;
@@ -38,6 +40,7 @@ export function DocumentRows({ rows }: { rows: EngineeringDocument[] }) {
 
 export function PartRows({ rows }: { rows: Part[] }) {
   const { state, documents: allDocuments } = useDemoConfiguration();
+  const { productionOrders } = useDemoBusinessRecords();
   return <div className={styles.tableWrap}><table className={styles.table}><thead><tr><th>Part</th><th>Material</th><th>Drawing revision</th><th>Lifecycle</th><th>Documents</th><th>Orders</th></tr></thead><tbody>{rows.map((part) => {
     const partDocs = allDocuments.filter((document) => document.partId === part.id);
     const orders = productionOrders.filter((order) => order.partId === part.id);
@@ -48,6 +51,7 @@ export function PartRows({ rows }: { rows: Part[] }) {
 
 export function OrderRows({ rows }: { rows: ProductionOrder[] }) {
   const { state, documents: allDocuments } = useDemoConfiguration();
+  const { parts } = useDemoBusinessRecords();
   return <div className={styles.tableWrap}><table className={styles.table}><thead><tr><th>Production order</th><th>Part / revision</th><th>Quantity</th><th>Planned dates</th><th>Document readiness</th><th>Status</th></tr></thead><tbody>{rows.map((order) => {
     const part = parts.find((item) => item.id === order.partId)!;
     const issues = evaluateOrderCompleteness(order, state, allDocuments, parts);
@@ -55,8 +59,10 @@ export function OrderRows({ rows }: { rows: ProductionOrder[] }) {
   })}</tbody></table>{rows.length === 0 && <div className={styles.empty}>No orders match this search.</div>}</div>;
 }
 
-export function ActivityRows({ rows = activity }: { rows?: typeof activity }) {
-  return <div className={styles.activityList}>{rows.map((item) => <div className={styles.activityItem} key={item.id}><span className={styles.activityIcon}>{item.kind === "Production order" ? <ClipboardList size={13} /> : <FileClock size={13} />}</span><div className={styles.activityCopy}>{item.title}<small>{item.actor} · <Link href={getRecordHref(item.recordId)}>{item.subject}</Link></small></div><span className={styles.activityDate}>{item.date}</span></div>)}</div>;
+export function ActivityRows({ rows }: { rows?: ActivityEvent[] }) {
+  const records = useDemoBusinessRecords();
+  const entries = rows ?? records.activity;
+  return <div className={styles.activityList}>{entries.map((item) => <div className={styles.activityItem} key={item.id}><span className={styles.activityIcon}>{item.kind === "Production order" ? <ClipboardList size={13} /> : <FileClock size={13} />}</span><div className={styles.activityCopy}>{item.title}<small>{item.actor} · <Link href={getRecordHref(item.recordId)}>{item.subject}</Link></small></div><span className={styles.activityDate}>{item.date}</span></div>)}</div>;
 }
 
 export function Metric({ label, value, note, href, icon }: { label: string; value: number; note: string; href: string; icon: "documents" | "review" | "parts" | "orders" }) {
@@ -74,6 +80,7 @@ export function RevisionHistory({ rows }: { rows: { revision: string; date: stri
 
 export function DocumentOrderLinks({ document }: { document: EngineeringDocument }) {
   const { documents: allDocuments } = useDemoConfiguration();
+  const { productionOrders, parts } = useDemoBusinessRecords();
   const linkedOrders = productionOrders.filter((order) => getOrderDocuments(order, allDocuments).some((item) => item.id === document.id) || document.orderIds.includes(order.id));
   const part = parts.find((item) => item.id === document.partId);
   return <div className={styles.linkList}><div className={styles.linkRow}><Link href={`/demo/parts/${document.partId}`}>{part?.number} · {part?.name}<small>Linked part · current drawing Rev {part?.currentRevision}</small></Link></div>{linkedOrders.map((order) => <div className={styles.linkRow} key={order.id}><Link href={`/demo/production/${order.id}`}>{order.number}<small>{order.quantity} pcs · {order.status}</small></Link><ArrowRight size={13} /></div>)}</div>;
@@ -81,6 +88,7 @@ export function DocumentOrderLinks({ document }: { document: EngineeringDocument
 
 export function PartLinkedRecords({ part }: { part: Part }) {
   const { documents: allDocuments, documentTypeFor } = useDemoConfiguration();
+  const { productionOrders } = useDemoBusinessRecords();
   const partDocs = allDocuments.filter((document) => document.partId === part.id);
   const orders = productionOrders.filter((order) => order.partId === part.id);
   return <div className={styles.linkList}>{partDocs.map((document) => <div className={styles.linkRow} key={document.id}><Link href={`/demo/documents/${document.id}`}>{document.number}<small>{documentTypeFor(document)?.name ?? document.type} · Rev {document.revision} · {document.status}</small></Link><ArrowRight size={13} />{document.status !== "Approved" && <StatusPill status={document.status} />}</div>)}{orders.map((order) => <div className={styles.linkRow} key={order.id}><Link href={`/demo/production/${order.id}`}>{order.number}<small>{order.quantity} pcs · {order.status}</small></Link><ArrowRight size={13} /></div>)}{partDocs.length + orders.length === 0 && <div className={styles.empty}>No linked records.</div>}</div>;

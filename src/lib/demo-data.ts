@@ -103,7 +103,9 @@ export function getOrderDocuments(order: ProductionOrder, allDocuments: Engineer
   return allDocuments.filter((document) => order.documentIds.includes(document.id) || document.orderIds.includes(order.id));
 }
 
-export const activity = [
+export type ActivityEvent = { id: string; date: string; title: string; subject: string; recordId: string; kind: "Document" | "Production order" | "Part" | "Supplier" | "Raw material" | "Finance"; actor: string };
+
+export const activity: ActivityEvent[] = [
   { id: "evt-01", date: "18 Oct 2026 · 14:42", title: "CNC program reference saved as draft", subject: "CNC-AP-1088", recordId: "cnc-ap-1088", kind: "Document", actor: "J. Novak" },
   { id: "evt-02", date: "17 Oct 2026 · 10:18", title: "Inspection plan submitted for quality review", subject: "INSP-AP-1024", recordId: "insp-ap-1024", kind: "Document", actor: "S. Weber" },
   { id: "evt-03", date: "16 Oct 2026 · 16:05", title: "Prototype drawing submitted for review", subject: "DWG-AP-1102", recordId: "dwg-ap-1102", kind: "Document", actor: "T. Hahn" },
@@ -115,6 +117,10 @@ export const activity = [
 
 export function getRecordHref(id: string) {
   if (id.startsWith("mo-")) return `/demo/production/${id}`;
+  if (id.startsWith("sup-")) return `/demo/suppliers#${id}`;
+  if (id.startsWith("lot-")) return `/demo/materials#${id}`;
+  if (id.startsWith("fin-")) return `/demo/finance#${id}`;
+  if (id.startsWith("demo-")) return `/demo/documents/${id}`;
   if (documents.some((document) => document.id === id)) return `/demo/documents/${id}`;
   return `/demo/parts/${id}`;
 }

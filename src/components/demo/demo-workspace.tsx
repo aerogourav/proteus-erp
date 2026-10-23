@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Activity, AlertTriangle, Boxes, Building2, ChevronDown, ClipboardList, FileStack, GitBranch, Hexagon, LayoutDashboard, Menu, Package, Search, Settings2, Truck, WalletCards, X } from "lucide-react";
+import { Activity, AlertTriangle, Boxes, Building2, ChevronDown, ClipboardList, FileStack, GitBranch, Hexagon, LayoutDashboard, Menu, MessageSquareText, Package, Search, Settings2, Truck, WalletCards, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import styles from "./demo.module.css";
 import { DEMO_COMPANY } from "@/lib/demo-data";
+import { LanguageSwitcher } from "@/components/language-provider";
 
 const nav = [
   { label: "Overview", href: "/demo", icon: LayoutDashboard },
@@ -19,6 +20,7 @@ const nav = [
   { label: "Workflows", href: "/demo/workflows", icon: GitBranch },
   { label: "Configuration", href: "/demo/configuration", icon: Settings2 },
   { label: "Activity", href: "/demo/activity", icon: Activity },
+  { label: "Community", href: "/demo/community", icon: MessageSquareText },
 ];
 
 export function DemoWorkspace({ children }: { children: ReactNode }) {
@@ -43,7 +45,7 @@ export function DemoWorkspace({ children }: { children: ReactNode }) {
         <button type="button" className={styles.mobileToggle} aria-label={menuOpen ? "Close navigation" : "Open navigation"} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={17} /> : <Menu size={17} />}</button>
         <Link className={styles.mobileBrand} href="/demo">PROTEUS</Link>
         <div className={styles.crumbs}><Link href="/demo">Workspace</Link><span>/</span><strong>{active.label}</strong></div>
-        <div className={styles.topActions}><label className={styles.searchTop}><Search size={14} /><input aria-label="Search the demo workspace" placeholder="Search records" onKeyDown={(event) => { if (event.key === "Enter" && event.currentTarget.value.trim()) router.push(`/demo/documents?q=${encodeURIComponent(event.currentTarget.value.trim())}`); }} /></label><span className={styles.demoBadge}><i /> DEMO ENVIRONMENT</span></div>
+        <div className={styles.topActions}><label className={styles.searchTop}><Search size={14} /><input aria-label="Search the demo workspace" placeholder="Search records" onKeyDown={(event) => { if (event.key === "Enter" && event.currentTarget.value.trim()) router.push(`/demo/documents?q=${encodeURIComponent(event.currentTarget.value.trim())}`); }} /></label><LanguageSwitcher className="demo-language" /><span className={styles.demoBadge}><i /> DEMO ENVIRONMENT</span></div>
       </header>
       <main className={styles.content}>{children}</main>
     </div>

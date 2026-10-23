@@ -2,11 +2,13 @@
 
 import { useState, type FormEvent, type ReactNode } from "react";
 import { useDemoConfiguration } from "@/components/demo/configuration-context";
-import { parts, productionOrders, type RecordStatus } from "@/lib/demo-data";
+import { useDemoBusinessRecords } from "@/components/demo/business-records-context";
+import type { RecordStatus } from "@/lib/demo-data";
 import type { ConfiguredField } from "@/lib/configuration-model";
 import styles from "./demo.module.css";
 
 function FieldControl({ field, value, onChange }: { field: ConfiguredField; value: string | number | boolean; onChange: (value: string | number | boolean) => void }) {
+  const { parts, productionOrders } = useDemoBusinessRecords();
   const common = { id: field.id, required: field.required, "aria-describedby": field.helpText ? `${field.id}-help` : undefined };
   let control: ReactNode;
   if (field.type === "dropdown") {
@@ -23,6 +25,7 @@ function FieldControl({ field, value, onChange }: { field: ConfiguredField; valu
 
 export function DocumentCreateDialog({ onClose }: { onClose: () => void }) {
   const { documentTypes, documents: allDocuments, addDocument } = useDemoConfiguration();
+  const { parts, productionOrders, addActivity } = useDemoBusinessRecords();
   const activeTypes = documentTypes.filter((type) => type.active);
   const [typeId, setTypeId] = useState(activeTypes[0]?.id ?? "");
   const selectedType = activeTypes.find((type) => type.id === typeId);
@@ -63,6 +66,7 @@ export function DocumentCreateDialog({ onClose }: { onClose: () => void }) {
       orderIds: orderId ? [orderId] : [], customFieldValues: values,
       history: [{ revision: revision.trim() || "A", status, date: today, note: "Synthetic record created in the local demo." }],
     });
+    addActivity({ title: "Synthetic document record created", subject: `DEMO-${selectedType.identifier.toUpperCase().slice(0, 10)}-${String(sequence).padStart(3, "0")}`, recordId: docId, kind: "Document" });
     onClose();
   }
 

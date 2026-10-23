@@ -1,24 +1,25 @@
 "use client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { activity, parts, productionOrders } from "@/lib/demo-data";
-import { demoMaterialLots, demoSuppliers } from "@/lib/business-data";
+import { useDemoBusinessRecords } from "@/components/demo/business-records-context";
 import { useDemoConfiguration } from "@/components/demo/configuration-context";
 import { ActivityRows, DetailFields, DocumentOrderLinks, PageHeader, Panel, ReadinessNote, RevisionHistory, StatusPill } from "@/components/demo/demo-ui";
 import { TechnicalIllustration } from "@/components/demo/technical-illustration";
 import styles from "@/components/demo/demo.module.css";
 
 export function DocumentDetail({ documentId }: { documentId: string }) {
-  const { documents, documentTypeFor } = useDemoConfiguration();
+  const { ready, documents, documentTypeFor } = useDemoConfiguration();
+  const { parts, productionOrders, materialLots, suppliers, activity } = useDemoBusinessRecords();
   const document = documents.find((item) => item.id === documentId);
+  if (!document && !ready) return <div className={styles.empty} role="status">Loading sample document record…</div>;
   if (!document) notFound();
   const part = parts.find((item) => item.id === document.partId);
   const orderLinks = productionOrders.filter((order) => order.documentIds.includes(document.id) || document.orderIds.includes(order.id));
   const events = activity.filter((event) => event.recordId === document.id);
   const type = documentTypeFor(document);
   const customFields = type?.fields.filter((field) => document.customFieldValues?.[field.key] !== undefined) || [];
-  const lot = demoMaterialLots.find((item) => item.id === document.materialLotId);
-  const supplier = demoSuppliers.find((item) => item.id === document.supplierId);
+  const lot = materialLots.find((item) => item.id === document.materialLotId);
+  const supplier = suppliers.find((item) => item.id === document.supplierId);
   return <><PageHeader eyebrow={`Documents / ${document.number}`} title={document.title} description={`${document.number} · synthetic document record · no file is stored in this demo.`} meta={<StatusPill status={document.status} />} />
     <div className={styles.detailGrid}><div className={styles.detailMain}>
       {document.type === "Engineering drawing" && part && <Panel title="Illustrative drawing preview" description={`Matches the sample part ${part.number} and revision ${document.revision}`}><TechnicalIllustration number={part.number} revision={document.revision} name={part.name} /></Panel>}

@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { ArrowRight, GitBranch, Link2, PackageCheck } from "lucide-react";
-import { getOrderDocuments, productionOrders, type EngineeringDocument, type Part } from "@/lib/demo-data";
+import { getOrderDocuments, type EngineeringDocument, type Part } from "@/lib/demo-data";
 import { useDemoConfiguration } from "@/components/demo/configuration-context";
+import { useDemoBusinessRecords } from "@/components/demo/business-records-context";
 import { Panel, StatusPill } from "@/components/demo/demo-ui";
 import styles from "@/components/demo/demo.module.css";
 
 export function PartRelationshipMap({ part }: { part: Part }) {
   const { documents, documentTypeFor } = useDemoConfiguration();
+  const { productionOrders } = useDemoBusinessRecords();
   const partDocuments = documents.filter((document) => document.partId === part.id);
   const partOrders = productionOrders.filter((order) => order.partId === part.id);
 
@@ -28,6 +30,7 @@ function RecordNode({ document, type }: { document: EngineeringDocument; type: s
 
 export function RevisionImpactPanel({ part }: { part: Part }) {
   const { documents } = useDemoConfiguration();
+  const { productionOrders } = useDemoBusinessRecords();
   const currentDrawing = documents.find((document) => document.partId === part.id && document.revision === part.currentRevision && /drawing/i.test(document.type));
   const linkedOrders = currentDrawing ? productionOrders.filter((order) => order.partId === part.id && getOrderDocuments(order, documents).some((document) => document.id === currentDrawing.id)) : [];
   const linkedRecords = currentDrawing ? documents.filter((document) => document.partId === part.id && document.id !== currentDrawing.id && (document.orderIds.some((orderId) => linkedOrders.some((order) => order.id === orderId)) || linkedOrders.some((order) => order.documentIds.includes(document.id)))) : [];

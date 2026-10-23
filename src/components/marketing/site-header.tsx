@@ -3,10 +3,12 @@
 import { ArrowUpRight, Hexagon, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { LanguageSwitcher } from "@/components/language-provider";
 
 const links = [
   { label: "Product", href: "/product" },
-  { label: "Platform", href: "/#platform" },
+  { label: "Solutions", href: "/#solutions" },
+  { label: "Vision", href: "/#vision" },
   { label: "About", href: "/about" },
   { label: "Contact", href: "/contact" },
 ];
@@ -27,12 +29,13 @@ export function SiteHeader() {
             <Link key={link.href} href={link.href} onClick={() => setOpen(false)}>{link.label}</Link>
           ))}
           <Link className="nav-demo mobile-demo" href="/demo" onClick={() => setOpen(false)}>
-            Explore Live Demo <ArrowUpRight size={15} />
+            Explore Demo <ArrowUpRight size={15} />
           </Link>
         </nav>
 
+        <LanguageSwitcher className="header-language" />
         <Link className="nav-demo desktop-demo" href="/demo">
-          Explore Live Demo <ArrowUpRight size={15} />
+          Explore Demo <ArrowUpRight size={15} />
         </Link>
         <button className="menu-toggle" type="button" aria-label={open ? "Close navigation" : "Open navigation"} aria-expanded={open} onClick={() => setOpen((value) => !value)}>
           {open ? <X size={21} /> : <Menu size={21} />}

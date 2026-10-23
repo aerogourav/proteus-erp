@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { ArrowRight, FileClock, GitBranch } from "lucide-react";
-import { activity, parts, productionOrders, DEMO_COMPANY } from "@/lib/demo-data";
+import { DEMO_COMPANY } from "@/lib/demo-data";
 import { evaluateOrderCompleteness } from "@/lib/configuration-rules";
 import { useDemoConfiguration } from "@/components/demo/configuration-context";
+import { useDemoBusinessRecords } from "@/components/demo/business-records-context";
+import { DemoWalkthroughLauncher } from "@/components/demo/demo-walkthrough";
 import { GuidedDemo } from "@/components/demo/guided-demo";
+import { OverviewQuickActions } from "@/components/demo/overview-quick-actions";
 import { ActivityRows, DocumentRows, Metric, PageHeader, Panel, StatusPill } from "@/components/demo/demo-ui";
 import styles from "@/components/demo/demo.module.css";
 
@@ -13,6 +16,7 @@ const documentStatuses = ["Approved", "In review", "Draft", "Outdated"] as const
 
 export function DemoOverview() {
   const { state, documents, documentTypes } = useDemoConfiguration();
+  const { parts, productionOrders, activity } = useDemoBusinessRecords();
   const activeOrders = productionOrders.filter((order) => order.status !== "Complete");
   const reviewQueue = documents.filter((document) => document.status === "In review");
   const releasedParts = parts.filter((part) => part.status === "Released" && documents.some((document) => {
@@ -24,8 +28,8 @@ export function DemoOverview() {
   const clearOrderCount = readiness.length - needingAttention.length;
 
   return <>
-    <GuidedDemo />
     <PageHeader eyebrow={`${DEMO_COMPANY.name} · Fictional demo`} title="Good morning, team" description="A connected view of engineering records, part revisions, and the work moving through the shop." meta="SYNTHETIC WORKSPACE" />
+    <DemoWalkthroughLauncher />
     <div className={styles.metrics}>
       <Metric label="Engineering documents" value={documents.length} note="Synthetic records in this workspace" href="/demo/documents" icon="documents" />
       <Metric label="Awaiting approval" value={reviewQueue.length} note="Records currently in review" href="/demo/documents?status=In%20review" icon="review" />
@@ -34,6 +38,8 @@ export function DemoOverview() {
       <Metric label="Orders with issues" value={needingAttention.length} note="Configured record checks only" href="/demo/production" icon="orders" />
     </div>
 
+    <div className={styles.dashboardQuickGrid}>
+      <div className={styles.dashboardQuickPrimary}>
     <div className={styles.split}>
       <Panel title="Production orders needing attention" description="Configured document checks against synthetic linked records" href="/demo/production" linkLabel="All orders">
         {needingAttention.length ? <div className={styles.linkList}>{needingAttention.map(({ order, issues }) => {
@@ -44,6 +50,9 @@ export function DemoOverview() {
       <Panel title="Document review queue" description="Synthetic records currently marked in review" href="/demo/documents?status=In%20review" linkLabel="Open documents">
         {reviewQueue.length ? <div className={styles.reviewQueue}>{reviewQueue.map((document) => <div className={styles.reviewRow} key={document.id}><FileClock size={15} /><Link href={`/demo/documents/${document.id}`}><strong>{document.number} · Rev {document.revision}</strong><small>{document.title} · {document.owner}</small></Link><StatusPill status={document.status} /></div>)}</div> : <div className={styles.empty}>No synthetic documents are currently in review.</div>}
       </Panel>
+    </div>
+      </div>
+      <OverviewQuickActions />
     </div>
 
     <div className={styles.split}>
@@ -60,5 +69,6 @@ export function DemoOverview() {
       <Panel title="Revision activity" description="Recent revision events with linked record context" href="/demo/activity" linkLabel="Activity history"><ActivityRows rows={activity.filter((event) => /revision/i.test(event.title)).slice(0, 4)} /><p className={styles.chartNote}>A revision link identifies records for review; it does not confirm that dependent instructions or orders have been updated.</p></Panel>
     </div>
     <div className={styles.dashboardFoot}><GitBranch size={14} /><span>Rules are configurable in this browser. They do not inspect files or certify manufacturing readiness.</span><Link href="/demo/configuration">Review rules <ArrowRight size={12} /></Link></div>
+    <GuidedDemo />
   </>;
 }

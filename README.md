@@ -23,6 +23,14 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser. `pnpm build`, `pnpm start`, `pnpm lint`, and `pnpm typecheck` are also available.
 
+## Public-site configuration
+
+The website is prepared to generate canonical links, social preview metadata, a sitemap, and crawler rules after a real HTTPS domain has been verified. Until then, the site remains `noindex`, `robots.txt` disallows crawling, and the sitemap is empty by default.
+
+Copy `.env.example` to `.env.local` for local configuration. Set `NEXT_PUBLIC_SITE_URL` to the verified HTTPS origin (for example, `https://example.com`) and `NEXT_PUBLIC_CONTACT_EMAIL` only to a verified address controlled by the project. Set `PROTEUS_INDEXING_ENABLED=true` only after the domain and public content have been reviewed and indexing is intended. These public variables are embedded at build time; rebuild and redeploy after changing them. Do not put secrets in `NEXT_PUBLIC_*` variables.
+
+The contact page does not collect or deliver inquiries until a verified address is configured. With an address configured, its form opens a prefilled email draft for the visitor to review and send; the website cannot confirm delivery. No deployment provider or public destination is configured in this repository. Choose and configure a hosting destination, then verify the built site, public routes, contact details, legal identity and privacy disclosures before publishing. This repository does not claim legal compliance or production security readiness.
+
 ## Project structure
 
 ```text
@@ -78,7 +86,7 @@ The homepage product preview and `/demo` workspace use synthetic records. The fi
 
 Configuration, synthetic documents, and CRM opportunities created in the demo persist in this browser's `localStorage`. This storage is not encrypted by the application, shared, or intended for confidential data. Reset restores sample configuration and removes browser-created documents and opportunities. Completeness checks do not inspect files and do not establish manufacturing readiness or compliance. Material-certificate entries are reference metadata only; no files are included and conformity is not verified. Approval workflows are definitions and visual examples; the demo does not assign work or execute approvals. Technical illustrations are original schematic SVGs, labeled illustrative and not to scale or for manufacture.
 
-No real customer drawings or confidential manufacturing information are included. There is no authentication, server-side authorization, shared backend, external integration, contact-message delivery, or production security review. The contact form validates entries in the browser only and transmits or stores nothing; connect and review a server-side endpoint before publication. Replace the empty, editable `contactEmail`, `publicUrl`, and `qrDestination` fields in `src/lib/site-config.ts` only after verifying real project contact details and a deployed destination. No QR code is shown because no verified destination is configured. No AI model or AI provider is connected; AI assistance is a concept direction, while current completeness checks are deterministic rules. Do not enter confidential information into the demonstration.
+No real customer drawings or confidential manufacturing information are included. There is no authentication, server-side authorization, shared backend, external integration, contact-message delivery, or production security review. Until a verified address is configured, the contact page explains that inquiry delivery is unavailable. With an address configured, it opens a visitor-side email draft and the site cannot verify whether it is sent. No server-side contact endpoint exists. No QR code is shown because no verified destination is configured. No AI model or AI provider is connected; AI assistance is a concept direction, while current completeness checks are deterministic rules. Do not enter confidential information into the demonstration.
 
 ## Available scripts
 

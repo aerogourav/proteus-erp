@@ -101,6 +101,8 @@ export type FinanceEntry = {
   status: FinanceStatus;
   companyId?: string;
   supplierId?: string;
+  invoiceGenerated?: boolean;
+  billAttachment?: { name: string; type: string; size: number; uploadedAt: string };
 };
 
 export const demoFinanceEntries: FinanceEntry[] = [
