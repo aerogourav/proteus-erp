@@ -39,7 +39,7 @@
 .erp p { margin: 0; }
 .erp a { color: inherit; text-decoration: none; }
 .erp button { font: inherit; }
-.erp button:not(.erp-btn) { color: inherit; }
+.erp :where(button:not(.erp-btn)) { color: inherit; }
 .erp :focus-visible { outline: 3px solid var(--e-accent); outline-offset: 2px; border-radius: 8px; }
 
 /* ---------- Shell ---------- */
