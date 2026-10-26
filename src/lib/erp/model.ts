@@ -11,7 +11,8 @@
 /* ============================== Types ============================== */
 
 export type Currency = "EUR" | "USD" | "GBP";
-export type DocType = "Drawing" | "Specification" | "Bill of materials" | "Inspection plan";
+/** Built-in types plus any the user adds in Configuration. */
+export type DocType = string;
 export type DocStatus = "Draft" | "In review" | "Approved";
 export type DocSource = "sample" | "metadata" | "upload";
 /** A file kept in this browser only. `data` (a data URL) is omitted for large files. */
@@ -28,26 +29,67 @@ export const PROCUREMENT_STATUSES: ProcurementStatus[] = ["Not ordered", "Ordere
 export const CURRENCIES: Currency[] = ["EUR", "USD", "GBP"];
 export const UNITS = ["pcs", "set", "kg", "m"] as const;
 
-export type Settings = { taxRate: number; defaultCurrency: Currency; paymentTermsDays: number };
-export type Customer = { id: string; name: string; contact: string; createdAt: string };
-export type PurchaseOrder = { id: string; number: string; customerId: string; projectId: string; poDate: string; deliveryDate: string; currency: Currency; value: number | null; receivedAt: string };
-export type Project = { id: string; code: string; name: string; description: string; customerId: string; purchaseOrderIds: string[]; createdAt: string; isSample: boolean };
+export type CustomValues = Record<string, string>;
+export type CustomEntity = "project" | "customer" | "purchaseOrder" | "part" | "productionOrder" | "supplier" | "rawMaterial";
+export const CUSTOM_ENTITIES: { key: CustomEntity; label: string }[] = [
+  { key: "project", label: "Projects" }, { key: "customer", label: "Customers" }, { key: "purchaseOrder", label: "Sales orders" }, { key: "part", label: "Parts" },
+  { key: "productionOrder", label: "Production orders" }, { key: "supplier", label: "Suppliers" }, { key: "rawMaterial", label: "Raw materials" },
+];
+export type CustomFieldType = "text" | "number" | "date" | "select";
+export type CustomField = { id: string; entity: CustomEntity; label: string; type: CustomFieldType; options: string[] };
+
+export type TabKey = "overview" | "guided" | "projects" | "crm" | "sales" | "parts" | "documents" | "rawMaterials" | "purchasing" | "suppliers" | "production" | "quality" | "dispatch" | "finance" | "configuration";
+export type TabConfig = { key: TabKey; label: string; visible: boolean };
+export type WidgetKey = "project" | "kpis" | "pipeline" | "orderValue" | "production" | "finance" | "stock" | "departments" | "activity";
+export type WidgetConfig = { key: WidgetKey; visible: boolean };
+export type UiSettings = {
+  accent: "coral" | "plum" | "green" | "blue" | "orange";
+  density: "comfortable" | "compact";
+  corners: "rounded" | "soft" | "sharp";
+  sidebar: "dark" | "light";
+  nav: "left" | "right" | "top";
+  font: "brand" | "system";
+};
+
+export const DEFAULT_TABS: TabConfig[] = [
+  { key: "overview", label: "Overview", visible: true }, { key: "guided", label: "Guided demo", visible: true }, { key: "projects", label: "Projects", visible: true },
+  { key: "crm", label: "CRM", visible: true }, { key: "sales", label: "Sales orders", visible: true }, { key: "parts", label: "Parts", visible: true },
+  { key: "documents", label: "Documents", visible: true }, { key: "rawMaterials", label: "Raw materials", visible: true }, { key: "purchasing", label: "Purchasing", visible: true },
+  { key: "suppliers", label: "Suppliers", visible: true }, { key: "production", label: "Production", visible: true }, { key: "quality", label: "Quality", visible: true },
+  { key: "dispatch", label: "Dispatch", visible: true }, { key: "finance", label: "Finance", visible: true }, { key: "configuration", label: "Configuration", visible: true },
+];
+export const WIDGET_LABELS: Record<WidgetKey, string> = {
+  project: "Current project", kpis: "Key figures", pipeline: "Project pipeline", orderValue: "Order value by project", production: "Production status",
+  finance: "Revenue and receivables", stock: "Raw material stock", departments: "Departments", activity: "Recent activity",
+};
+export const DEFAULT_WIDGETS: WidgetConfig[] = (["project", "kpis", "pipeline", "orderValue", "production", "finance", "stock", "departments", "activity"] as WidgetKey[]).map((key) => ({ key, visible: true }));
+export const DEFAULT_UI: UiSettings = { accent: "coral", density: "comfortable", corners: "rounded", sidebar: "dark", nav: "left", font: "brand" };
+
+export type Settings = {
+  taxRate: number; defaultCurrency: Currency; paymentTermsDays: number;
+  ui: UiSettings; tabs: TabConfig[]; widgets: WidgetConfig[]; customFields: CustomField[]; docTypes: string[];
+};
+export type Supplier = { id: string; name: string; contact: string; email: string; leadTimeDays: number | null; createdAt: string; custom?: CustomValues };
+export type RawMaterial = { id: string; name: string; unit: string; stock: number; reorderLevel: number; unitCost: number | null; supplierId: string | null; custom?: CustomValues };
+export type Customer = { id: string; name: string; contact: string; createdAt: string; custom?: CustomValues };
+export type PurchaseOrder = { id: string; number: string; customerId: string; projectId: string; poDate: string; deliveryDate: string; currency: Currency; value: number | null; receivedAt: string; custom?: CustomValues };
+export type Project = { id: string; code: string; name: string; description: string; customerId: string; purchaseOrderIds: string[]; createdAt: string; isSample: boolean; custom?: CustomValues };
 export type LineItem = { id: string; projectId: string; purchaseOrderId: string; partId: string; revisionId: string; quantity: number; unit: string; unitPrice: number | null };
-export type Part = { id: string; number: string; description: string };
+export type Part = { id: string; number: string; description: string; custom?: CustomValues };
 export type PartRevision = { id: string; partId: string; revision: string; createdAt: string };
 export type DocumentRecord = { id: string; number: string; name: string; type: DocType; revision: string; status: DocStatus; source: DocSource; projectIds: string[]; partId: string | null; updatedAt: string; file?: StoredFile };
 export type InspectionRequirement = { id: string; projectId: string; partId: string | null; name: string; spec: string; unit: string; acceptance: string };
 export type MaterialRequirement = { id: string; projectId: string; lineItemId: string | null; material: string; quantity: number; unit: string };
 export type ProcurementRecord = { id: string; number: string; requirementId: string; supplier: string; status: ProcurementStatus; updatedAt: string };
-export type ProductionOrder = { id: string; number: string; projectId: string; lineItemId: string; partId: string; revisionId: string; quantity: number; status: ProductionStatus; createdAt: string; startDate?: string; notes?: string };
+export type ProductionOrder = { id: string; number: string; projectId: string; lineItemId: string; partId: string; revisionId: string; quantity: number; status: ProductionStatus; createdAt: string; startDate?: string; notes?: string; custom?: CustomValues };
 export type InspectionResult = { requirementId: string; observed: string; pass: boolean };
 export type InspectionReport = { id: string; number: string; projectId: string; productionOrderIds: string[]; results: InspectionResult[]; passed: boolean; createdAt: string };
 export type DispatchRecord = { id: string; number: string; projectId: string; purchaseOrderId: string; dispatchedAt: string };
 export type InvoiceLine = { description: string; quantity: number; unit: string; unitPrice: number; amount: number };
-export type Invoice = { id: string; number: string; projectId: string; purchaseOrderId: string; customerId: string; currency: Currency; lines: InvoiceLine[]; subtotal: number; taxRate: number; tax: number; total: number; issuedAt: string; dueAt: string };
+export type Invoice = { id: string; number: string; projectId: string; purchaseOrderId: string; customerId: string; currency: Currency; lines: InvoiceLine[]; subtotal: number; taxRate: number; tax: number; total: number; issuedAt: string; dueAt: string; paidAt?: string };
 export type ActivityEvent = { id: string; at: string; projectId: string | null; module: ModuleKey; text: string };
 
-export type ModuleKey = "projects" | "crm" | "sales" | "parts" | "documents" | "materials" | "procurement" | "production" | "quality" | "dispatch" | "finance";
+export type ModuleKey = "projects" | "crm" | "sales" | "parts" | "documents" | "materials" | "procurement" | "production" | "quality" | "dispatch" | "finance" | "suppliers" | "settings";
 
 export type DraftLine = { key: string; partNumber: string; description: string; quantity: string; unit: string; unitPrice: string; revision: string };
 export type DraftDocument = { key: string; name: string; type: DocType; number: string; revision: string; partKey: string; status: DocStatus; source: DocSource; file?: StoredFile };
@@ -64,6 +106,8 @@ export type ErpState = {
   version: 2;
   seq: number;
   settings: Settings;
+  suppliers: Supplier[];
+  rawMaterials: RawMaterial[];
   customers: Customer[];
   purchaseOrders: PurchaseOrder[];
   projects: Project[];
@@ -90,7 +134,8 @@ export const WIZARD_STEPS = ["Project", "Customer & order", "Line items", "Docum
 
 export function createInitialState(): ErpState {
   return {
-    version: 2, seq: 1, settings: { taxRate: 19, defaultCurrency: "EUR", paymentTermsDays: 30 },
+    version: 2, seq: 1, settings: { taxRate: 19, defaultCurrency: "EUR", paymentTermsDays: 30, ui: { ...DEFAULT_UI }, tabs: DEFAULT_TABS.map((tab) => ({ ...tab })), widgets: DEFAULT_WIDGETS.map((widget) => ({ ...widget })), customFields: [], docTypes: [] },
+    suppliers: [], rawMaterials: [],
     customers: [], purchaseOrders: [], projects: [], lineItems: [], parts: [], revisions: [], documents: [], inspectionRequirements: [],
     materialRequirements: [], procurement: [], productionOrders: [], inspectionReports: [], dispatches: [], invoices: [], activity: [], draft: null,
     guide: { step: 0, projectId: null, v: 2 },
@@ -623,7 +668,7 @@ export function addDrawingForLine(state: ErpState, lineItemId: string, now: stri
   return log(next, now, "documents", `Drawing ${docNumber} rev ${revision} added for review`, line.projectId);
 }
 
-export function addDocumentToProject(state: ErpState, projectId: string, input: { name: string; type: DocType; number: string; revision: string; partId: string | null; status: DocStatus }, now: string): ErpState {
+export function addDocumentToProject(state: ErpState, projectId: string, input: { name: string; type: DocType; number: string; revision: string; partId: string | null; status: DocStatus; file?: StoredFile }, now: string): ErpState {
   const number = normCode(input.number);
   const revision = normCode(input.revision);
   if (!number || !input.name.trim() || !REVISION_PATTERN.test(revision)) return state;
@@ -635,7 +680,7 @@ export function addDocumentToProject(state: ErpState, projectId: string, input: 
   let id: string;
   let next: ErpState;
   [id, next] = nextId(state, "doc");
-  next = { ...next, documents: [...next.documents, { id, number, name: input.name.trim(), type: input.type, revision, status: input.status, source: "metadata", projectIds: [projectId], partId: input.partId, updatedAt: now }] };
+  next = { ...next, documents: [...next.documents, { id, number, name: input.name.trim(), type: input.type, revision, status: input.status, source: input.file ? "upload" : "metadata", projectIds: [projectId], partId: input.partId, updatedAt: now, ...(input.file ? { file: input.file } : {}) }] };
   return log(next, now, "documents", `${input.type} ${number} rev ${revision} added (${input.status})`, projectId);
 }
 
@@ -644,7 +689,11 @@ export function advanceProcurement(state: ErpState, procurementId: string, now: 
   if (!record || record.status === "Received") return state;
   const status: ProcurementStatus = record.status === "Not ordered" ? "Ordered" : "Received";
   const req = state.materialRequirements.find((item) => item.id === record.requirementId);
-  const next = { ...state, procurement: touch(state.procurement, procurementId, (item) => ({ ...item, status, supplier: item.supplier || "Supplier (demo)", updatedAt: now })) };
+  let next: ErpState = { ...state, procurement: touch(state.procurement, procurementId, (item) => ({ ...item, status, supplier: item.supplier || "Supplier (demo)", updatedAt: now })) };
+  if (status === "Received" && req) {
+    next = upsertRawMaterial(next, req.material, { unit: req.unit });
+    next = { ...next, rawMaterials: next.rawMaterials.map((item) => norm(item.name) === norm(req.material) ? { ...item, stock: round2(item.stock + req.quantity) } : item) };
+  }
   return log(next, now, "procurement", `${record.number}: ${req?.material ?? "material"} ${status === "Ordered" ? "ordered" : "received"}`, req?.projectId ?? null);
 }
 
@@ -1002,10 +1051,246 @@ export function parseStoredState(raw: string | null): ErpState {
   try {
     const parsed = JSON.parse(raw) as Partial<ErpState>;
     if (parsed && parsed.version === 2 && Array.isArray(parsed.projects) && Array.isArray(parsed.activity) && typeof parsed.seq === "number") {
-      return { ...createInitialState(), ...parsed } as ErpState;
+      const base = createInitialState();
+      const stored = (parsed.settings ?? {}) as Partial<Settings>;
+      const tabs = Array.isArray(stored.tabs) ? stored.tabs.filter((tab) => DEFAULT_TABS.some((item) => item.key === tab.key)) : [];
+      const widgets = Array.isArray(stored.widgets) ? stored.widgets.filter((widget) => DEFAULT_WIDGETS.some((item) => item.key === widget.key)) : [];
+      const settings: Settings = {
+        ...base.settings, ...stored,
+        ui: { ...DEFAULT_UI, ...(stored.ui ?? {}) },
+        tabs: [...tabs, ...DEFAULT_TABS.filter((item) => !tabs.some((tab) => tab.key === item.key)).map((tab) => ({ ...tab }))],
+        widgets: [...widgets, ...DEFAULT_WIDGETS.filter((item) => !widgets.some((widget) => widget.key === item.key)).map((widget) => ({ ...widget }))],
+        customFields: Array.isArray(stored.customFields) ? stored.customFields : [],
+        docTypes: Array.isArray(stored.docTypes) ? stored.docTypes : [],
+      };
+      return { ...base, ...parsed, settings } as ErpState;
     }
   } catch {
     /* fall through */
   }
   return createInitialState();
+}
+
+
+/* ============================== Suppliers, raw materials, finance, configuration ============================== */
+
+export function docTypes(state: ErpState): string[] {
+  return [...DOC_TYPES, ...state.settings.docTypes.filter((type) => !DOC_TYPES.includes(type))];
+}
+
+/** Every supplier: saved records plus names used on purchases that have no record yet. */
+export function supplierRows(state: ErpState): Supplier[] {
+  const rows = [...state.suppliers];
+  for (const record of state.procurement) {
+    const name = record.supplier.trim();
+    if (name && !rows.some((item) => norm(item.name) === norm(name))) rows.push({ id: `virtual:${name}`, name, contact: "", email: "", leadTimeDays: null, createdAt: record.updatedAt });
+  }
+  return rows;
+}
+
+/** Every raw material: saved records plus materials used on projects that have no record yet. */
+export function rawMaterialRows(state: ErpState): RawMaterial[] {
+  const rows = [...state.rawMaterials];
+  for (const req of state.materialRequirements) {
+    if (!rows.some((item) => norm(item.name) === norm(req.material))) rows.push({ id: `virtual:${req.material}`, name: req.material, unit: req.unit, stock: 0, reorderLevel: 0, unitCost: null, supplierId: null });
+  }
+  return rows;
+}
+
+export function upsertSupplier(state: ErpState, name: string): ErpState {
+  const clean = name.trim().replace(/\s+/g, " ");
+  if (!clean || state.suppliers.some((item) => norm(item.name) === norm(clean))) return state;
+  const [id, next] = nextId(state, "sup");
+  return { ...next, suppliers: [...next.suppliers, { id, name: clean, contact: "", email: "", leadTimeDays: null, createdAt: new Date(0).toISOString() }] };
+}
+
+export function upsertRawMaterial(state: ErpState, name: string, defaults: Partial<RawMaterial> = {}): ErpState {
+  const clean = name.trim();
+  if (!clean || state.rawMaterials.some((item) => norm(item.name) === norm(clean))) return state;
+  const [id, next] = nextId(state, "raw");
+  return { ...next, rawMaterials: [...next.rawMaterials, { id, name: clean, unit: defaults.unit ?? "kg", stock: defaults.stock ?? 0, reorderLevel: defaults.reorderLevel ?? 0, unitCost: defaults.unitCost ?? null, supplierId: defaults.supplierId ?? null }] };
+}
+
+export function saveSupplier(state: ErpState, id: string | null, input: { name: string; contact: string; email: string; leadTimeDays: number | null; custom?: CustomValues }, now: string): ErpState {
+  const name = input.name.trim().replace(/\s+/g, " ");
+  if (!name || (input.leadTimeDays !== null && !(input.leadTimeDays >= 0))) return state;
+  const existing = id && !id.startsWith("virtual:") ? state.suppliers.find((item) => item.id === id) : null;
+  if (state.suppliers.some((item) => item.id !== existing?.id && norm(item.name) === norm(name))) return state;
+  let next = state;
+  if (existing) {
+    next = { ...state, suppliers: touch(state.suppliers, existing.id, (item) => ({ ...item, name, contact: input.contact.trim(), email: input.email.trim(), leadTimeDays: input.leadTimeDays, custom: input.custom ?? item.custom })) };
+    if (norm(existing.name) !== norm(name)) next = { ...next, procurement: next.procurement.map((record) => norm(record.supplier) === norm(existing.name) ? { ...record, supplier: name } : record) };
+  } else {
+    let newId: string;
+    [newId, next] = nextId(state, "sup");
+    next = { ...next, suppliers: [...next.suppliers, { id: newId, name, contact: input.contact.trim(), email: input.email.trim(), leadTimeDays: input.leadTimeDays, createdAt: now, custom: input.custom }] };
+    const oldName = id?.startsWith("virtual:") ? id.slice(8) : null;
+    if (oldName && norm(oldName) !== norm(name)) next = { ...next, procurement: next.procurement.map((record) => norm(record.supplier) === norm(oldName) ? { ...record, supplier: name } : record) };
+  }
+  return log(next, now, "suppliers", `Supplier ${name} saved`, null);
+}
+
+export function saveRawMaterial(state: ErpState, id: string | null, input: { name: string; unit: string; stock: number; reorderLevel: number; unitCost: number | null; supplierId: string | null; custom?: CustomValues }, now: string): ErpState {
+  const name = input.name.trim();
+  if (!name || !(input.stock >= 0) || !(input.reorderLevel >= 0) || (input.unitCost !== null && !(input.unitCost >= 0))) return state;
+  const existing = id && !id.startsWith("virtual:") ? state.rawMaterials.find((item) => item.id === id) : null;
+  if (state.rawMaterials.some((item) => item.id !== existing?.id && norm(item.name) === norm(name))) return state;
+  const record = { name, unit: input.unit, stock: round2(input.stock), reorderLevel: round2(input.reorderLevel), unitCost: input.unitCost === null ? null : round2(input.unitCost), supplierId: input.supplierId };
+  let next = state;
+  const oldName = existing?.name ?? (id?.startsWith("virtual:") ? id.slice(8) : null);
+  if (existing) next = { ...state, rawMaterials: touch(state.rawMaterials, existing.id, (item) => ({ ...item, ...record, custom: input.custom ?? item.custom })) };
+  else {
+    let newId: string;
+    [newId, next] = nextId(state, "raw");
+    next = { ...next, rawMaterials: [...next.rawMaterials, { id: newId, ...record, custom: input.custom }] };
+  }
+  if (oldName && norm(oldName) !== norm(name)) next = { ...next, materialRequirements: next.materialRequirements.map((req) => norm(req.material) === norm(oldName) ? { ...req, material: name } : req) };
+  return log(next, now, "materials", `Raw material ${name} saved`, null);
+}
+
+export function rawMaterialFor(state: ErpState, name: string) {
+  return state.rawMaterials.find((item) => norm(item.name) === norm(name)) ?? null;
+}
+
+/** Cost of a material requirement from the raw material's unit cost, or null when unknown. */
+export function requirementCost(state: ErpState, req: MaterialRequirement) {
+  const cost = rawMaterialFor(state, req.material)?.unitCost;
+  return cost === null || cost === undefined ? null : round2(cost * req.quantity);
+}
+
+export function rawMaterialStats(state: ErpState, material: RawMaterial) {
+  const reqs = state.materialRequirements.filter((req) => norm(req.material) === norm(material.name));
+  const statusOf = (req: MaterialRequirement) => state.procurement.find((record) => record.requirementId === req.id)?.status ?? "Not ordered";
+  const sum = (list: MaterialRequirement[]) => round2(list.reduce((total, req) => total + req.quantity, 0));
+  const toBuy = sum(reqs.filter((req) => statusOf(req) === "Not ordered"));
+  const onOrder = sum(reqs.filter((req) => statusOf(req) === "Ordered"));
+  const received = sum(reqs.filter((req) => statusOf(req) === "Received"));
+  const projects = [...new Set(reqs.map((req) => req.projectId))];
+  const supplier = material.supplierId ? state.suppliers.find((item) => item.id === material.supplierId)?.name ?? null : null;
+  const lowStock = material.reorderLevel > 0 && material.stock < material.reorderLevel;
+  return { toBuy, onOrder, received, projects, supplier, lowStock, value: material.unitCost === null ? null : round2(material.unitCost * material.stock) };
+}
+
+export function supplierStats(state: ErpState, supplier: Supplier) {
+  const records = state.procurement.filter((record) => norm(record.supplier) === norm(supplier.name));
+  const reqs = records.map((record) => ({ record, req: state.materialRequirements.find((item) => item.id === record.requirementId) })).filter((item): item is { record: ProcurementRecord; req: MaterialRequirement } => Boolean(item.req));
+  const spend = round2(reqs.filter(({ record }) => record.status !== "Not ordered").reduce((total, { req }) => total + (requirementCost(state, req) ?? 0), 0));
+  const materials = [...new Set([...reqs.map(({ req }) => req.material), ...state.rawMaterials.filter((item) => item.supplierId === supplier.id).map((item) => item.name)])];
+  return { purchases: reqs, open: reqs.filter(({ record }) => record.status !== "Received").length, spend, materials, projects: [...new Set(reqs.map(({ req }) => req.projectId))] };
+}
+
+export function markInvoicePaid(state: ErpState, invoiceId: string, paid: boolean, now: string): ErpState {
+  const invoice = state.invoices.find((item) => item.id === invoiceId);
+  if (!invoice || Boolean(invoice.paidAt) === paid) return state;
+  const next = { ...state, invoices: touch(state.invoices, invoiceId, (item) => ({ ...item, paidAt: paid ? now.slice(0, 10) : undefined })) };
+  return log(next, now, "finance", `Invoice ${invoice.number} marked ${paid ? "paid" : "unpaid"}`, invoice.projectId);
+}
+
+/** Revenue, cost and receivables per project, derived from the same records. Illustrative, not accounting. */
+export function financeSummary(state: ErpState, today: string) {
+  const projects = state.projects.map((project) => {
+    const lines = state.lineItems.filter((line) => line.projectId === project.id);
+    const order = state.purchaseOrders.find((item) => item.projectId === project.id);
+    const invoice = state.invoices.find((item) => item.projectId === project.id) ?? null;
+    const orderValue = order?.value ?? round2(lines.reduce((total, line) => total + (line.unitPrice ?? 0) * line.quantity, 0));
+    const reqs = state.materialRequirements.filter((req) => req.projectId === project.id);
+    const costs = reqs.map((req) => requirementCost(state, req));
+    const materialCost = round2(costs.reduce((total: number, cost) => total + (cost ?? 0), 0));
+    const costKnown = costs.length > 0 && costs.every((cost) => cost !== null);
+    const revenue = invoice ? invoice.subtotal : 0;
+    const status = invoice ? (invoice.paidAt ? "Paid" : invoice.dueAt < today ? "Overdue" : "Unpaid") : state.dispatches.some((item) => item.projectId === project.id) ? "To invoice" : "Open order";
+    return { project, customerId: project.customerId, currency: order?.currency ?? state.settings.defaultCurrency, orderValue, invoice, revenue, materialCost, costKnown, margin: round2(orderValue - materialCost), status };
+  });
+  const sum = (values: number[]) => round2(values.reduce((total, value) => total + value, 0));
+  const unpaid = state.invoices.filter((item) => !item.paidAt);
+  return {
+    projects,
+    orderBook: sum(projects.filter((row) => !row.invoice).map((row) => row.orderValue)),
+    invoiced: sum(state.invoices.map((item) => item.total)),
+    paid: sum(state.invoices.filter((item) => item.paidAt).map((item) => item.total)),
+    receivable: sum(unpaid.map((item) => item.total)),
+    overdue: sum(unpaid.filter((item) => item.dueAt < today).map((item) => item.total)),
+    materialCost: sum(projects.map((row) => row.materialCost)),
+    purchaseSpend: sum(state.procurement.filter((record) => record.status !== "Not ordered").map((record) => { const req = state.materialRequirements.find((item) => item.id === record.requirementId); return req ? requirementCost(state, req) ?? 0 : 0; })),
+  };
+}
+
+/* ---------- Configuration ---------- */
+
+export function setCustomValues(state: ErpState, entity: CustomEntity, id: string, values: CustomValues): ErpState {
+  const clean = Object.fromEntries(Object.entries(values).map(([key, value]) => [key, value.trim()]).filter(([, value]) => value !== ""));
+  const apply = <T extends { id: string; custom?: CustomValues }>(list: T[]) => list.map((item) => item.id === id ? { ...item, custom: clean } : item);
+  switch (entity) {
+    case "project": return { ...state, projects: apply(state.projects) };
+    case "customer": return { ...state, customers: apply(state.customers) };
+    case "purchaseOrder": return { ...state, purchaseOrders: apply(state.purchaseOrders) };
+    case "part": return { ...state, parts: apply(state.parts) };
+    case "productionOrder": return { ...state, productionOrders: apply(state.productionOrders) };
+    case "supplier": return { ...state, suppliers: apply(state.suppliers) };
+    case "rawMaterial": return { ...state, rawMaterials: apply(state.rawMaterials) };
+  }
+}
+
+export function customFieldsFor(state: ErpState, entity: CustomEntity) {
+  return state.settings.customFields.filter((field) => field.entity === entity);
+}
+
+export function addCustomField(state: ErpState, input: { entity: CustomEntity; label: string; type: CustomFieldType; options: string[] }): ErpState {
+  const label = input.label.trim();
+  if (!label || state.settings.customFields.some((field) => field.entity === input.entity && norm(field.label) === norm(label))) return state;
+  const options = input.type === "select" ? [...new Set(input.options.map((option) => option.trim()).filter(Boolean))] : [];
+  if (input.type === "select" && !options.length) return state;
+  const [id, next] = nextId(state, "cf");
+  return { ...next, settings: { ...next.settings, customFields: [...next.settings.customFields, { id, entity: input.entity, label, type: input.type, options }] } };
+}
+
+export function removeCustomField(state: ErpState, fieldId: string): ErpState {
+  return { ...state, settings: { ...state.settings, customFields: state.settings.customFields.filter((field) => field.id !== fieldId) } };
+}
+
+export function addDocType(state: ErpState, name: string): ErpState {
+  const clean = name.trim().replace(/\s+/g, " ");
+  if (!clean || docTypes(state).some((type) => norm(type) === norm(clean))) return state;
+  return { ...state, settings: { ...state.settings, docTypes: [...state.settings.docTypes, clean] } };
+}
+
+export function removeDocType(state: ErpState, name: string): ErpState {
+  if (state.documents.some((doc) => doc.type === name)) return state;
+  return { ...state, settings: { ...state.settings, docTypes: state.settings.docTypes.filter((type) => type !== name) } };
+}
+
+export function updateUi(state: ErpState, patch: Partial<UiSettings>): ErpState {
+  return { ...state, settings: { ...state.settings, ui: { ...state.settings.ui, ...patch } } };
+}
+
+export function updateTab(state: ErpState, key: TabKey, patch: Partial<Omit<TabConfig, "key">>): ErpState {
+  if (patch.visible === false && (key === "configuration" || key === "guided")) return state;
+  if (patch.label !== undefined && !patch.label.trim()) return state;
+  return { ...state, settings: { ...state.settings, tabs: state.settings.tabs.map((tab) => tab.key === key ? { ...tab, ...patch, label: patch.label?.trim().slice(0, 30) ?? tab.label } : tab) } };
+}
+
+export function moveInList<T>(list: T[], index: number, delta: number): T[] {
+  const target = index + delta;
+  if (target < 0 || target >= list.length) return list;
+  const next = [...list];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next;
+}
+
+export function moveTab(state: ErpState, key: TabKey, delta: number): ErpState {
+  const index = state.settings.tabs.findIndex((tab) => tab.key === key);
+  return index < 0 ? state : { ...state, settings: { ...state.settings, tabs: moveInList(state.settings.tabs, index, delta) } };
+}
+
+export function updateWidget(state: ErpState, key: WidgetKey, visible: boolean): ErpState {
+  return { ...state, settings: { ...state.settings, widgets: state.settings.widgets.map((widget) => widget.key === key ? { ...widget, visible } : widget) } };
+}
+
+export function moveWidget(state: ErpState, key: WidgetKey, delta: number): ErpState {
+  const index = state.settings.widgets.findIndex((widget) => widget.key === key);
+  return index < 0 ? state : { ...state, settings: { ...state.settings, widgets: moveInList(state.settings.widgets, index, delta) } };
+}
+
+export function resetLayout(state: ErpState): ErpState {
+  return { ...state, settings: { ...state.settings, ui: { ...DEFAULT_UI }, tabs: DEFAULT_TABS.map((tab) => ({ ...tab })), widgets: DEFAULT_WIDGETS.map((widget) => ({ ...widget })) } };
 }

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   createInitialState, newDraft, validateStep, firstInvalidStep, createProjectFromDraft, draftFlow, readiness, projectStage, isActiveOrder,
   loadSample, resolve, approveDocument, advanceProcurement, createProductionOrder, advanceProduction, generateInspectionReport, dispatchProject,
-  generateInvoice, addDrawingForLine, setLineItemQuantity, setLineItemPrice, reuseCatalog, setProductionStatus, isProductionComplete, updateCustomer, updatePurchaseOrder, updateDocument, updateMaterial, updateProductionOrder, updateInspectionRequirement, removeInspectionRequirement, addDocumentToProject, addInspectionRequirement, addMaterialRequirement, suggestProjectCode, parseStoredState, projectRecords, SAMPLE_PROJECT_CODE, type ErpState, type ProjectDraft,
+  generateInvoice, addDrawingForLine, setLineItemQuantity, setLineItemPrice, reuseCatalog, setProductionStatus, isProductionComplete, updateCustomer, updatePurchaseOrder, updateDocument, updateMaterial, updateProductionOrder, updateInspectionRequirement, removeInspectionRequirement, saveRawMaterial, saveSupplier, rawMaterialRows, rawMaterialStats, supplierRows, supplierStats, financeSummary, markInvoicePaid, addCustomField, setCustomValues, addDocType, removeDocType, docTypes, updateTab, moveTab, updateWidget, moveWidget, updateUi, upsertSupplier, addDocumentToProject, addInspectionRequirement, addMaterialRequirement, suggestProjectCode, parseStoredState, projectRecords, SAMPLE_PROJECT_CODE, type ErpState, type ProjectDraft,
 } from "../src/lib/erp/model.ts";
 
 const NOW = "2026-10-26T10:00:00.000Z";
@@ -294,4 +294,91 @@ test("records can be edited later from their tabs; production status is free-for
 
   state = removeInspectionRequirement(state, req.id, NOW);
   assert.equal(r().inspectionRequirements.length, 0);
+});
+
+test("raw materials, suppliers and finance are connected to the same records", () => {
+  const base = createInitialState();
+  let { state, projectId } = createProjectFromDraft(base, validDraft(base), NOW);
+  // Material named on the project shows up as a raw material before it is saved.
+  assert.deepEqual(rawMaterialRows(state).map((item) => item.name), ["Steel bar"]);
+  state = upsertSupplier(state, "Northline Metals");
+  const supplierId = state.suppliers[0].id;
+  state = saveRawMaterial(state, rawMaterialRows(state)[0].id, { name: "Steel bar", unit: "kg", stock: 1, reorderLevel: 4, unitCost: 3, supplierId }, NOW);
+  const material = state.rawMaterials[0];
+  assert.equal(rawMaterialStats(state, material).lowStock, true);
+  assert.equal(rawMaterialStats(state, material).toBuy, 5);
+
+  // A purchase with this supplier: ordering creates spend, receiving adds stock.
+  const record = projectRecords(state, projectId).procurement[0];
+  state = { ...state, procurement: state.procurement.map((item) => item.id === record.id ? { ...item, supplier: "Northline Metals" } : item) };
+  state = advanceProcurement(state, record.id, NOW);
+  assert.equal(supplierStats(state, supplierRows(state)[0]).spend, 15);
+  state = advanceProcurement(state, record.id, NOW);
+  assert.equal(state.rawMaterials[0].stock, 6, "received 5 kg on top of 1 kg");
+  assert.equal(rawMaterialStats(state, state.rawMaterials[0]).lowStock, false);
+
+  // Supplier edits rename the purchase records too.
+  state = saveSupplier(state, supplierId, { name: "Northline Metals GmbH", contact: "Ana", email: "", leadTimeDays: 7 }, NOW);
+  assert.equal(projectRecords(state, projectId).procurement[0].supplier, "Northline Metals GmbH");
+
+  // Finance: order value 125, material cost 5 kg × 3 = 15.
+  let summary = financeSummary(state, "2026-10-26");
+  assert.equal(summary.projects[0].orderValue, 125);
+  assert.equal(summary.projects[0].materialCost, 15);
+  assert.equal(summary.projects[0].margin, 110);
+  assert.equal(summary.orderBook, 125);
+
+  state = approveDocument(state, projectRecords(state, projectId).documents[0].id, NOW);
+  state = createProductionOrder(state, projectRecords(state, projectId).lineItems[0].id, NOW);
+  const order = projectRecords(state, projectId).productionOrders[0];
+  state = advanceProduction(advanceProduction(state, order.id, NOW), order.id, NOW);
+  state = generateInvoice(dispatchProject(generateInspectionReport(state, projectId, NOW), projectId, NOW), projectId, NOW);
+  const invoice = projectRecords(state, projectId).invoices[0];
+  summary = financeSummary(state, "2027-06-01");
+  assert.equal(summary.receivable, invoice.total);
+  assert.equal(summary.overdue, invoice.total, "past the due date");
+  assert.equal(summary.projects[0].status, "Overdue");
+  state = markInvoicePaid(state, invoice.id, true, NOW);
+  summary = financeSummary(state, "2027-06-01");
+  assert.equal(summary.paid, invoice.total);
+  assert.equal(summary.receivable, 0);
+});
+
+test("configuration: custom fields, document types, tabs and dashboard", () => {
+  let state = createInitialState();
+  state = addCustomField(state, { entity: "rawMaterial", label: "Heat number", type: "text", options: [] });
+  state = addCustomField(state, { entity: "project", label: "Priority", type: "select", options: ["Low", " High", ""] });
+  assert.equal(state.settings.customFields.length, 2);
+  assert.deepEqual(state.settings.customFields[1].options, ["Low", "High"]);
+  assert.equal(addCustomField(state, { entity: "project", label: "priority", type: "text", options: [] }), state, "no duplicate field names");
+  assert.equal(addCustomField(state, { entity: "project", label: "Region", type: "select", options: [] }), state, "dropdown needs options");
+
+  const created = createProjectFromDraft(state, validDraft(state), NOW);
+  state = setCustomValues(created.state, "project", created.projectId, { [state.settings.customFields[1].id]: "High", other: " " });
+  assert.deepEqual(state.projects[0].custom, { [state.settings.customFields[1].id]: "High" });
+
+  state = addDocType(state, "Material certificate");
+  assert.ok(docTypes(state).includes("Material certificate"));
+  assert.equal(addDocType(state, "drawing"), state, "built-in types are not duplicated");
+  state = removeDocType(state, "Material certificate");
+  assert.ok(!docTypes(state).includes("Material certificate"));
+
+  state = updateTab(state, "crm", { label: "Customers", visible: false });
+  assert.equal(state.settings.tabs.find((tab) => tab.key === "crm")?.label, "Customers");
+  assert.equal(updateTab(state, "configuration", { visible: false }), state, "configuration cannot be hidden");
+  state = moveTab(state, "finance", -1);
+  const keys = state.settings.tabs.map((tab) => tab.key);
+  assert.ok(keys.indexOf("finance") < keys.indexOf("dispatch"));
+  state = updateWidget(moveWidget(state, "activity", -1), "pipeline", false);
+  assert.equal(state.settings.widgets.find((widget) => widget.key === "pipeline")?.visible, false);
+  state = updateUi(state, { nav: "top", accent: "green" });
+  assert.equal(state.settings.ui.nav, "top");
+
+  // Settings survive storage and pick up new defaults.
+  const stored = JSON.parse(JSON.stringify(state));
+  delete stored.settings.widgets;
+  const restored = parseStoredState(JSON.stringify(stored));
+  assert.equal(restored.settings.ui.accent, "green");
+  assert.equal(restored.settings.widgets.length, 9);
+  assert.equal(restored.settings.customFields.length, 2);
 });

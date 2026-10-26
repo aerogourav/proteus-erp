@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { ArrowLeft, Download, FileText, Plus, Printer, RotateCcw, Sparkles, Trash2, X } from "lucide-react";
 import { LineItemsEditor } from "@/components/erp/line-items";
-import { EditButton, NOT_SAVED, StatusSelect, statusTone, useEditor } from "@/components/erp/edit";
+import { CustomValuesView, EditButton, NOT_SAVED, StatusSelect, customEditFields, customInitial, pickCustom, readStoredFile, useEditor } from "@/components/erp/edit";
 import { InspectionForm } from "@/components/erp/inspection-form";
 import { focusProject } from "@/components/erp/guide-link";
 import { startAnotherProject } from "@/components/erp/guided";
@@ -15,21 +15,21 @@ import { Badge, EmptyState, Field, Modal, PageHead, ProjectLink, ReadinessBadge,
 import {
   CURRENCIES, DOC_STATUSES, RULES, UNITS, advanceProcurement, createProductionOrder, dispatchProject, formatDate, generateInvoice, setDocumentStatus,
   addInspectionRequirement, removeInspectionRequirement, setProductionStatus, updateCustomer, updateDocument, updateInspectionRequirement, updateMaterial,
-  updatePart, updateProductionOrder, updateProject, updatePurchaseOrder, isProductionComplete, formatMoney, isActiveOrder, lineEngineeringReady, lineMaterialReady, orderOperationalState,
+  updatePart, updateProductionOrder, updateProject, updatePurchaseOrder, isProductionComplete, setCustomValues, docTypes, addDocumentToProject, formatMoney, isActiveOrder, lineEngineeringReady, lineMaterialReady, orderOperationalState,
   partNumber, projectStage, readiness, revisionLabel, updateSettings,
   type Currency, type DocStatus, type ErpState, type Project,
 } from "@/lib/erp/model";
 
 /* ---------------- Shared helpers ---------------- */
 
-function useProjectFilter(state: ErpState) {
+export function useProjectFilter(state: ErpState) {
   const params = useSearchParams();
   const id = params.get("project");
   const project = id ? state.projects.find((item) => item.id === id) ?? null : null;
   return project;
 }
 
-function FilterBar({ project, base }: { project: Project | null; base: string }) {
+export function FilterBar({ project, base }: { project: Project | null; base: string }) {
   if (!project) return null;
   return <div className="erp-hint" style={{ alignItems: "center" }}>
     <span>Showing records for <b>{project.code} · {project.name}</b></span>
@@ -40,29 +40,29 @@ function FilterBar({ project, base }: { project: Project | null; base: string })
   </div>;
 }
 
-function NoProjects({ what }: { what: string }) {
+export function NoProjects({ what }: { what: string }) {
   return <div className="erp-card"><EmptyState title={`No ${what} yet`} text={`${what[0].toUpperCase()}${what.slice(1)} appear here automatically when you create a project in the guided demo. Nothing needs to be entered twice.`}>
     <Link className="erp-btn erp-btn-primary" href="/demo"><Sparkles size={15} /> Start the guided demo</Link>
   </EmptyState></div>;
 }
 
-function Loading() { return <p className="erp-muted" role="status">Loading…</p>; }
+export function Loading() { return <p className="erp-muted" role="status">Loading…</p>; }
 
 
-function Rows({ columns, head, children }: { columns: string; head: string[]; children: ReactNode }) {
+export function Rows({ columns, head, children }: { columns: string; head: string[]; children: ReactNode }) {
   return <div className="erp-rows" role="table">
     <div className="erp-row erp-row-head" role="row" style={{ gridTemplateColumns: columns }}>{head.map((label, index) => <span key={index} role="columnheader">{label}</span>)}</div>
     {children}
   </div>;
 }
 
-const projectOf = (state: ErpState, id: string) => state.projects.find((project) => project.id === id);
+export const projectOf = (state: ErpState, id: string) => state.projects.find((project) => project.id === id);
 
 
-const save = (update: (state: ErpState) => ErpState) => (commit(update) ? null : NOT_SAVED);
-const num = (value: string) => Number(value.replace(",", "."));
+export const save = (update: (state: ErpState) => ErpState) => (commit(update) ? null : NOT_SAVED);
+export const num = (value: string) => Number(value.replace(",", "."));
 
-type OutputState = { projectId: string; kind: OutputKind; productionOrderId?: string } | null;
+export type OutputState = { projectId: string; kind: OutputKind; productionOrderId?: string } | null;
 
 /* ---------------- Projects ---------------- */
 
@@ -80,12 +80,12 @@ export function ProjectsModule() {
       const customer = state.customers.find((item) => item.id === project.customerId);
       const po = state.purchaseOrders.find((item) => item.projectId === project.id);
       return <div key={project.id} role="row" className="erp-row" style={{ gridTemplateColumns: columns }}>
-        <span><Link href={`/demo/projects/${project.id}`}><strong>{project.name}</strong></Link><small>{project.code}{state.guide.projectId === project.id ? " · current" : ""}</small></span>
+        <span><Link href={`/demo/projects/${project.id}`}><strong>{project.name}</strong></Link><small>{project.code}{state.guide.projectId === project.id ? " · current" : ""}</small><CustomValuesView state={state} entity="project" custom={project.custom} /></span>
         <span>{customer?.name}</span><span>{po?.number}</span><span>{po ? formatDate(po.deliveryDate) : "—"}</span>
         <span><Badge>{projectStage(state, project.id)}</Badge></span>
         <span className="erp-head-actions">
           <button type="button" className="erp-btn erp-btn-sm" onClick={() => { commit((value) => focusProject(value, project.id)); router.push("/demo"); }}>Guided demo</button>
-          <EditButton onClick={() => editor.open({ title: `Edit ${project.code}`, fields: [{ key: "name", label: "Project name", required: true }, { key: "description", label: "Description (optional)" }], initial: { name: project.name, description: project.description }, onSave: (v) => save((value) => updateProject(value, project.id, { name: v.name, description: v.description }, nowIso())) })} />
+          <EditButton onClick={() => editor.open({ title: `Edit ${project.code}`, fields: [{ key: "name", label: "Project name", required: true }, { key: "description", label: "Description (optional)" }, ...customEditFields(state, "project")], initial: { name: project.name, description: project.description, ...customInitial(state, "project", project.custom) }, onSave: (v) => save((value) => setCustomValues(updateProject(value, project.id, { name: v.name, description: v.description }, nowIso()), "project", project.id, pickCustom(v))) })} />
         </span>
       </div>;
     })}
@@ -117,7 +117,8 @@ export function CrmModule() {
         </button>
         {open && <div className="erp-detail">
           <div className="erp-param-head" style={{ marginBottom: 8 }}><p className="erp-label">Linked projects and purchase orders</p>
-            <EditButton label="Edit customer" onClick={() => editor.open({ title: `Edit ${customer.name}`, fields: [{ key: "name", label: "Customer name", required: true }, { key: "contact", label: "Contact email (optional)" }], initial: { name: customer.name, contact: customer.contact }, onSave: (v) => save((value) => updateCustomer(value, customer.id, { name: v.name, contact: v.contact }, nowIso())) })} /></div>
+            <EditButton label="Edit customer" onClick={() => editor.open({ title: `Edit ${customer.name}`, fields: [{ key: "name", label: "Customer name", required: true }, { key: "contact", label: "Contact email (optional)" }, ...customEditFields(state, "customer")], initial: { name: customer.name, contact: customer.contact, ...customInitial(state, "customer", customer.custom) }, onSave: (v) => save((value) => setCustomValues(updateCustomer(value, customer.id, { name: v.name, contact: v.contact }, nowIso()), "customer", customer.id, pickCustom(v))) })} /></div>
+          <CustomValuesView state={state} entity="customer" custom={customer.custom} />
           <ul className="erp-reasons">{orders.map((order) => { const project = projectOf(state, order.projectId); return <li key={order.id}><span><b style={{ color: "var(--e-text)" }}>{order.number}</b> · {project ? <ProjectLink id={project.id} code={project.code} /> : null} {project?.name} · due {formatDate(order.deliveryDate)} · {orderOperationalState(state, order)}</span></li>; })}</ul>
         </div>}
       </div>;
@@ -152,7 +153,7 @@ export function SalesModule() {
         const customer = state.customers.find((item) => item.id === order.customerId);
         const active = isActiveOrder(state, order);
         return <div key={order.id} role="row" className="erp-row" style={{ gridTemplateColumns: columns }}>
-          <span><strong>{order.number}</strong><small>Received {formatDate(order.poDate)}</small></span>
+          <span><strong>{order.number}</strong><small>Received {formatDate(order.poDate)}</small><CustomValuesView state={state} entity="purchaseOrder" custom={order.custom} /></span>
           <span>{customer?.name}</span>
           <span>{project && <ProjectLink id={project.id} code={project.code} />}<small>{project?.name}</small></span>
           <span className="erp-num">{order.value !== null ? formatMoney(order.value, order.currency) : "—"}</span>
@@ -163,7 +164,7 @@ export function SalesModule() {
     </Rows> : <EmptyState title="No active orders" text="An order becomes active when production starts, and stops being active once it is dispatched." />}</section>
     {orders.map((order) => <section key={`lines-${order.id}`} className="erp-card" style={{ marginTop: 16 }}>
       <div className="erp-card-head"><div><h2>{order.number} · parts, quantity and price</h2><p>{projectOf(state, order.projectId)?.name}</p></div>
-        <span className="erp-head-actions"><EditButton label="Edit order" onClick={() => editor.open({ title: `Edit ${order.number}`, fields: [{ key: "number", label: "Customer’s PO number", required: true }, { key: "deliveryDate", label: "Required delivery date", type: "date", required: true }], initial: { number: order.number, deliveryDate: order.deliveryDate }, onSave: (v) => save((value) => updatePurchaseOrder(value, order.id, { number: v.number, deliveryDate: v.deliveryDate }, nowIso())) })} />
+        <span className="erp-head-actions"><EditButton label="Edit order" onClick={() => editor.open({ title: `Edit ${order.number}`, fields: [{ key: "number", label: "Customer’s PO number", required: true }, { key: "deliveryDate", label: "Required delivery date", type: "date", required: true }, ...customEditFields(state, "purchaseOrder")], initial: { number: order.number, deliveryDate: order.deliveryDate, ...customInitial(state, "purchaseOrder", order.custom) }, onSave: (v) => save((value) => setCustomValues(updatePurchaseOrder(value, order.id, { number: v.number, deliveryDate: v.deliveryDate }, nowIso()), "purchaseOrder", order.id, pickCustom(v))) })} />
         <button type="button" className="erp-btn erp-btn-sm" onClick={() => setOutput({ projectId: order.projectId, kind: "po" })}><Printer size={13} /> PO summary</button></span></div>
       <div className="erp-card-pad"><LineItemsEditor projectId={order.projectId} /></div>
     </section>)}
@@ -205,7 +206,7 @@ export function PartsModule() {
           <span>{[...new Set(lines.map((line) => projectOf(state, line.projectId)?.code))].join(", ")}</span>
           <span>{statuses.map((status, index) => <Badge key={index} tone={status === "Complete" ? "ok" : status === "Ready" || status === "In production" ? "info" : "warn"}>{status}</Badge>)}</span>
         </button>
-        {isOpen && <div className="erp-detail"><div style={{ marginBottom: 10 }}><EditButton label="Edit part" onClick={() => editor.open({ title: `Edit ${part.number}`, fields: [{ key: "description", label: "Description", required: true }], initial: { description: part.description }, onSave: (v) => save((value) => updatePart(value, part.id, { description: v.description }, nowIso())) })} /></div>{lines.map((line) => {
+        {isOpen && <div className="erp-detail"><div style={{ marginBottom: 10 }}><EditButton label="Edit part" onClick={() => editor.open({ title: `Edit ${part.number}`, fields: [{ key: "description", label: "Description", required: true }, ...customEditFields(state, "part")], initial: { description: part.description, ...customInitial(state, "part", part.custom) }, onSave: (v) => save((value) => setCustomValues(updatePart(value, part.id, { description: v.description }, nowIso()), "part", part.id, pickCustom(v))) })} /><CustomValuesView state={state} entity="part" custom={part.custom} /></div>{lines.map((line) => {
           const project = projectOf(state, line.projectId);
           const docs = state.documents.filter((doc) => doc.partId === part.id && doc.projectIds.includes(line.projectId));
           const checks = state.inspectionRequirements.filter((req) => req.projectId === line.projectId && (req.partId === part.id || req.partId === null));
@@ -232,9 +233,30 @@ export function DocumentsModule() {
   const filter = useProjectFilter(state);
   const [open, setOpen] = useState<string | null>(null);
   const editor = useEditor();
-  const head = <PageHead eyebrow="Engineering" title="Documents" description="Drawings and other documents with revision and approval status. Approve them here, at any time. Uploaded files stay in this browser only." />;
+  const openAdd = () => {
+    const projectLabel = (id: string) => { const project = projectOf(state, id); return project ? `${project.code} · ${project.name}` : ""; };
+    const projects = [...state.projects].reverse();
+    editor.open({
+      title: "Add document",
+      fields: [
+        { key: "project", label: "Project", type: "select", options: projects.map((project) => projectLabel(project.id)) },
+        { key: "part", label: "Part (optional)", type: "select", options: ["Whole project", ...state.parts.map((part) => part.number)] },
+        { key: "type", label: "Document type", type: "select", options: docTypes(state), help: "Add your own types in Configuration." },
+        { key: "name", label: "Name", required: true }, { key: "number", label: "Document number", required: true }, { key: "revision", label: "Revision", required: true },
+        { key: "status", label: "Approval status", type: "select", options: [...DOC_STATUSES] },
+        { key: "file", label: "File (optional)", type: "file", help: "Up to 1 MB is kept in this browser." },
+      ],
+      initial: { project: projects[0] ? projectLabel(projects[0].id) : "", part: "Whole project", type: docTypes(state)[0], name: "", number: "", revision: "A", status: "In review", file: "" },
+      onSave: (v, file) => {
+        const project = projects.find((item) => projectLabel(item.id) === v.project);
+        if (!project) return "Choose a project.";
+        return save((value) => addDocumentToProject(value, project.id, { name: v.name, type: v.type, number: v.number, revision: v.revision, partId: value.parts.find((part) => part.number === v.part)?.id ?? null, status: v.status as DocStatus, file: file ?? undefined }, nowIso()));
+      },
+    });
+  };
+  const head = <PageHead eyebrow="Engineering" title="Documents" description="Drawings and other documents with revision and approval status. Approve them here, at any time. Uploaded files stay in this browser only." actions={state.projects.length ? <button type="button" className="erp-btn erp-btn-primary" onClick={openAdd}><Plus size={15} /> Add document</button> : undefined} />;
   if (!hydrated) return <>{head}<Loading /></>;
-  if (!state.documents.length) return <>{head}<NoProjects what="documents" /></>;
+  if (!state.documents.length) return <>{head}<NoProjects what="documents" />{editor.dialog}</>;
   const docs = filter ? state.documents.filter((doc) => doc.projectIds.includes(filter.id)) : state.documents;
   const columns = "minmax(0,1.1fr) minmax(0,1.8fr) minmax(0,1fr) 60px minmax(0,1fr) 120px";
   return <>{head}<FilterBar project={filter} base="/demo/documents" /><section className="erp-card"><Rows columns={columns} head={["Number", "Name", "Type", "Rev", "Linked to", "Approval"]}>
@@ -316,9 +338,9 @@ export function ProductionModule() {
           const project = projectOf(state, order.projectId);
           return <div key={order.id} role="row" className="erp-row" style={{ gridTemplateColumns: columns }}>
             <strong>{order.number}</strong><span>{project && <ProjectLink id={project.id} code={project.code} />}</span>
-            <span>{partNumber(state, order.partId)} rev {revisionLabel(state, order.revisionId)}{(order.startDate || order.notes) && <small>{[order.startDate ? `Start ${formatDate(order.startDate)}` : "", order.notes ?? ""].filter(Boolean).join(" · ")}</small>}</span><span>{order.quantity}</span><span><StatusSelect key={order.status} id={`st-${order.id}`} label={`Status of ${order.number}`} value={order.status} onChange={(status) => commit((current) => setProductionStatus(current, order.id, status, nowIso()))} /></span>
+            <span>{partNumber(state, order.partId)} rev {revisionLabel(state, order.revisionId)}<CustomValuesView state={state} entity="productionOrder" custom={order.custom} />{(order.startDate || order.notes) && <small>{[order.startDate ? `Start ${formatDate(order.startDate)}` : "", order.notes ?? ""].filter(Boolean).join(" · ")}</small>}</span><span>{order.quantity}</span><span><StatusSelect key={order.status} id={`st-${order.id}`} label={`Status of ${order.number}`} value={order.status} onChange={(status) => commit((current) => setProductionStatus(current, order.id, status, nowIso()))} /></span>
             <span className="erp-head-actions">
-              <EditButton onClick={() => editor.open({ title: `Edit ${order.number}`, fields: [{ key: "quantity", label: "Quantity to produce", type: "number", required: true }, { key: "startDate", label: "Planned start", type: "date" }, { key: "notes", label: "Details for the shop floor" }], initial: { quantity: String(order.quantity), startDate: order.startDate ?? "", notes: order.notes ?? "" }, onSave: (v) => save((value) => updateProductionOrder(value, order.id, { quantity: num(v.quantity), startDate: v.startDate, notes: v.notes, status: order.status }, nowIso())) })} />
+              <EditButton onClick={() => editor.open({ title: `Edit ${order.number}`, fields: [{ key: "quantity", label: "Quantity to produce", type: "number", required: true }, { key: "startDate", label: "Planned start", type: "date" }, { key: "notes", label: "Details for the shop floor" }, ...customEditFields(state, "productionOrder")], initial: { quantity: String(order.quantity), startDate: order.startDate ?? "", notes: order.notes ?? "", ...customInitial(state, "productionOrder", order.custom) }, onSave: (v) => save((value) => setCustomValues(updateProductionOrder(value, order.id, { quantity: num(v.quantity), startDate: v.startDate, notes: v.notes, status: order.status }, nowIso()), "productionOrder", order.id, pickCustom(v))) })} />
               <button type="button" className="erp-btn erp-btn-ghost erp-btn-sm" onClick={() => setOutput({ projectId: order.projectId, kind: "production", productionOrderId: order.id })}><Printer size={13} /> Order</button>
             </span>
           </div>;
@@ -420,66 +442,4 @@ export function DispatchModule() {
       </section>;
     })}
   </div>{output && <OutputDialog state={state} projectId={output.projectId} kind={output.kind} onClose={() => setOutput(null)} />}</>;
-}
-
-/* ---------------- Finance ---------------- */
-
-export function FinanceModule() {
-  const state = useErp();
-  const hydrated = useHydrated();
-  const filter = useProjectFilter(state);
-  const [output, setOutput] = useState<OutputState>(null);
-  const head = <PageHead eyebrow="Finance" title="Invoices" description="An illustrative invoice is generated from the dispatched order: customer, project, line items and prices come from the same records. Not an accounting system." />;
-  if (!hydrated) return <>{head}<Loading /></>;
-  if (!state.projects.length) return <>{head}<NoProjects what="invoices" /></>;
-  const projects = state.projects.filter((project) => !filter || project.id === filter.id);
-  const columns = "minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 200px";
-  return <>{head}<FilterBar project={filter} base="/demo/finance" /><section className="erp-card"><Rows columns={columns} head={["Project", "Customer", "Order", "Invoice", "Total", ""]}>
-    {projects.map((project) => {
-      const order = state.purchaseOrders.find((item) => item.projectId === project.id);
-      const invoice = state.invoices.find((item) => item.projectId === project.id);
-      const customer = state.customers.find((item) => item.id === project.customerId);
-      const ready = readiness(state, project.id);
-      const canInvoice = ready.invoice.reasons.some((reason) => reason.action?.kind === "generate-invoice");
-      return <div key={project.id}>
-        <div role="row" className="erp-row" style={{ gridTemplateColumns: columns }}>
-          <span><ProjectLink id={project.id} code={project.code} /></span><span>{customer?.name}</span><span>{order?.number}</span>
-          <span>{invoice ? <><strong>{invoice.number}</strong><small>Due {formatDate(invoice.dueAt)}</small></> : <Badge tone={canInvoice ? "info" : "neutral"}>{ready.invoice.summary}</Badge>}</span>
-          <span className="erp-num" style={{ textAlign: "left" }}>{invoice ? formatMoney(invoice.total, invoice.currency) : "—"}</span>
-          <span className="erp-head-actions">{invoice ? <button type="button" className="erp-btn erp-btn-sm" onClick={() => setOutput({ projectId: project.id, kind: "invoice" })}><Printer size={13} /> View invoice</button>
-            : canInvoice ? <button type="button" className="erp-btn erp-btn-primary erp-btn-sm" onClick={() => commit((current) => generateInvoice(current, project.id, nowIso()))}>Create invoice</button> : null}</span>
-        </div>
-      </div>;
-    })}
-  </Rows></section><div style={{ marginTop: 14 }}><Rule>{RULES.invoice} Tax uses the rate in Configuration ({state.settings.taxRate}%).</Rule></div>
-    {output && <OutputDialog state={state} projectId={output.projectId} kind={output.kind} onClose={() => setOutput(null)} />}
-  </>;
-}
-
-/* ---------------- Configuration ---------------- */
-
-export function ConfigurationModule() {
-  const state = useErp();
-  const hydrated = useHydrated();
-  const router = useRouter();
-  const [saved, setSaved] = useState(false);
-  const head = <PageHead eyebrow="Settings" title="Configuration" description="A few demo settings, and the transparent rules every readiness status is calculated from." />;
-  if (!hydrated) return <>{head}<Loading /></>;
-  const set = (patch: Parameters<typeof updateSettings>[1]) => { commit((current) => updateSettings(current, patch)); setSaved(true); };
-  return <>{head}<div className="erp-grid-2">
-    <section className="erp-card erp-card-pad erp-stack">
-      <h2 style={{ fontSize: 16 }}>Demo settings</h2>
-      <Field id="cfg-tax" label="Tax rate for invoices (%)" help="Illustrative only. Applied to new invoices."><input className="erp-input" id="cfg-tax" type="number" min={0} max={30} step={0.5} value={state.settings.taxRate} onChange={(event) => set({ taxRate: Math.min(30, Math.max(0, Number(event.target.value) || 0)) })} /></Field>
-      <Field id="cfg-cur" label="Default currency for new projects"><select className="erp-select" id="cfg-cur" value={state.settings.defaultCurrency} onChange={(event) => set({ defaultCurrency: event.target.value as Currency })}>{CURRENCIES.map((currency) => <option key={currency}>{currency}</option>)}</select></Field>
-      <Field id="cfg-terms" label="Payment terms (days)"><input className="erp-input" id="cfg-terms" type="number" min={0} max={120} value={state.settings.paymentTermsDays} onChange={(event) => set({ paymentTermsDays: Math.min(120, Math.max(0, Math.round(Number(event.target.value) || 0))) })} /></Field>
-      {saved && <p className="erp-ok-text" role="status">Saved in this browser.</p>}
-      <div style={{ paddingTop: 10, borderTop: "1px solid var(--e-border)" }}>
-        <p className="erp-faint" style={{ marginBottom: 10 }}>Demo data is stored only in this browser’s local storage. It is not a shared or secure database.</p>
-        <button type="button" className="erp-btn erp-btn-danger erp-btn-sm" onClick={() => { resetDemo(); router.push("/demo"); }}><RotateCcw size={14} /> Reset demo to empty</button>
-      </div>
-    </section>
-    <section className="erp-card"><div className="erp-card-head"><div><h2>Workflow rules</h2><p>Every status in the demo comes from these.</p></div></div>
-      <ul className="erp-reasons" style={{ padding: 16 }}>{Object.entries(RULES).map(([key, text]) => <li key={key}><span><b style={{ color: "var(--e-text)", textTransform: "capitalize", minWidth: 96 }}>{key}</b> {text}</span></li>)}</ul>
-    </section>
-  </div></>;
 }

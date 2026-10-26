@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Paperclip, Pencil } from "lucide-react";
 import { getState } from "@/components/erp/store";
 import { Field, Modal } from "@/components/erp/ui";
-import { PRODUCTION_STATUSES, isProductionComplete, type ErpState, type StoredFile } from "@/lib/erp/model";
+import { PRODUCTION_STATUSES, customFieldsFor, isProductionComplete, type CustomEntity, type CustomValues, type ErpState, type StoredFile } from "@/lib/erp/model";
 
 /* ---------- Files kept in this browser ---------- */
 
@@ -111,3 +111,29 @@ export function useEditor() {
 }
 
 export const NOT_SAVED = "Nothing was changed, or a value is not valid (for example a number that is already in use).";
+
+/* ---------- Custom fields (configured by the user) ---------- */
+
+export function customEditFields(state: ErpState, entity: CustomEntity): EditField[] {
+  return customFieldsFor(state, entity).map((field) => ({
+    key: `cf:${field.id}`, label: field.label,
+    type: field.type === "select" ? "select" : field.type === "number" ? "number" : field.type === "date" ? "date" : "text",
+    options: field.type === "select" ? ["", ...field.options] : undefined,
+    help: "Custom field",
+  }));
+}
+
+export function customInitial(state: ErpState, entity: CustomEntity, custom?: CustomValues): Record<string, string> {
+  return Object.fromEntries(customFieldsFor(state, entity).map((field) => [`cf:${field.id}`, custom?.[field.id] ?? ""]));
+}
+
+export function pickCustom(values: Record<string, string>): CustomValues {
+  return Object.fromEntries(Object.entries(values).filter(([key]) => key.startsWith("cf:")).map(([key, value]) => [key.slice(3), value]));
+}
+
+/** Shows the custom field values of a record as small label/value pairs. */
+export function CustomValuesView({ state, entity, custom }: { state: ErpState; entity: CustomEntity; custom?: CustomValues }) {
+  const fields = customFieldsFor(state, entity).filter((field) => custom?.[field.id]);
+  if (!fields.length) return null;
+  return <span className="erp-custom-values">{fields.map((field) => <span key={field.id}><small>{field.label}</small>{custom![field.id]}</span>)}</span>;
+}

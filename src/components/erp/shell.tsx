@@ -5,21 +5,22 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
   ArrowLeft, Boxes, Check, Plus, Factory, FileText, FolderKanban, LayoutDashboard, Menu, PackageCheck, Receipt, RotateCcw, Settings2, ShieldCheck,
-  ShoppingCart, Sparkles, Truck, Users, X,
+  ShoppingCart, Sparkles, Truck, Users, X, Layers, Building2,
 } from "lucide-react";
 import { BohMark } from "@/components/brand/boh-logo";
 import { Modal } from "@/components/erp/ui";
 import { commit, resetDemo, useErp, useHydrated } from "@/components/erp/store";
 import { startAnotherProject } from "@/components/erp/guided";
+import { DEFAULT_TABS, DEFAULT_UI, type TabKey } from "@/lib/erp/model";
 import { PHASES, firstStepOfPhase, guideSteps, phaseIndex, workStepCount } from "@/components/erp/guide-steps";
 
-const groups = [
-  { label: "Workspace", items: [{ label: "Overview", href: "/demo/overview", icon: LayoutDashboard }, { label: "Guided demo", href: "/demo", icon: Sparkles }, { label: "Projects", href: "/demo/projects", icon: FolderKanban }] },
-  { label: "Commercial", items: [{ label: "CRM", href: "/demo/crm", icon: Users }, { label: "Sales orders", href: "/demo/sales", icon: ShoppingCart }] },
-  { label: "Engineering", items: [{ label: "Parts", href: "/demo/parts", icon: Boxes }, { label: "Documents", href: "/demo/documents", icon: FileText }] },
-  { label: "Operations", items: [{ label: "Purchasing", href: "/demo/materials", icon: PackageCheck }, { label: "Production", href: "/demo/production", icon: Factory }, { label: "Quality", href: "/demo/quality", icon: ShieldCheck }, { label: "Dispatch", href: "/demo/dispatch", icon: Truck }] },
-  { label: "Finance", items: [{ label: "Invoices", href: "/demo/finance", icon: Receipt }, { label: "Configuration", href: "/demo/configuration", icon: Settings2 }] },
-];
+const TAB_META: Record<TabKey, { href: string; icon: typeof Boxes }> = {
+  overview: { href: "/demo/overview", icon: LayoutDashboard }, guided: { href: "/demo", icon: Sparkles }, projects: { href: "/demo/projects", icon: FolderKanban },
+  crm: { href: "/demo/crm", icon: Users }, sales: { href: "/demo/sales", icon: ShoppingCart }, parts: { href: "/demo/parts", icon: Boxes },
+  documents: { href: "/demo/documents", icon: FileText }, rawMaterials: { href: "/demo/raw-materials", icon: Layers }, purchasing: { href: "/demo/materials", icon: PackageCheck },
+  suppliers: { href: "/demo/suppliers", icon: Building2 }, production: { href: "/demo/production", icon: Factory }, quality: { href: "/demo/quality", icon: ShieldCheck },
+  dispatch: { href: "/demo/dispatch", icon: Truck }, finance: { href: "/demo/finance", icon: Receipt }, configuration: { href: "/demo/configuration", icon: Settings2 },
+};
 
 function isActive(pathname: string, href: string) {
   if (href === "/demo") return pathname === "/demo";
@@ -38,6 +39,8 @@ export function ErpShell({ children }: { children: ReactNode }) {
   const step = hydrated ? Math.min(state.guide.step, steps.length - 1) : 0;
   const furthest = Math.max(step, state.guide.furthest ?? 0);
   const onGuide = pathname === "/demo";
+  const ui = hydrated ? state.settings.ui : DEFAULT_UI;
+  const tabs = hydrated ? state.settings.tabs : DEFAULT_TABS;
   const current = phaseIndex(steps, step);
 
   const goTo = (target: number) => {
@@ -61,21 +64,21 @@ export function ErpShell({ children }: { children: ReactNode }) {
     })}
   </ol>;
 
-  return <div className="erp" data-no-translate>
+  return <div className="erp" data-no-translate data-accent={ui.accent} data-density={ui.density} data-corners={ui.corners} data-sidebar={ui.sidebar} data-nav={ui.nav} data-font={ui.font}>
     <div className="erp-shell">
       <aside className={`erp-side${menuOpen ? " is-open" : ""}`} aria-label="Demo navigation">
         <Link className="erp-brand" href="/demo/overview" onClick={() => setMenuOpen(false)}><BohMark size={28} /><span><b>BOH</b> ERP</span><small>DEMO</small></Link>
-        <nav className="erp-nav">
-          {groups.map((group) => <div className="erp-nav-group" key={group.label}>
-            <span>{group.label}</span>
-            {group.items.map(({ label, href, icon: Icon }) => <div key={href}>
+        <nav className="erp-nav" aria-label="Modules">
+          {tabs.filter((tab) => tab.visible).map((tab) => {
+            const { href, icon: Icon } = TAB_META[tab.key];
+            return <div key={tab.key} className="erp-nav-item">
               <Link href={href} aria-current={isActive(pathname, href) ? "page" : undefined} onClick={() => setMenuOpen(false)}>
-                <Icon size={17} />{label}
+                <Icon size={17} />{tab.label}
                 {href === "/demo" && hydrated && step > 0 && <em>{step > WORK_STEPS ? "Done" : `${step}/${WORK_STEPS}`}</em>}
               </Link>
-              {href === "/demo" && onGuide && phases}
-            </div>)}
-          </div>)}
+              {href === "/demo" && onGuide && ui.nav !== "top" && phases}
+            </div>;
+          })}
         </nav>
         <div className="erp-side-foot">
           {hydrated && state.projects.length > 0 && <button type="button" onClick={() => { startAnotherProject(); setMenuOpen(false); router.push("/demo"); }}><Plus size={15} /> New project</button>}
