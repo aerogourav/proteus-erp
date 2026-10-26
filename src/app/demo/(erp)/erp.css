@@ -84,12 +84,13 @@
 .erp-kpi:nth-child(3) { border-top: 3px solid var(--e-green); }
 .erp-kpi:nth-child(4) { border-top: 3px solid var(--e-ink); }
 .erp-depts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.erp-dept { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto 16px; gap: 12px; align-items: center; padding: 14px 16px; transition: transform .15s ease, border-color .15s ease; }
+.erp-dept { display: grid; grid-template-columns: 38px minmax(0, 1fr) 16px; gap: 12px; align-items: center; padding: 14px 16px; transition: transform .15s ease, border-color .15s ease; }
 .erp-dept:hover { transform: translateY(-2px); border-color: var(--e-accent); }
 .erp-dept-icon { display: grid; width: 38px; height: 38px; place-items: center; color: var(--e-accent-ink); background: rgba(242, 86, 111, .1); border-radius: 12px; }
 .erp-dept:nth-child(3n+2) .erp-dept-icon { color: #A14A12; background: rgba(255, 178, 126, .22); }
 .erp-dept:nth-child(3n) .erp-dept-icon { color: var(--e-ok); background: rgba(46, 158, 98, .12); }
-.erp-dept-body { display: grid; min-width: 0; }
+.erp-dept-body { display: grid; gap: 2px; min-width: 0; }
+.erp-dept-body > span { margin-top: 4px; }
 .erp-dept-body small { color: var(--e-text-3); font-size: 12px; font-weight: 700; }
 .erp-dept-body strong { overflow: hidden; font-size: 14.5px; text-overflow: ellipsis; white-space: nowrap; }
 .erp-dept-arrow { color: var(--e-text-3); }
@@ -129,8 +130,8 @@
 .erp-btn:disabled { cursor: not-allowed; opacity: .45; transform: none; }
 .erp-btn-primary { color: var(--e-ink); background: var(--e-accent); border-color: var(--e-accent); box-shadow: 0 10px 26px -12px rgba(214, 52, 84, .8); }
 .erp-btn-primary:hover { background: #FF7A8E; border-color: #FF7A8E; }
-.erp-btn-dark { color: #fff; background: var(--e-ink); border-color: var(--e-ink); }
-.erp-btn-dark:hover { background: #3B2030; }
+.erp-btn-dark, .erp .erp-btn-dark { color: #fff; background: var(--e-ink); border-color: var(--e-ink); }
+.erp .erp-btn-dark:hover { background: #3B2030; }
 .erp-btn-ghost { background: transparent; border-color: transparent; color: var(--e-text-2); }
 .erp-btn-ghost:hover { color: var(--e-text); background: rgba(255, 255, 255, .6); border-color: var(--e-border); }
 .erp-btn-sm { min-height: 34px; padding: 0 14px; font-size: 13px; }

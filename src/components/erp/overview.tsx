@@ -80,8 +80,7 @@ export function Overview() {
       <div className="erp-depts">
         {depts.map(({ icon: Icon, name, href, value, status }) => <Link key={name} href={`${href}?project=${projectId}`} className="erp-card erp-dept">
           <span className="erp-dept-icon"><Icon size={18} /></span>
-          <span className="erp-dept-body"><small>{name}</small><strong>{value}</strong></span>
-          {status ? <Badge>{status}</Badge> : <span className="erp-faint">Waiting</span>}
+          <span className="erp-dept-body"><small>{name}</small><strong>{value}</strong><span>{status ? <Badge>{status}</Badge> : <span className="erp-faint">Waiting</span>}</span></span>
           <ArrowRight size={15} className="erp-dept-arrow" />
         </Link>)}
       </div>

@@ -240,7 +240,7 @@ export function MaterialsModule() {
   const state = useErp();
   const hydrated = useHydrated();
   const filter = useProjectFilter(state);
-  const head = <PageHead eyebrow="Operations" title="Materials and procurement" description="Material requirements come from the project. Each has a procurement record; production waits until the material is received." />;
+  const head = <PageHead eyebrow="Operations" title="Purchasing" description="Material requirements come from the project. Each has a procurement record; production waits until the material is received." />;
   if (!hydrated) return <>{head}<Loading /></>;
   if (!state.materialRequirements.length) return <>{head}<NoProjects what="material requirements" /></>;
   const reqs = filter ? state.materialRequirements.filter((req) => req.projectId === filter.id) : state.materialRequirements;
