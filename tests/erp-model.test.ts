@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   createInitialState, newDraft, validateStep, firstInvalidStep, createProjectFromDraft, draftFlow, readiness, projectStage, isActiveOrder,
   loadSample, resolve, approveDocument, advanceProcurement, createProductionOrder, advanceProduction, generateInspectionReport, dispatchProject,
-  generateInvoice, addDrawingForLine, suggestProjectCode, parseStoredState, projectRecords, SAMPLE_PROJECT_CODE, type ErpState, type ProjectDraft,
+  generateInvoice, addDrawingForLine, addDocumentToProject, addInspectionRequirement, addMaterialRequirement, suggestProjectCode, parseStoredState, projectRecords, SAMPLE_PROJECT_CODE, type ErpState, type ProjectDraft,
 } from "../src/lib/erp/model.ts";
 
 const NOW = "2026-10-26T10:00:00.000Z";
@@ -160,4 +160,34 @@ test("sample never collides with a visitor project that reused its IDs", () => {
   assert.equal(new Set(state.projects.map((project) => project.code)).size, 4, "project IDs stay unique");
   assert.equal(new Set(state.purchaseOrders.map((order) => order.number)).size, 4, "PO numbers stay unique");
   assert.equal(loadSample(state, NOW).projectId, projectId, "loading again returns the same sample");
+});
+
+test("guided demo: one project moves from order to invoice step by step", () => {
+  let state = createInitialState();
+  assert.deepEqual(state.guide, { step: 0, projectId: null });
+  const draft = { ...validDraft(state), documents: [], inspections: [], materials: [] };
+  const created = createProjectFromDraft(state, draft, NOW);
+  state = created.state;
+  const id = created.projectId;
+  const line = projectRecords(state, id).lineItems[0];
+  state = addDocumentToProject(state, id, { name: "Bracket drawing", type: "Drawing", number: "DRW-TB-1", revision: "A", partId: line.partId, status: "In review" }, NOW);
+  const drawing = projectRecords(state, id).documents[0];
+  assert.equal(drawing.status, "In review");
+  state = approveDocument(state, drawing.id, NOW);
+  state = addInspectionRequirement(state, id, { partId: line.partId, name: "Length", spec: "100 ± 0.1", unit: "mm", acceptance: "Within requirement" }, NOW);
+  state = addMaterialRequirement(state, id, { lineItemId: line.id, material: "Steel bar", quantity: 5, unit: "kg", supplier: "" }, NOW);
+  const purchase = projectRecords(state, id).procurement[0];
+  state = advanceProcurement(advanceProcurement(state, purchase.id, NOW), purchase.id, NOW);
+  assert.equal(projectRecords(state, id).procurement[0].status, "Received");
+  state = createProductionOrder(state, line.id, NOW);
+  const order = projectRecords(state, id).productionOrders[0];
+  assert.equal(dispatchProject(state, id, NOW), state, "cannot dispatch before production and inspection");
+  state = advanceProduction(advanceProduction(state, order.id, NOW), order.id, NOW);
+  state = generateInspectionReport(state, id, NOW);
+  state = dispatchProject(state, id, NOW);
+  state = generateInvoice(state, id, NOW);
+  const records = projectRecords(state, id);
+  assert.equal(records.dispatches.length, 1);
+  assert.equal(records.invoices.length, 1);
+  assert.equal(records.invoices[0].subtotal, 125);
 });

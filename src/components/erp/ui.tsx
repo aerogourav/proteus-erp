@@ -32,9 +32,9 @@ export function ReadinessBadge({ state, label }: { state: ReadinessState; label?
 }
 
 export function ReadinessIcon({ state }: { state: ReadinessState }) {
-  if (state === "complete") return <CheckCircle2 size={16} color="#34D399" aria-hidden="true" />;
-  if (state === "incomplete") return <CircleDashed size={16} color="#FBBF24" aria-hidden="true" />;
-  return <AlertTriangle size={16} color="#F87171" aria-hidden="true" />;
+  if (state === "complete") return <CheckCircle2 size={16} color="#0E7A52" aria-hidden="true" />;
+  if (state === "incomplete") return <CircleDashed size={16} color="#B26B00" aria-hidden="true" />;
+  return <AlertTriangle size={16} color="#B42318" aria-hidden="true" />;
 }
 
 export function Rule({ children }: { children: ReactNode }) {

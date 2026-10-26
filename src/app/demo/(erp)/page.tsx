@@ -1,5 +1,5 @@
-import { DemoEntry } from "@/components/erp/entry";
+import { GuidedDemo } from "@/components/erp/guided";
 
-export default function DemoEntryPage() {
-  return <DemoEntry />;
+export default function DemoPage() {
+  return <GuidedDemo />;
 }

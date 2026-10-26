@@ -75,6 +75,8 @@ export type ErpState = {
   invoices: Invoice[];
   activity: ActivityEvent[];
   draft: ProjectDraft | null;
+  /** Guided demo position: the visitor's single project moves through every step. */
+  guide: { step: number; projectId: string | null };
 };
 
 /* ============================== Helpers ============================== */
@@ -86,6 +88,7 @@ export function createInitialState(): ErpState {
     version: 2, seq: 1, settings: { taxRate: 19, defaultCurrency: "EUR", paymentTermsDays: 30 },
     customers: [], purchaseOrders: [], projects: [], lineItems: [], parts: [], revisions: [], documents: [], inspectionRequirements: [],
     materialRequirements: [], procurement: [], productionOrders: [], inspectionReports: [], dispatches: [], invoices: [], activity: [], draft: null,
+    guide: { step: 0, projectId: null },
   };
 }
 

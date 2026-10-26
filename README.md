@@ -84,16 +84,16 @@ src/
 
 The demo shows one principle: **enter project information once, connect it across the business, and generate outputs from the same data.**
 
-- `/demo` explains the concept and offers **Create a Project** or **Explore Sample Project**.
-- `/demo/new` is a 7-step wizard (project, customer and order, line items, documents, inspection, materials, review). A live panel shows where each value will be stored. Progress is saved in the browser.
-- `/demo/projects/[id]` is the project workspace. Readiness is calculated from linked records with transparent rules; blocked items show the reason and a fix. Five illustrative printable outputs come from the same data: PO summary, production order, inspection report, dispatch note and invoice.
+- `/demo` is a guided journey for **one project the visitor creates** (no pre-filled sample). 17 small steps, one or two fields or one button each, move it through Sales, Engineering, Quality planning, Purchasing, Production, Final inspection, Dispatch and Invoice. A side panel shows the single project record growing department by department. The sidebar lists the phases; reached phases can be revisited. Steps live in `src/components/erp/guide-steps.ts`, the UI in `guided.tsx`.
+- Business rules still apply: production needs an approved drawing and received material; dispatch needs completed production and a passed inspection report. The finish screen opens five illustrative printable outputs (PO summary, production order, inspection report, dispatch note, invoice).
+- `/demo/projects/[id]` shows the full project record with readiness rules. The old wizard URL `/demo/new` redirects to `/demo`.
 - Module views: `/demo/projects`, `/crm`, `/sales` (purchase orders vs active orders), `/parts`, `/documents`, `/materials`, `/production`, `/quality`, `/dispatch`, `/finance`, `/configuration`. Add `?project=<id>` to filter a module to one project.
 - The data model, rules and actions live in `src/lib/erp/model.ts` (no React; unit-tested in `tests/`). UI components are in `src/components/erp/`; styles in `src/app/demo/(erp)/erp.css`.
 - The earlier workspace and the order-journey simulation are preserved at `/demo/classic` and `/demo/classic/journey`. Old `/demo/...` detail URLs redirect there.
 
 ### Demonstration limits
 
-All companies, people, parts and values are fictional. Demo data is stored only in the visitor's browser (`localStorage` key `boh-erp-demo-v2`); it is not encrypted, shared, or a production database. "Reset demo" clears it. Documents are metadata only; no files are uploaded. Inspection results and invoices are illustrative and not real measurements or tax-compliant invoices. There is no authentication, server-side authorization, shared backend or AI model. Do not enter confidential information.
+All companies, people, parts and values are fictional. Demo data is stored only in the visitor's browser (`localStorage` key `boh-erp-demo-v2`); it is not encrypted, shared, or a production database. "Restart demo" clears it. Documents are metadata only; no files are uploaded. Inspection results and invoices are illustrative and not real measurements or tax-compliant invoices. There is no authentication, server-side authorization, shared backend or AI model. Do not enter confidential information.
 
 ## Available scripts
 

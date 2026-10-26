@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { ArrowLeft, FileText, Plus, PlayCircle, Printer, RotateCcw, Sparkles, X } from "lucide-react";
+import { ArrowLeft, FileText, Plus, Printer, RotateCcw, Sparkles, X } from "lucide-react";
 import { AddInspectionDialog } from "@/components/erp/forms";
 import { OutputDialog, type OutputKind } from "@/components/erp/outputs";
-import { commit, getState, nowIso, resetDemo, useErp, useHydrated } from "@/components/erp/store";
+import { commit, nowIso, resetDemo, useErp, useHydrated } from "@/components/erp/store";
 import { Badge, EmptyState, Field, PageHead, ProjectLink, ReadinessBadge, Rule } from "@/components/erp/ui";
 import {
   CURRENCIES, DOC_STATUSES, RULES, advanceProcurement, advanceProduction, createProductionOrder, dispatchProject, formatDate, formatMoney,
-  generateInspectionReport, generateInvoice, isActiveOrder, lineEngineeringReady, lineMaterialReady, loadSample, orderOperationalState,
+  generateInspectionReport, generateInvoice, isActiveOrder, lineEngineeringReady, lineMaterialReady, orderOperationalState,
   partNumber, projectStage, readiness, revisionLabel, setDocumentStatus, setLineItemPrice, updateSettings,
   type Currency, type DocStatus, type ErpState, type Project,
 } from "@/lib/erp/model";
@@ -36,11 +36,8 @@ function FilterBar({ project, base }: { project: Project | null; base: string })
 }
 
 function NoProjects({ what }: { what: string }) {
-  const router = useRouter();
-  const explore = () => { const result = loadSample(getState(), nowIso()); commit(() => result.state); router.push(`/demo/projects/${result.projectId}`); };
-  return <div className="erp-card"><EmptyState title={`No ${what} yet`} text={`${what[0].toUpperCase()}${what.slice(1)} appear here automatically when a project is created. Nothing needs to be entered twice.`}>
-    <Link className="erp-btn erp-btn-primary" href="/demo/new"><Sparkles size={15} /> Create a project</Link>
-    <button type="button" className="erp-btn" onClick={explore}><PlayCircle size={15} /> Explore sample project</button>
+  return <div className="erp-card"><EmptyState title={`No ${what} yet`} text={`${what[0].toUpperCase()}${what.slice(1)} appear here automatically when you create a project in the guided demo. Nothing needs to be entered twice.`}>
+    <Link className="erp-btn erp-btn-primary" href="/demo"><Sparkles size={15} /> Start the guided demo</Link>
   </EmptyState></div>;
 }
 
@@ -62,7 +59,7 @@ type OutputState = { projectId: string; kind: OutputKind; productionOrderId?: st
 export function ProjectsModule() {
   const state = useErp();
   const hydrated = useHydrated();
-  const head = <PageHead eyebrow="Workspace" title="Projects" description="The single record every module links to. Open a project to see all of its connected information." actions={<Link className="erp-btn erp-btn-primary" href="/demo/new"><Plus size={15} /> Create a project</Link>} />;
+  const head = <PageHead eyebrow="Workspace" title="Projects" description="The single record every module links to. Open a project to see all of its connected information." actions={<Link className="erp-btn erp-btn-primary" href="/demo"><Plus size={15} /> Guided demo</Link>} />;
   if (!hydrated) return <>{head}<Loading /></>;
   if (!state.projects.length) return <>{head}<NoProjects what="projects" /></>;
   return <>{head}<section className="erp-card"><Rows columns="minmax(0,2fr) minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) 150px" head={["Project", "Customer", "Purchase order", "Delivery", "Status"]}>
@@ -102,7 +99,7 @@ export function CrmModule() {
         </button>
         {open && <div className="erp-detail">
           <p className="erp-label" style={{ marginBottom: 8 }}>Linked projects and purchase orders</p>
-          <ul className="erp-reasons">{orders.map((order) => { const project = projectOf(state, order.projectId); return <li key={order.id}><span><b style={{ color: "#E7ECF5" }}>{order.number}</b> · {project ? <ProjectLink id={project.id} code={project.code} /> : null} {project?.name} · due {formatDate(order.deliveryDate)} · {orderOperationalState(state, order)}</span></li>; })}</ul>
+          <ul className="erp-reasons">{orders.map((order) => { const project = projectOf(state, order.projectId); return <li key={order.id}><span><b style={{ color: "var(--e-text)" }}>{order.number}</b> · {project ? <ProjectLink id={project.id} code={project.code} /> : null} {project?.name} · due {formatDate(order.deliveryDate)} · {orderOperationalState(state, order)}</span></li>; })}</ul>
         </div>}
       </div>;
     })}
@@ -452,7 +449,7 @@ export function ConfigurationModule() {
       </div>
     </section>
     <section className="erp-card"><div className="erp-card-head"><div><h2>Workflow rules</h2><p>Every status in the demo comes from these.</p></div></div>
-      <ul className="erp-reasons" style={{ padding: 16 }}>{Object.entries(RULES).map(([key, text]) => <li key={key}><span><b style={{ color: "#E7ECF5", textTransform: "capitalize", minWidth: 96 }}>{key}</b> {text}</span></li>)}</ul>
+      <ul className="erp-reasons" style={{ padding: 16 }}>{Object.entries(RULES).map(([key, text]) => <li key={key}><span><b style={{ color: "var(--e-text)", textTransform: "capitalize", minWidth: 96 }}>{key}</b> {text}</span></li>)}</ul>
     </section>
   </div></>;
 }
