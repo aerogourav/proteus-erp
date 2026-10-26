@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   createInitialState, newDraft, validateStep, firstInvalidStep, createProjectFromDraft, draftFlow, readiness, projectStage, isActiveOrder,
   loadSample, resolve, approveDocument, advanceProcurement, createProductionOrder, advanceProduction, generateInspectionReport, dispatchProject,
-  generateInvoice, addDrawingForLine, setLineItemQuantity, setLineItemPrice, reuseCatalog, addDocumentToProject, addInspectionRequirement, addMaterialRequirement, suggestProjectCode, parseStoredState, projectRecords, SAMPLE_PROJECT_CODE, type ErpState, type ProjectDraft,
+  generateInvoice, addDrawingForLine, setLineItemQuantity, setLineItemPrice, reuseCatalog, setProductionStatus, isProductionComplete, updateCustomer, updatePurchaseOrder, updateDocument, updateMaterial, updateProductionOrder, updateInspectionRequirement, removeInspectionRequirement, addDocumentToProject, addInspectionRequirement, addMaterialRequirement, suggestProjectCode, parseStoredState, projectRecords, SAMPLE_PROJECT_CODE, type ErpState, type ProjectDraft,
 } from "../src/lib/erp/model.ts";
 
 const NOW = "2026-10-26T10:00:00.000Z";
@@ -256,4 +256,42 @@ test("multi-part order: production details, inspection results, editable quantit
   assert.deepEqual(catalog.materials.map((item) => item.material).sort(), ["Steel bar", "Steel plate"]);
   assert.equal(catalog.parameters.length, 3);
   assert.deepEqual(catalog.suppliers, ["Northline"]);
+});
+
+test("records can be edited later from their tabs; production status is free-form", () => {
+  const base = createInitialState();
+  let { state, projectId } = createProjectFromDraft(base, validDraft(base), NOW);
+  const r = () => projectRecords(state, projectId);
+  state = updateCustomer(state, r().customer!.id, { name: "Renamed Customer AG", contact: "buyer@renamed.example" }, NOW);
+  assert.equal(r().customer?.name, "Renamed Customer AG");
+  state = updatePurchaseOrder(state, r().purchaseOrders[0].id, { number: "po-t-2", deliveryDate: "2026-12-20" }, NOW);
+  assert.equal(r().purchaseOrders[0].number, "PO-T-2");
+  assert.equal(updatePurchaseOrder(state, r().purchaseOrders[0].id, { number: "PO-T-2", deliveryDate: "2020-01-01" }, NOW), state, "delivery before PO date refused");
+
+  const doc = r().documents[0];
+  state = approveDocument(state, doc.id, NOW);
+  state = updateDocument(state, doc.id, { name: doc.name, number: doc.number, revision: doc.revision, file: { name: "new.pdf", size: 10, type: "application/pdf" } }, NOW);
+  assert.equal(r().documents[0].file?.name, "new.pdf");
+  assert.equal(r().documents[0].status, "In review", "a changed file goes back to review");
+
+  state = updateMaterial(state, r().materialRequirements[0].id, { material: "Aluminium bar", quantity: 7, unit: "kg", supplier: "Metals Co" }, NOW);
+  assert.equal(r().materialRequirements[0].material, "Aluminium bar");
+  assert.equal(r().procurement[0].supplier, "Metals Co");
+
+  const req = r().inspectionRequirements[0];
+  state = updateInspectionRequirement(state, req.id, { name: "Overall length", spec: "100 ± 0.2", unit: "mm" }, NOW);
+  assert.equal(r().inspectionRequirements[0].name, "Overall length");
+
+  state = createProductionOrder(state, r().lineItems[0].id, NOW);
+  const order = r().productionOrders[0];
+  state = setProductionStatus(state, order.id, "Waiting for heat treatment", NOW);
+  assert.equal(r().productionOrders[0].status, "Waiting for heat treatment");
+  assert.equal(readiness(state, projectId).production.state, "incomplete");
+  state = updateProductionOrder(state, order.id, { quantity: 11, startDate: "2026-11-03", notes: "Night shift", status: "Completed" }, NOW);
+  assert.ok(isProductionComplete(r().productionOrders[0].status));
+  assert.equal(r().productionOrders[0].quantity, 11);
+  assert.equal(readiness(state, projectId).production.state, "complete");
+
+  state = removeInspectionRequirement(state, req.id, NOW);
+  assert.equal(r().inspectionRequirements.length, 0);
 });

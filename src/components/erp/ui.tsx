@@ -16,7 +16,7 @@ type Tone = "ok" | "warn" | "bad" | "info" | "neutral";
 
 const toneFor: Record<string, Tone> = {
   Approved: "ok", Complete: "ok", Received: "ok", Passed: "ok", Dispatched: "ok", Invoiced: "ok", "Ready to dispatch": "ok", "Ready for production": "info", Issued: "ok",
-  "In review": "warn", Ordered: "warn", "In progress": "info", "In production": "info", Quality: "info", Planned: "neutral", Draft: "neutral",
+  "In review": "warn", Ordered: "warn", "In progress": "info", Running: "info", "In process": "info", Completed: "ok", "In production": "info", Quality: "info", Planned: "neutral", Draft: "neutral",
   "Not ordered": "bad", Engineering: "warn", Procurement: "warn", Blocked: "bad", Failed: "bad", "Not ready": "bad",
 };
 

@@ -4,12 +4,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
-  ArrowLeft, Boxes, Check, Factory, FileText, FolderKanban, LayoutDashboard, Menu, PackageCheck, Receipt, RotateCcw, Settings2, ShieldCheck,
+  ArrowLeft, Boxes, Check, Plus, Factory, FileText, FolderKanban, LayoutDashboard, Menu, PackageCheck, Receipt, RotateCcw, Settings2, ShieldCheck,
   ShoppingCart, Sparkles, Truck, Users, X,
 } from "lucide-react";
 import { BohMark } from "@/components/brand/boh-logo";
 import { Modal } from "@/components/erp/ui";
 import { commit, resetDemo, useErp, useHydrated } from "@/components/erp/store";
+import { startAnotherProject } from "@/components/erp/guided";
 import { PHASES, firstStepOfPhase, guideSteps, phaseIndex, workStepCount } from "@/components/erp/guide-steps";
 
 const groups = [
@@ -77,7 +78,8 @@ export function ErpShell({ children }: { children: ReactNode }) {
           </div>)}
         </nav>
         <div className="erp-side-foot">
-          <button type="button" onClick={() => setConfirmReset(true)}><RotateCcw size={15} /> Restart demo</button>
+          {hydrated && state.projects.length > 0 && <button type="button" onClick={() => { startAnotherProject(); setMenuOpen(false); router.push("/demo"); }}><Plus size={15} /> New project</button>}
+          <button type="button" onClick={() => setConfirmReset(true)}><RotateCcw size={15} /> Clear demo data</button>
           <Link href="/"><ArrowLeft size={15} /> Back to website</Link>
           <p className="erp-side-note">Fictional data, stored only in this browser. Please don’t enter confidential information.</p>
         </div>
@@ -93,11 +95,11 @@ export function ErpShell({ children }: { children: ReactNode }) {
       </div>
     </div>
     {confirmReset && <Modal label="Restart demo" onClose={() => setConfirmReset(false)}>
-      <h2>Start again?</h2>
-      <p>This removes your project from this browser and takes you back to the first step.</p>
+      <h2>Clear all demo data?</h2>
+      <p>This removes all your projects from this browser and takes you back to the start. To keep them, use “New project” instead.</p>
       <div className="erp-head-actions" style={{ marginTop: 20, justifyContent: "flex-end" }}>
         <button type="button" className="erp-btn erp-btn-ghost" onClick={() => setConfirmReset(false)}>Cancel</button>
-        <button type="button" className="erp-btn erp-btn-danger" onClick={doReset}><RotateCcw size={15} /> Restart demo</button>
+        <button type="button" className="erp-btn erp-btn-danger" onClick={doReset}><RotateCcw size={15} /> Clear demo data</button>
       </div>
     </Modal>}
   </div>;

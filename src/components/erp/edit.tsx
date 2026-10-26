@@ -1,0 +1,113 @@
+"use client";
+
+import { useState } from "react";
+import { Paperclip, Pencil } from "lucide-react";
+import { getState } from "@/components/erp/store";
+import { Field, Modal } from "@/components/erp/ui";
+import { PRODUCTION_STATUSES, isProductionComplete, type ErpState, type StoredFile } from "@/lib/erp/model";
+
+/* ---------- Files kept in this browser ---------- */
+
+const FILE_DATA_LIMIT = 1024 * 1024;
+const TOTAL_FILE_DATA_LIMIT = 3 * 1024 * 1024;
+
+function storedFileBytes(state: ErpState) {
+  return [...state.documents, ...(state.draft?.documents ?? [])].reduce((sum, doc) => sum + (doc.file?.data?.length ?? 0), 0);
+}
+
+/** Reads a file for local storage. Files over 1 MB (or when space runs low) keep only name and size. */
+export function readStoredFile(file: File): Promise<StoredFile> {
+  const meta: StoredFile = { name: file.name, size: file.size, type: file.type || "application/octet-stream" };
+  const fits = file.size <= FILE_DATA_LIMIT && storedFileBytes(getState()) + file.size * 1.4 <= TOTAL_FILE_DATA_LIMIT;
+  if (!fits) return Promise.resolve(meta);
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? { ...meta, data: reader.result } : meta);
+    reader.onerror = () => resolve(meta);
+    reader.readAsDataURL(file);
+  });
+}
+
+export const DRAWING_ACCEPT = ".pdf,.png,.jpg,.jpeg,.svg,.dxf,.dwg,.step,.stp,.igs,.iges";
+
+/* ---------- Production status: presets or custom text ---------- */
+
+export function StatusSelect({ id, value, onChange, label }: { id: string; value: string; onChange: (status: string) => void; label?: string }) {
+  const preset = (PRODUCTION_STATUSES as readonly string[]).includes(value) || value === "Complete";
+  const [custom, setCustom] = useState(!preset);
+  const [text, setText] = useState(preset ? "" : value);
+  const selectValue = custom ? "__custom" : value === "Complete" ? "Completed" : value;
+  return <span className="erp-status-select">
+    <select className="erp-select" id={id} aria-label={label ?? "Production status"} value={selectValue} onChange={(event) => {
+      if (event.target.value === "__custom") { setCustom(true); return; }
+      setCustom(false); onChange(event.target.value);
+    }}>
+      {PRODUCTION_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
+      <option value="__custom">Custom…</option>
+    </select>
+    {custom && <input className="erp-input" aria-label="Custom status" placeholder="e.g. Waiting for heat treatment" maxLength={40} value={text} onChange={(event) => setText(event.target.value)} onBlur={() => text.trim() && onChange(text.trim())} onKeyDown={(event) => { if (event.key === "Enter" && text.trim()) onChange(text.trim()); }} />}
+  </span>;
+}
+
+export const statusTone = (status: string) => isProductionComplete(status) ? "ok" as const : status === "Planned" ? "neutral" as const : "info" as const;
+
+/* ---------- Generic edit dialog ---------- */
+
+export type EditField = { key: string; label: string; type?: "text" | "number" | "date" | "select" | "file"; options?: string[]; help?: string; required?: boolean; list?: string[] };
+
+export function EditButton({ label = "Edit", onClick }: { label?: string; onClick: () => void }) {
+  return <button type="button" className="erp-btn erp-btn-ghost erp-btn-sm" onClick={onClick}><Pencil size={13} /> {label}</button>;
+}
+
+/** onSave returns an error message, or null when saved. */
+export function EditDialog({ title, fields, initial, onSave, onClose }: { title: string; fields: EditField[]; initial: Record<string, string>; onSave: (values: Record<string, string>, file?: StoredFile | null) => string | null; onClose: () => void }) {
+  const [values, setValues] = useState(initial);
+  const [file, setFile] = useState<StoredFile | null | undefined>(undefined);
+  const [error, setError] = useState("");
+  const save = () => {
+    const missing = fields.find((field) => field.required && field.type !== "file" && !values[field.key]?.trim());
+    if (missing) { setError(`${missing.label} is required.`); return; }
+    const result = onSave(values, file);
+    if (result) { setError(result); return; }
+    onClose();
+  };
+  return <Modal label={title} onClose={onClose}>
+    <form className="erp-stack" style={{ gap: 14 }} onSubmit={(event) => { event.preventDefault(); save(); }}>
+      <h2>{title}</h2>
+      {fields.map((field) => {
+        const id = `edit-${field.key}`;
+        if (field.type === "file") return <div key={field.key} className="erp-field">
+          <label htmlFor={id}>{field.label}</label>
+          <label className="erp-upload"><Paperclip size={18} /><span>{file ? <><b>{file.name}</b> · {Math.round(file.size / 1024)} KB{file.data ? "" : " · name only"}</> : values[field.key] ? <>Current: <b>{values[field.key]}</b>. Choose a file to replace it.</> : "Choose a file"}</span>
+            <input id={id} type="file" accept={DRAWING_ACCEPT} onChange={async (event) => { const picked = event.target.files?.[0]; if (picked) setFile(await readStoredFile(picked)); }} /></label>
+          {field.help && <span className="erp-help">{field.help}</span>}
+        </div>;
+        if (field.type === "select") return <Field key={field.key} id={id} label={field.label} help={field.help}><select className="erp-select" id={id} value={values[field.key] ?? ""} onChange={(event) => setValues({ ...values, [field.key]: event.target.value })}>{field.options?.map((option) => <option key={option}>{option}</option>)}</select></Field>;
+        return <Field key={field.key} id={id} label={field.label} help={field.help}>
+          <input className="erp-input" id={id} type={field.type === "date" ? "date" : "text"} inputMode={field.type === "number" ? "decimal" : undefined} list={field.list ? `${id}-list` : undefined} value={values[field.key] ?? ""} onChange={(event) => setValues({ ...values, [field.key]: event.target.value })} />
+          {field.list && <datalist id={`${id}-list`}>{field.list.map((option) => <option key={option} value={option} />)}</datalist>}
+        </Field>;
+      })}
+      {error && <p className="erp-error" role="alert">{error}</p>}
+      <div className="erp-head-actions" style={{ justifyContent: "flex-end" }}>
+        <button type="button" className="erp-btn erp-btn-ghost" onClick={onClose}>Cancel</button>
+        <button type="submit" className="erp-btn erp-btn-primary">Save changes</button>
+      </div>
+    </form>
+  </Modal>;
+}
+
+/** Applies a pure update and reports whether it was accepted. */
+export function tryCommit(commitFn: (update: (state: ErpState) => ErpState) => boolean, update: (state: ErpState) => ErpState, message: string): string | null {
+  return commitFn(update) ? null : message;
+}
+
+export type EditSpec = { title: string; fields: EditField[]; initial: Record<string, string>; onSave: (values: Record<string, string>, file?: StoredFile | null) => string | null };
+
+/** One edit dialog per screen: `open(spec)` shows it, `dialog` renders it. */
+export function useEditor() {
+  const [spec, setSpec] = useState<EditSpec | null>(null);
+  return { open: setSpec, dialog: spec ? <EditDialog {...spec} onClose={() => setSpec(null)} /> : null };
+}
+
+export const NOT_SAVED = "Nothing was changed, or a value is not valid (for example a number that is already in use).";

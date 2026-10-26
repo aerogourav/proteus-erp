@@ -2,16 +2,20 @@
 
 import Link from "next/link";
 import { ArrowRight, Boxes, Factory, FileText, PackageCheck, Receipt, ShieldCheck, ShoppingCart, Sparkles, Truck, Users } from "lucide-react";
-import { GuideLink } from "@/components/erp/guide-link";
+import { GuideLink, focusProject } from "@/components/erp/guide-link";
+import { startAnotherProject } from "@/components/erp/guided";
+import { commit } from "@/components/erp/store";
+import { useRouter } from "next/navigation";
 import { guideSteps, workStepCount } from "@/components/erp/guide-steps";
 import { useErp, useHydrated } from "@/components/erp/store";
 import { Badge, EmptyState, PageHead } from "@/components/erp/ui";
-import { STAGE_ORDER, formatDate, formatMoney, partNumber, projectRecords, projectStage, revisionLabel } from "@/lib/erp/model";
+import { STAGE_ORDER, isProductionComplete, formatDate, formatMoney, partNumber, projectRecords, projectStage, revisionLabel } from "@/lib/erp/model";
 
 /** Overview: what the visitor's project looks like across every department. Read-only. */
 export function Overview() {
   const state = useErp();
   const hydrated = useHydrated();
+  const router = useRouter();
   const head = <PageHead eyebrow="Workspace" title="Overview" description="Everything your project has touched, across every department. Changes are made in the guided demo." />;
   if (!hydrated) return <>{head}<p className="erp-muted" role="status">Loading…</p></>;
 
@@ -29,7 +33,7 @@ export function Overview() {
   const approved = drawings.filter((doc) => doc.status === "Approved").length;
   const received = r.procurement.filter((item) => item.status === "Received").length;
   const orders = r.productionOrders;
-  const completeOrders = orders.filter((order) => order.status === "Complete").length;
+  const completeOrders = orders.filter((order) => isProductionComplete(order.status)).length;
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
   const report = r.inspectionReports[0];
   const dispatch = r.dispatches[0];
@@ -58,7 +62,15 @@ export function Overview() {
     { icon: Receipt, name: "Finance", href: "/demo/finance", value: invoice?.number ?? "Not invoiced", status: invoice ? "Invoiced" : "" },
   ];
 
-  return <>{head}<div className="erp-stack">
+  const switcher = <div className="erp-switcher">
+    <label htmlFor="ov-switch">Project</label>
+    <select className="erp-select" id="ov-switch" value={projectId} onChange={(event) => commit((value) => focusProject(value, event.target.value))}>
+      {[...state.projects].reverse().map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}
+    </select>
+    <button type="button" className="erp-btn erp-btn-sm" onClick={() => { startAnotherProject(); router.push("/demo"); }}>+ New project</button>
+  </div>;
+
+  return <>{head}{switcher}<div className="erp-stack">
     <section className="erp-card erp-project-head" aria-labelledby="ov-project">
       <div className="erp-head" style={{ margin: 0 }}>
         <div><span className="erp-eyebrow">{project.code} · {r.customer?.name}</span><h2 id="ov-project" style={{ fontSize: 26 }}>{project.name}</h2></div>

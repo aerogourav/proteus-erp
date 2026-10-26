@@ -17,7 +17,10 @@ export type DocSource = "sample" | "metadata" | "upload";
 /** A file kept in this browser only. `data` (a data URL) is omitted for large files. */
 export type StoredFile = { name: string; size: number; type: string; data?: string };
 export type ProcurementStatus = "Not ordered" | "Ordered" | "Received";
-export type ProductionStatus = "Planned" | "In progress" | "Complete";
+/** Preset statuses; any custom text is allowed too. "Completed" (or the older "Complete") counts as finished. */
+export type ProductionStatus = string;
+export const PRODUCTION_STATUSES = ["Planned", "Running", "In process", "Completed"] as const;
+export const isProductionComplete = (status: string) => status === "Completed" || status === "Complete";
 
 export const DOC_TYPES: DocType[] = ["Drawing", "Specification", "Bill of materials", "Inspection plan"];
 export const DOC_STATUSES: DocStatus[] = ["Draft", "In review", "Approved"];
@@ -509,11 +512,11 @@ export function readiness(state: ErpState, projectId: string): ProjectReadiness 
     if (!order) {
       const warnings = [!lineEngineeringReady(state, projectId, line) ? "drawing not approved yet" : "", !lineMaterialReady(state, line) ? "material not received yet" : ""].filter(Boolean);
       prodReasons.push({ text: `${label} has no production order${warnings.length ? ` (${warnings.join(", ")})` : ""}.`, action: { kind: "create-production-order", lineItemId: line.id, label: "Create production order" } });
-    } else if (order.status !== "Complete") {
-      prodReasons.push({ text: `${order.number} (${label}) is ${order.status.toLowerCase()}.`, action: { kind: "advance-production", productionOrderId: order.id, label: order.status === "Planned" ? "Start production" : "Complete production" } });
+    } else if (!isProductionComplete(order.status)) {
+      prodReasons.push({ text: `${order.number} (${label}) is ${order.status.toLowerCase()}.`, action: { kind: "advance-production", productionOrderId: order.id, label: "Update status" } });
     }
   }
-  const completeOrders = records.productionOrders.filter((item) => item.status === "Complete").length;
+  const completeOrders = records.productionOrders.filter((item) => isProductionComplete(item.status)).length;
   const productionDone = lineItems.length > 0 && !prodReasons.length;
   const production: Readiness = productionDone ? { state: "complete", summary: "All production complete", reasons: [] } : { state: records.productionOrders.length ? "incomplete" : "blocked", summary: `${completeOrders} of ${lineItems.length} complete`, reasons: prodReasons };
 
@@ -685,10 +688,10 @@ export function createProductionOrder(state: ErpState, lineItemId: string, now: 
 
 export function advanceProduction(state: ErpState, productionOrderId: string, now: string): ErpState {
   const order = state.productionOrders.find((item) => item.id === productionOrderId);
-  if (!order || order.status === "Complete") return state;
-  const status: ProductionStatus = order.status === "Planned" ? "In progress" : "Complete";
+  if (!order || isProductionComplete(order.status)) return state;
+  const status: ProductionStatus = order.status === "Planned" ? "Running" : "Completed";
   const next = { ...state, productionOrders: touch(state.productionOrders, productionOrderId, (item) => ({ ...item, status })) };
-  return log(next, now, "production", `${order.number} ${status === "Complete" ? "completed" : "started"}`, order.projectId);
+  return log(next, now, "production", `${order.number} ${isProductionComplete(status) ? "completed" : "started"}`, order.projectId);
 }
 
 export function generateInspectionReport(state: ErpState, projectId: string, now: string, measured: Record<string, { observed: string; pass: boolean }> = {}): ErpState {
@@ -780,6 +783,94 @@ export function setLineItemQuantity(state: ErpState, lineItemId: string, quantit
   if (state.dispatches.some((item) => item.projectId === line.projectId)) return state;
   const next = recalcOrderValue({ ...state, lineItems: touch(state.lineItems, lineItemId, (item) => ({ ...item, quantity })) }, line.projectId);
   return log(next, now, "sales", `Quantity for ${partNumber(state, line.partId)} changed to ${quantity}`, line.projectId);
+}
+
+/* ---------- Editing records later, from their tabs ---------- */
+
+const clean = (value: string | undefined) => (value ?? "").trim();
+
+export function setProductionStatus(state: ErpState, orderId: string, status: string, now: string): ErpState {
+  const order = state.productionOrders.find((item) => item.id === orderId);
+  const value = clean(status).slice(0, 40);
+  if (!order || !value || order.status === value) return state;
+  const next = { ...state, productionOrders: touch(state.productionOrders, orderId, (item) => ({ ...item, status: value })) };
+  return log(next, now, "production", `${order.number} status: ${value}`, order.projectId);
+}
+
+export function updateProductionOrder(state: ErpState, orderId: string, input: { quantity: number; startDate: string; notes: string; status: string }, now: string): ErpState {
+  const order = state.productionOrders.find((item) => item.id === orderId);
+  if (!order || !Number.isInteger(input.quantity) || input.quantity <= 0 || !clean(input.status)) return state;
+  const next = { ...state, productionOrders: touch(state.productionOrders, orderId, (item) => ({ ...item, quantity: input.quantity, startDate: input.startDate || undefined, notes: clean(input.notes) || undefined, status: clean(input.status).slice(0, 40) })) };
+  return log(next, now, "production", `${order.number} updated`, order.projectId);
+}
+
+export function updateCustomer(state: ErpState, customerId: string, input: { name: string; contact: string }, now: string): ErpState {
+  const customer = state.customers.find((item) => item.id === customerId);
+  const name = clean(input.name).replace(/\s+/g, " ");
+  if (!customer || !name) return state;
+  if (state.customers.some((item) => item.id !== customerId && norm(item.name) === norm(name))) return state;
+  const next = { ...state, customers: touch(state.customers, customerId, (item) => ({ ...item, name, contact: clean(input.contact) })) };
+  return log(next, now, "crm", `Customer ${name} updated`, state.projects.find((project) => project.customerId === customerId)?.id ?? null);
+}
+
+export function updateProject(state: ErpState, projectId: string, input: { name: string; description: string }, now: string): ErpState {
+  const project = state.projects.find((item) => item.id === projectId);
+  if (!project || !clean(input.name)) return state;
+  const next = { ...state, projects: touch(state.projects, projectId, (item) => ({ ...item, name: clean(input.name), description: clean(input.description) })) };
+  return log(next, now, "projects", `Project ${project.code} updated`, projectId);
+}
+
+export function updatePurchaseOrder(state: ErpState, orderId: string, input: { number: string; deliveryDate: string }, now: string): ErpState {
+  const order = state.purchaseOrders.find((item) => item.id === orderId);
+  const number = normCode(input.number);
+  if (!order || !CODE_PATTERN.test(number) || !input.deliveryDate || input.deliveryDate < order.poDate) return state;
+  if (state.purchaseOrders.some((item) => item.id !== orderId && normCode(item.number) === number)) return state;
+  const next = { ...state, purchaseOrders: touch(state.purchaseOrders, orderId, (item) => ({ ...item, number, deliveryDate: input.deliveryDate })) };
+  return log(next, now, "sales", `Purchase order ${number} updated`, order.projectId);
+}
+
+export function updatePart(state: ErpState, partId: string, input: { description: string }, now: string): ErpState {
+  const part = state.parts.find((item) => item.id === partId);
+  if (!part || !clean(input.description)) return state;
+  const next = { ...state, parts: touch(state.parts, partId, (item) => ({ ...item, description: clean(input.description) })) };
+  return log(next, now, "parts", `Part ${part.number} updated`, null);
+}
+
+export function updateDocument(state: ErpState, documentId: string, input: { name: string; number: string; revision: string; file?: StoredFile | null }, now: string): ErpState {
+  const doc = state.documents.find((item) => item.id === documentId);
+  const number = normCode(input.number);
+  const revision = normCode(input.revision);
+  if (!doc || !clean(input.name) || !number || !REVISION_PATTERN.test(revision)) return state;
+  if (state.documents.some((item) => item.id !== documentId && normCode(item.number) === number && normCode(item.revision) === revision)) return state;
+  const fileChange = input.file === undefined ? {} : input.file === null ? { file: undefined } : { file: input.file, source: "upload" as DocSource };
+  const changedContent = number !== doc.number || revision !== doc.revision || input.file !== undefined;
+  const next = { ...state, documents: touch(state.documents, documentId, (item) => ({ ...item, name: clean(input.name), number, revision, ...fileChange, status: changedContent && item.status === "Approved" ? "In review" as DocStatus : item.status, updatedAt: now })) };
+  return log(next, now, "documents", `${number} rev ${revision} updated${changedContent && doc.status === "Approved" ? " · back to review" : ""}`, doc.projectIds[0] ?? null);
+}
+
+export function updateMaterial(state: ErpState, requirementId: string, input: { material: string; quantity: number; unit: string; supplier: string }, now: string): ErpState {
+  const req = state.materialRequirements.find((item) => item.id === requirementId);
+  if (!req || !clean(input.material) || !(input.quantity > 0)) return state;
+  const next = {
+    ...state,
+    materialRequirements: touch(state.materialRequirements, requirementId, (item) => ({ ...item, material: clean(input.material), quantity: input.quantity, unit: input.unit })),
+    procurement: state.procurement.map((record) => record.requirementId === requirementId ? { ...record, supplier: clean(input.supplier), updatedAt: now } : record),
+  };
+  return log(next, now, "materials", `Material ${clean(input.material)} updated`, req.projectId);
+}
+
+export function updateInspectionRequirement(state: ErpState, requirementId: string, input: { name: string; spec: string; unit: string }, now: string): ErpState {
+  const req = state.inspectionRequirements.find((item) => item.id === requirementId);
+  if (!req || !clean(input.name) || !clean(input.spec)) return state;
+  const next = { ...state, inspectionRequirements: touch(state.inspectionRequirements, requirementId, (item) => ({ ...item, name: clean(input.name), spec: clean(input.spec), unit: clean(input.unit) })) };
+  return log(next, now, "quality", `Inspection parameter ${clean(input.name)} updated`, req.projectId);
+}
+
+export function removeInspectionRequirement(state: ErpState, requirementId: string, now: string): ErpState {
+  const req = state.inspectionRequirements.find((item) => item.id === requirementId);
+  if (!req) return state;
+  const next = { ...state, inspectionRequirements: state.inspectionRequirements.filter((item) => item.id !== requirementId) };
+  return log(next, now, "quality", `Inspection parameter ${req.name} removed`, req.projectId);
 }
 
 /** Values already used anywhere (other projects or earlier parts in the draft), offered as dropdowns for reuse. */

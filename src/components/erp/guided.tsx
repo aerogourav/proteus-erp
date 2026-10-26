@@ -9,10 +9,12 @@ import {
 import { BohMark } from "@/components/brand/boh-logo";
 import { commit, getState, nowIso, resetDemo, todayIso, useErp, useHydrated } from "@/components/erp/store";
 import { Badge, Field } from "@/components/erp/ui";
+import { StatusSelect } from "@/components/erp/edit";
+import { InspectionForm } from "@/components/erp/inspection-form";
 import { MAX_PARTS, guideSteps, workStepCount, type GuideStep, type StepKind } from "@/components/erp/guide-steps";
 import {
-  UNITS, advanceProcurement, advanceProduction, createProductionOrder, createProjectFromDraft, dispatchProject, firstInvalidStep, formatDate,
-  formatMoney, generateInspectionReport, generateInvoice, lineEngineeringReady, lineMaterialReady, newDraft, parseAmount, partNumber,
+  UNITS, advanceProcurement, createProductionOrder, createProjectFromDraft, dispatchProject, firstInvalidStep, formatDate,
+  formatMoney, generateInspectionReport, generateInvoice, isProductionComplete, lineEngineeringReady, setProductionStatus, lineMaterialReady, newDraft, parseAmount, partNumber,
   projectRecords, readiness, reuseCatalog, revisionLabel, validateStep,
   type DraftLine, type ErpState, type ProjectDraft, type StoredFile,
 } from "@/lib/erp/model";
@@ -45,6 +47,12 @@ const emptyLine = (index: number): DraftLine => ({ key: `line-${index + 1}`, par
 function ensureDraft(state: ErpState): ErpState {
   if (state.draft) return state;
   return { ...state, draft: { ...newDraft(state, todayIso()), lines: [emptyLine(0)] } };
+}
+
+/** Starts a new project in the guided demo. Existing projects stay. */
+export function startAnotherProject() {
+  commit((state) => ensureDraft({ ...state, draft: null, guide: { step: 1, projectId: null, furthest: 1, v: 2 } }));
+  if (typeof window !== "undefined") window.scrollTo({ top: 0 });
 }
 
 function updateDraft(change: (draft: ProjectDraft) => ProjectDraft) {
@@ -100,11 +108,12 @@ export function GuidedDemo() {
 /* ============================== Welcome & finish ============================== */
 
 function Welcome() {
+  const hasProjects = useErp().projects.length > 0;
   const start = () => { commit((state) => ensureDraft({ ...state, guide: { ...state.guide, step: 1, furthest: Math.max(1, state.guide.furthest ?? 0) } })); window.scrollTo({ top: 0 }); };
   return <section className="erp-card erp-step erp-welcome" aria-labelledby="welcome-title">
     <div><span className="erp-eyebrow">Interactive demo · about 5–8 minutes</span>
       <h1 id="welcome-title">Follow one project from order to invoice.</h1>
-      <p className="erp-step-lead">Enter a customer order with one or more parts. Then move it through purchasing, production, inspection, dispatch and invoicing, one small step at a time. Every department works on the same record.</p></div>
+      <p className="erp-step-lead">{hasProjects ? "Create another project. Customers, parts, drawings and materials from your earlier projects can be reused. " : ""}Enter a customer order with one or more parts. Then move it through purchasing, production, inspection, dispatch and invoicing, one small step at a time. Every department works on the same record.</p></div>
     <ol aria-label="What happens">
       <li><b>1 · Sales</b><span>Customer, order and number of parts</span></li>
       <li><b>2 · Parts</b><span>Details, drawing, inspection, price, material</span></li>
@@ -120,6 +129,9 @@ function Finished({ state }: { state: ErpState }) {
   const r = projectRecords(state, projectId);
   const invoice = r.invoices[0];
   const restart = () => { resetDemo(); window.scrollTo({ top: 0 }); };
+  const dispatched = Boolean(r.dispatches[0]);
+  const openProduction = r.productionOrders.filter((order) => !isProductionComplete(order.status)).length;
+  const inspected = Boolean(r.inspectionReports[0]?.passed);
   const docs = [
     { label: "PO summary", href: `/demo/sales?project=${projectId}`, tab: "Sales orders" },
     { label: "Production orders", href: `/demo/production?project=${projectId}`, tab: "Production" },
@@ -132,14 +144,24 @@ function Finished({ state }: { state: ErpState }) {
   return <div className="erp-stack">
     <section className="erp-card erp-step" aria-labelledby="finished-title">
       <div className="erp-step-top"><span className="erp-step-dept"><CheckCircle2 size={15} /> Finished</span><BohMark size={44} /></div>
-      <h1 id="finished-title">{r.project?.name} is delivered and invoiced.</h1>
-      <p className="erp-step-lead">You entered the order once. Sales, engineering, quality, purchasing, production, dispatch and finance all worked on the same record.</p>
+      <h1 id="finished-title">{invoice ? `${r.project?.name} is delivered and invoiced.` : `${r.project?.name} is set up.`}</h1>
+      <p className="erp-step-lead">{invoice ? "You entered the order once. Sales, engineering, quality, purchasing, production, dispatch and finance all worked on the same record." : "The open steps below can be done later in their tabs. Everything stays connected to this one project."}</p>
       <ul className="erp-checks" style={{ marginTop: 24, maxWidth: 680 }}>
         <li><CheckCircle2 size={18} color="#1E7F4E" /> {r.customer?.name} · purchase order {r.purchaseOrders[0]?.number}</li>
         {r.lineItems.map((line) => <li key={line.id}><CheckCircle2 size={18} color="#1E7F4E" /> {line.quantity} {line.unit} × {partNumber(state, line.partId)} rev {revisionLabel(state, line.revisionId)}</li>)}
-        <li><CheckCircle2 size={18} color="#1E7F4E" /> Dispatched with {r.dispatches[0]?.number} · invoice {invoice?.number}{invoice ? ` · ${formatMoney(invoice.total, invoice.currency)}` : ""}</li>
+        {dispatched && <li><CheckCircle2 size={18} color="#1E7F4E" /> Dispatched with {r.dispatches[0]?.number}{invoice ? ` · invoice ${invoice.number} · ${formatMoney(invoice.total, invoice.currency)}` : ""}</li>}
       </ul>
-      {(unapproved > 0 || openPurchases > 0) && <p className="erp-faint" style={{ marginTop: 14 }}>Still open for later: {[unapproved ? `${unapproved} document${unapproved === 1 ? "" : "s"} to approve (Documents tab)` : "", openPurchases ? `${openPurchases} purchase${openPurchases === 1 ? "" : "s"} to order or receive (Purchasing tab)` : ""].filter(Boolean).join(" · ")}.</p>}
+      {(() => {
+        const open = [
+          openProduction ? { text: `${openProduction} production order${openProduction === 1 ? "" : "s"} not completed`, href: `/demo/production?project=${projectId}` } : null,
+          !inspected ? { text: "Final inspection", href: `/demo/quality?project=${projectId}` } : null,
+          !dispatched ? { text: "Dispatch", href: `/demo/dispatch?project=${projectId}` } : null,
+          !invoice ? { text: "Invoice", href: `/demo/finance?project=${projectId}` } : null,
+          unapproved ? { text: `${unapproved} document${unapproved === 1 ? "" : "s"} to approve`, href: `/demo/documents?project=${projectId}` } : null,
+          openPurchases ? { text: `${openPurchases} purchase${openPurchases === 1 ? "" : "s"} to order or receive`, href: `/demo/materials?project=${projectId}` } : null,
+        ].filter((item): item is { text: string; href: string } => Boolean(item));
+        return open.length > 0 && <div style={{ marginTop: 18 }}><p className="erp-label">Open for later</p><ul className="erp-checks" style={{ maxWidth: 680 }}>{open.map((item) => <li key={item.text}><CircleDashed size={18} color="#8A5A00" /><span style={{ flex: 1 }}>{item.text}</span><Link className="erp-btn erp-btn-sm" href={item.href}>Open tab <ArrowRight size={13} /></Link></li>)}</ul></div>;
+      })()}
     </section>
     <section className="erp-card" aria-labelledby="docs-title">
       <div className="erp-card-head"><div><h2 id="docs-title">Documents are in the tabs</h2><p>Each document is generated from the same project data. Open the tab to preview, print or save as PDF.</p></div></div>
@@ -148,7 +170,8 @@ function Finished({ state }: { state: ErpState }) {
     <div className="erp-head-actions">
       <Link className="erp-btn erp-btn-dark" href="/demo/overview">Open the Overview <ArrowRight size={16} /></Link>
       <Link className="erp-btn" href={`/demo/projects/${projectId}`}>Project record</Link>
-      <button type="button" className="erp-btn" onClick={restart}><RotateCcw size={15} /> Start again with a new project</button>
+      <button type="button" className="erp-btn erp-btn-primary" onClick={startAnotherProject}><Plus size={15} /> Create another project</button>
+      <button type="button" className="erp-btn" onClick={restart}><RotateCcw size={15} /> Clear all and start over</button>
       <Link className="erp-btn erp-btn-ghost" href="/contact">Talk to us about your workflow</Link>
     </div>
   </div>;
@@ -522,7 +545,6 @@ function DraftStep({ current, step, state }: { current: GuideStep; step: number;
 function WorkStep({ current, step, state }: { current: GuideStep; step: number; state: ErpState }) {
   const projectId = state.guide.projectId;
   const [form, setForm] = useState<{ lineId: string; quantity: string; startDate: string; notes: string }>({ lineId: "", quantity: "", startDate: todayIso(), notes: "" });
-  const [results, setResults] = useState<Record<string, { observed: string; pass: boolean }>>({});
   const [error, setError] = useState("");
   if (!projectId) return <><div className="erp-step-body"><p className="erp-muted">Create the project first.</p></div><Foot step={step} canContinue={false} /></>;
   const r = projectRecords(state, projectId);
@@ -581,38 +603,24 @@ function WorkStep({ current, step, state }: { current: GuideStep; step: number; 
   }
 
   if (current.kind === "run-production") {
-    body = <ul className="erp-recs">{r.productionOrders.map((order) => <li key={order.id}>
-      <Factory size={18} />
-      <span><b>{order.number}</b><small>{order.quantity} × {lineLabel(order.lineItemId)}</small></span>
-      {order.status === "Complete" ? <Badge>Complete</Badge> : <button type="button" className="erp-btn erp-btn-dark erp-btn-sm" onClick={() => run((value) => advanceProduction(value, order.id, now))}>{order.status === "Planned" ? "Start" : "Mark complete"}</button>}
-    </li>)}</ul>;
-    canContinue = r.productionOrders.length > 0 && r.productionOrders.every((order) => order.status === "Complete");
+    body = <>
+      <ul className="erp-recs">{r.productionOrders.map((order) => <li key={order.id}>
+        <Factory size={18} />
+        <span><b>{order.number}</b><small>{order.quantity} × {lineLabel(order.lineItemId)}</small></span>
+        <StatusSelect key={order.status} id={`g-st-${order.id}`} label={`Status of ${order.number}`} value={order.status} onChange={(status) => run((value) => setProductionStatus(value, order.id, status, now))} />
+      </li>)}</ul>
+      <p className="erp-faint">Choose any status, or type your own. Update it any time in the Production tab. Final inspection and dispatch need every order on “Completed”.</p>
+    </>;
   }
 
   if (current.kind === "inspect") {
     const report = r.inspectionReports[0];
     const passed = Boolean(report?.passed) && ready.quality.state === "complete";
-    const save = () => run((value) => generateInspectionReport(value, projectId, now, Object.fromEntries(r.inspectionRequirements.map((req) => [req.id, results[req.id] ?? { observed: "", pass: true }]))));
     body = passed ? <p className="erp-done"><CheckCircle2 size={18} /> Final inspection passed ({report.number}). The report can be printed in the Quality tab.</p> : <>
       {report && !report.passed && <p className="erp-error" role="alert">The last inspection ({report.number}) failed. After rework, record the result again.</p>}
-      {r.lineItems.map((line) => {
-        const reqs = r.inspectionRequirements.filter((req) => req.partId === line.partId);
-        return <div key={line.id} className="erp-param">
-          <div className="erp-param-head"><b>{lineLabel(line.id)}</b><span className="erp-faint">{line.quantity} {line.unit}</span></div>
-          {reqs.map((req) => {
-            const value = results[req.id] ?? { observed: "", pass: true };
-            return <div key={req.id} className="erp-inspect-row">
-              <span><b>{req.name}</b><small>{req.spec}{req.unit ? ` ${req.unit}` : ""}</small></span>
-              <input className="erp-input" aria-label={`Measured ${req.name}`} placeholder="Measured value" value={value.observed} onChange={(event) => setResults({ ...results, [req.id]: { ...value, observed: event.target.value } })} />
-              <select className="erp-select" aria-label={`Result for ${req.name}`} value={value.pass ? "pass" : "fail"} onChange={(event) => setResults({ ...results, [req.id]: { ...value, pass: event.target.value === "pass" } })}><option value="pass">Pass</option><option value="fail">Fail</option></select>
-            </div>;
-          })}
-        </div>;
-      })}
-      <div><button type="button" className="erp-btn erp-btn-dark" disabled={ready.production.state !== "complete"} onClick={save}>Save inspection result</button></div>
-      <p className="erp-faint">Use fictional measurements. Leave a value empty to record “within specification”.</p>
+      <InspectionForm projectId={projectId} />
     </>;
-    canContinue = passed;
+    if (!passed) label = "Do final inspection later";
   }
 
   if (current.kind === "dispatch") {
@@ -620,18 +628,19 @@ function WorkStep({ current, step, state }: { current: GuideStep; step: number; 
     body = <>
       <Checks items={[["Production complete", ready.production.state === "complete", ready.production.state === "complete" ? "Complete" : "Open"], ["Final inspection passed", ready.quality.state === "complete", ready.quality.state === "complete" ? "Passed" : "Open"]]} />
       {done ? <p className="erp-done"><CheckCircle2 size={18} /> Shipped with delivery note {r.dispatches[0].number}. Print it in the Dispatch tab.</p>
-        : <div><button type="button" className="erp-btn erp-btn-dark" disabled={!ready.dispatch.reasons.some((reason) => reason.action?.kind === "dispatch")} onClick={() => run((value) => dispatchProject(value, projectId, now))}>Dispatch order</button></div>}
+        : ready.dispatch.reasons.some((reason) => reason.action?.kind === "dispatch") ? <div><button type="button" className="erp-btn erp-btn-dark" onClick={() => run((value) => dispatchProject(value, projectId, now))}>Dispatch order</button></div>
+        : <p className="erp-faint">Not possible yet. Dispatch from the Dispatch tab once production is completed and the final inspection has passed.</p>}
     </>;
-    canContinue = done;
+    if (!done) label = "Do it later";
   }
 
   if (current.kind === "invoice") {
     const invoice = r.invoices[0];
     body = invoice ? <p className="erp-done"><CheckCircle2 size={18} /> Invoice {invoice.number} created: {formatMoney(invoice.total, invoice.currency)} including {invoice.taxRate}% tax. Print it in the Invoices tab.</p>
       : <><ul className="erp-checks">{r.lineItems.map((line) => <li key={line.id}><span style={{ flex: 1 }}>{line.quantity} {line.unit} × {lineLabel(line.id)}</span><b>{line.unitPrice !== null && r.purchaseOrders[0] ? formatMoney(line.unitPrice * line.quantity, r.purchaseOrders[0].currency) : "—"}</b></li>)}</ul>
-        <div><button type="button" className="erp-btn erp-btn-dark" onClick={() => run((value) => generateInvoice(value, projectId, now))}>Create invoice</button></div></>;
-    canContinue = Boolean(invoice);
-    label = "Finish";
+        {ready.invoice.state === "incomplete" ? <div><button type="button" className="erp-btn erp-btn-dark" onClick={() => run((value) => generateInvoice(value, projectId, now))}>Create invoice</button></div>
+          : <p className="erp-faint">The invoice is created after dispatch. Do it later from the Invoices tab.</p>}</>;
+    label = invoice ? "Finish" : "Finish for now";
   }
 
   return <>

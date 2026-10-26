@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
 import { commit } from "@/components/erp/store";
 import { guideSteps, stepIndex, type StepId } from "@/components/erp/guide-steps";
-import type { ErpState, ResolveAction } from "@/lib/erp/model";
+import { isProductionComplete, projectRecords, type ErpState, type ResolveAction } from "@/lib/erp/model";
 
 /** Opens the guided demo, optionally at a specific step. All editing happens there. */
 export function useOpenGuide() {
@@ -39,4 +39,16 @@ export function stepForAction(state: ErpState, action: ResolveAction): StepId {
     case "dispatch": return "dispatch";
     case "generate-invoice": return "invoice";
   }
+}
+
+/** Makes a project the current one and resumes the guided demo where it stands. */
+export function focusProject(state: ErpState, projectId: string): ErpState {
+  const r = projectRecords(state, projectId);
+  if (!r.project) return state;
+  const kind: StepId = r.invoices.length ? "done" : r.dispatches.length ? "invoice" : r.inspectionReports[0]?.passed ? "dispatch"
+    : r.productionOrders.length && r.productionOrders.length >= r.lineItems.length ? (r.productionOrders.every((order) => isProductionComplete(order.status)) ? "inspect" : "run-production")
+    : r.productionOrders.length ? "production-order" : "purchase";
+  const next = { ...state, draft: null, guide: { ...state.guide, projectId, v: 2 } };
+  const step = stepIndex(guideSteps(next), kind);
+  return { ...next, guide: { ...next.guide, step, furthest: step } };
 }
