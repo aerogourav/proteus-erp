@@ -1,4 +1,5 @@
 import { CONFIG_STORAGE_KEY } from "@/lib/configuration-model";
+import { JOURNEY_STORAGE_KEY } from "@/lib/journey-data";
 
 /** Every browser-local key the demo writes (storage key names are internal and kept for compatibility). */
 const localKeys = [
@@ -6,6 +7,7 @@ const localKeys = [
   "proteus-demo-opportunities-v1",
   "proteus-demo-business-records-v1",
   "proteus-demo-community-v1",
+  JOURNEY_STORAGE_KEY,
 ];
 const sessionKeys = ["proteus-demo-guide-dismissed"];
 const billDatabase = "proteus-demo-bills-v1";

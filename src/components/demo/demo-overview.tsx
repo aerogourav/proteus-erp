@@ -29,6 +29,7 @@ export function DemoOverview() {
 
   return <>
     <PageHeader eyebrow={`${DEMO_COMPANY.name} · Fictional demo`} title="Good morning, team" description="Orders, parts, revisions and engineering documents in one connected view." meta="SYNTHETIC WORKSPACE" />
+    <Link href="/demo/journey" className={styles.journeyPromo}><span><strong>Order journey: from enquiry to dispatch</strong><small>Follow 120 precision parts through quote, order, engineering, material, production, inspection, shipping and invoice.</small></span><span className={styles.journeyPromoCta}>Start <ArrowRight size={16} /></span></Link>
     <DemoStory />
     <DemoWalkthroughLauncher />
     <div className={styles.metrics}>

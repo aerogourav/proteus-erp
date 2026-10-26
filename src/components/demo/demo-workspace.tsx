@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Activity, AlertTriangle, ArrowLeft, Boxes, ChevronDown, ClipboardList, FileStack, LayoutDashboard, Menu, Search, Settings2, X } from "lucide-react";
+import { Activity, AlertTriangle, ArrowLeft, Boxes, ChevronDown, ClipboardList, FileStack, LayoutDashboard, Menu, Route, Search, Settings2, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import styles from "./demo.module.css";
 import { DEMO_COMPANY } from "@/lib/demo-data";
@@ -11,6 +11,7 @@ import { BohMark } from "@/components/brand/boh-logo";
 
 const nav = [
   { label: "Overview", href: "/demo", icon: LayoutDashboard },
+  { label: "Order Journey", href: "/demo/journey", icon: Route },
   { label: "Production Orders", href: "/demo/production", icon: ClipboardList },
   { label: "Parts & Revisions", href: "/demo/parts", icon: Boxes },
   { label: "Documents", href: "/demo/documents", icon: FileStack },

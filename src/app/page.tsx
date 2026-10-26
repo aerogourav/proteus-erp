@@ -26,14 +26,15 @@ const steps = [
 ] as const;
 
 const story = [
-  ["A customer order arrives", "Order MO-2026-0142: 48 actuator mounting brackets, part AP-1001."],
-  ["The drawing changed", "Revision C of the drawing was just approved. Which other records are affected?"],
-  ["BOH checks the linked documents", "Setup sheet and material certificate are fine, but the inspection plan is still on an old revision."],
-  ["The issue is caught before production", "The order is flagged with the exact reason. Change the rule and see the result update."],
+  ["Enquiry to quote", "A website enquiry becomes a lead. The drawing is reviewed and the price is built from routing, material and subcontract cost."],
+  ["Order checked against the quote", "The customer PO asks for the wrong drawing revision. BOH ERP catches it before the order is confirmed."],
+  ["Released only when ready", "Production starts only when documents are approved, certified material is reserved and the first article passes."],
+  ["Inspected, shipped, invoiced", "Final inspection, certificate of conformity, delivery note and invoice, with every step on the audit trail."],
 ] as const;
 
 const today = [
   "Interactive demo with a fictional precision-manufacturing company",
+  "Simulated order journey from enquiry to dispatch and invoice",
   "Linked orders, parts, revisions and engineering documents",
   "Configurable document types, fields and requirement rules",
   "Automatic checks that flag missing, outdated or unapproved records",
@@ -67,7 +68,7 @@ export default function Home() {
             <p className="b-lead">BOH ERP is business software we set up around how your company already works, so orders, parts, documents and approvals stay connected.</p>
             <div className="b-hero-actions">
               <Link className="b-btn b-btn-primary" href="/contact">Book a workflow call <ArrowRight size={18} /></Link>
-              <Link className="b-btn b-btn-ghost" href="/demo"><PlayCircle size={18} /> Try the 3-minute demo</Link>
+              <Link className="b-btn b-btn-ghost" href="/demo/journey"><PlayCircle size={18} /> See an order from enquiry to dispatch</Link>
             </div>
             <span className="b-tagline" data-no-translate>BUILD. OPERATE. HARMONISE.</span>
           </div>
@@ -121,15 +122,15 @@ export default function Home() {
         <div className="b-wrap b-demo">
           <div>
             <span className="b-kicker">See it working</span>
-            <h2 className="b-h2" id="demo-title">One order. Four steps. Three minutes.</h2>
-            <p className="b-lead">The demo follows a fictional precision-engineering company through one realistic situation: a drawing changes while an order is waiting.</p>
+            <h2 className="b-h2" id="demo-title">One order, from first enquiry to dispatch.</h2>
+            <p className="b-lead">Follow 120 precision-machined parts through a fictional manufacturer: sales, engineering, purchasing, production, quality, logistics and finance in one connected flow.</p>
             <ol className="b-story" style={{ marginTop: 28 }}>{story.map(([title, body], index) => <li key={title} className="b-reveal"><span className="b-story-num">{index + 1}</span><div><strong>{title}</strong><span>{body}</span></div></li>)}</ol>
-            <div className="b-hero-actions"><Link className="b-btn b-btn-dark" href="/demo">Start the guided demo <ArrowRight size={18} /></Link></div>
+            <div className="b-hero-actions"><Link className="b-btn b-btn-dark" href="/demo/journey">Start the order journey <ArrowRight size={18} /></Link><Link className="b-btn b-btn-ghost" href="/demo">Explore the workspace</Link></div>
           </div>
           <div className="b-window b-reveal" role="img" aria-label="Preview of the BOH ERP demo workspace with production orders and their document checks">
             <div className="b-window-bar" aria-hidden="true"><i /><i /><i /><span>BOH ERP · Demo workspace</span></div>
             <div className="b-window-body" aria-hidden="true">
-              <div className="b-window-side"><b><BohMark size={20} tone="dark" /> BOH ERP</b><span>Overview</span><span className="on">Production Orders</span><span>Parts &amp; Revisions</span><span>Documents</span><span>Configuration</span><span>Activity</span></div>
+              <div className="b-window-side"><b><BohMark size={20} tone="dark" /> BOH ERP</b><span>Overview</span><span>Order Journey</span><span className="on">Production Orders</span><span>Parts &amp; Revisions</span><span>Documents</span><span>Configuration</span><span>Activity</span></div>
               <div className="b-window-main">
                 <div className="b-window-kpis"><div><small>Active orders</small><strong>5</strong></div><div><small>Parts</small><strong>6</strong></div><div><small>Docs in review</small><strong>5</strong></div></div>
                 <div className="b-window-rows">
