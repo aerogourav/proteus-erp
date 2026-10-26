@@ -335,6 +335,11 @@
   .erp-doc-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 640px) {
+  .erp-project-head .erp-hint { flex-wrap: wrap; }
+  .erp-project-head .erp-hint > span:last-child { width: 100%; margin-left: 0 !important; }
+  .erp-project-head .erp-hint > span:nth-child(2) { flex: 1; min-width: 0; }
+  .erp-lifecycle { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .erp-lifecycle li { min-width: 0; overflow-wrap: anywhere; }
   .erp-kpis, .erp-depts { grid-template-columns: 1fr; }
   .erp-status-grid, .erp-welcome ol { grid-template-columns: 1fr; }
   .erp-row { grid-template-columns: 1fr !important; gap: 4px; }
