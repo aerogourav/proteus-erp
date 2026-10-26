@@ -3,15 +3,16 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
-import { ArrowLeft, FileText, Printer, RotateCcw, Sparkles, X } from "lucide-react";
+import { ArrowLeft, Download, FileText, Printer, RotateCcw, Sparkles, X } from "lucide-react";
 import { GuideLink } from "@/components/erp/guide-link";
+import { LineItemsEditor } from "@/components/erp/line-items";
 import { OutputDialog, type OutputKind } from "@/components/erp/outputs";
-import { commit, resetDemo, useErp, useHydrated } from "@/components/erp/store";
+import { commit, nowIso, resetDemo, useErp, useHydrated } from "@/components/erp/store";
 import { Badge, EmptyState, Field, PageHead, ProjectLink, ReadinessBadge, Rule } from "@/components/erp/ui";
 import {
-  CURRENCIES, RULES, formatDate, formatMoney, isActiveOrder, lineEngineeringReady, lineMaterialReady, orderOperationalState,
+  CURRENCIES, DOC_STATUSES, RULES, advanceProcurement, advanceProduction, formatDate, setDocumentStatus, formatMoney, isActiveOrder, lineEngineeringReady, lineMaterialReady, orderOperationalState,
   partNumber, projectStage, readiness, revisionLabel, updateSettings,
-  type Currency, type ErpState, type Project,
+  type Currency, type DocStatus, type ErpState, type Project,
 } from "@/lib/erp/model";
 
 /* ---------------- Shared helpers ---------------- */
@@ -42,10 +43,6 @@ function NoProjects({ what }: { what: string }) {
 
 function Loading() { return <p className="erp-muted" role="status">Loading…</p>; }
 
-/** Department views are read-only; every change is made in the guided demo. */
-function ViewOnly() {
-  return <p className="erp-viewonly"><Sparkles size={14} /> View only. Records here come from your project. Make changes in the <GuideLink>guided demo</GuideLink></p>;
-}
 
 function Rows({ columns, head, children }: { columns: string; head: string[]; children: ReactNode }) {
   return <div className="erp-rows" role="table">
@@ -117,6 +114,7 @@ export function SalesModule() {
   const hydrated = useHydrated();
   const filter = useProjectFilter(state);
   const [tab, setTab] = useState<"all" | "active">("all");
+  const [output, setOutput] = useState<OutputState>(null);
   const head = <PageHead eyebrow="Commercial" title="Sales orders" description="Purchase orders are commercial commitments from customers. Active orders are the subset currently moving through production and quality." />;
   if (!hydrated) return <>{head}<Loading /></>;
   if (!state.purchaseOrders.length) return <>{head}<NoProjects what="purchase orders" /></>;
@@ -144,7 +142,13 @@ export function SalesModule() {
         </div>;
       })}
     </Rows> : <EmptyState title="No active orders" text="An order becomes active when production starts, and stops being active once it is dispatched." />}</section>
+    {orders.map((order) => <section key={`lines-${order.id}`} className="erp-card" style={{ marginTop: 16 }}>
+      <div className="erp-card-head"><div><h2>{order.number} · parts, quantity and price</h2><p>{projectOf(state, order.projectId)?.name}</p></div>
+        <button type="button" className="erp-btn erp-btn-sm" onClick={() => setOutput({ projectId: order.projectId, kind: "po" })}><Printer size={13} /> PO summary</button></div>
+      <div className="erp-card-pad"><LineItemsEditor projectId={order.projectId} /></div>
+    </section>)}
     <div style={{ marginTop: 14 }}><Rule>One project can carry several purchase orders over time. In this demo each project starts with one.</Rule></div>
+    {output && <OutputDialog state={state} projectId={output.projectId} kind={output.kind} onClose={() => setOutput(null)} />}
   </>;
 }
 
@@ -205,28 +209,31 @@ export function DocumentsModule() {
   const hydrated = useHydrated();
   const filter = useProjectFilter(state);
   const [open, setOpen] = useState<string | null>(null);
-  const head = <PageHead eyebrow="Engineering" title="Documents" description="Drawings, specifications, bills of materials and inspection plans, with revision and approval status. Metadata only: no files are stored in this demo." />;
+  const head = <PageHead eyebrow="Engineering" title="Documents" description="Drawings and other documents with revision and approval status. Approve them here, at any time. Uploaded files stay in this browser only." />;
   if (!hydrated) return <>{head}<Loading /></>;
   if (!state.documents.length) return <>{head}<NoProjects what="documents" /></>;
   const docs = filter ? state.documents.filter((doc) => doc.projectIds.includes(filter.id)) : state.documents;
   const columns = "minmax(0,1.1fr) minmax(0,1.8fr) minmax(0,1fr) 60px minmax(0,1fr) 120px";
-  return <>{head}<FilterBar project={filter} base="/demo/documents" /><ViewOnly /><section className="erp-card"><Rows columns={columns} head={["Number", "Name", "Type", "Rev", "Linked to", "Approval"]}>
+  return <>{head}<FilterBar project={filter} base="/demo/documents" /><section className="erp-card"><Rows columns={columns} head={["Number", "Name", "Type", "Rev", "Linked to", "Approval"]}>
     {docs.map((doc) => {
       const isOpen = open === doc.id;
       return <div key={doc.id}>
         <button type="button" className={`erp-row erp-row-click${isOpen ? " erp-row-active" : ""}`} style={{ gridTemplateColumns: columns, width: "100%", background: "transparent", border: 0, textAlign: "left", color: "inherit" }} aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : doc.id)}>
           <strong>{doc.number}</strong><span>{doc.name}</span><span className="erp-muted">{doc.type}</span><span>{doc.revision}</span>
-          <span>{doc.projectIds.map((id) => projectOf(state, id)?.code).join(", ")}{doc.partId ? <small>{partNumber(state, doc.partId)}</small> : <small>Whole project</small>}</span>
+          <span>{doc.projectIds.map((id) => projectOf(state, id)?.code).join(", ")}{doc.file ? <small>📎 {doc.file.name}</small> : null}{doc.partId ? <small>{partNumber(state, doc.partId)}</small> : <small>Whole project</small>}</span>
           <span><Badge>{doc.status}</Badge></span>
         </button>
         {isOpen && <div className="erp-detail">
           <div className="erp-kv">
-            <div><small>Source</small><b>{doc.source === "sample" ? "Sample metadata" : "Manual metadata"} · no file</b></div>
+            <div><small>File</small><b>{doc.file ? `${doc.file.name} · ${Math.round(doc.file.size / 1024)} KB${doc.file.data ? "" : " (name only)"}` : "No file · metadata only"}</b></div>
             <div><small>Part</small><b>{doc.partId ? partNumber(state, doc.partId) : "Whole project"}</b></div>
             <div><small>Projects</small><b>{doc.projectIds.map((id) => projectOf(state, id)?.code).join(", ")}</b></div>
             <div><small>Last change</small><b>{formatDate(doc.updatedAt)}</b></div>
           </div>
-          {doc.status !== "Approved" && doc.type === "Drawing" && <div style={{ marginTop: 14 }}><GuideLink to="approve">Approve in guided demo</GuideLink></div>}
+          <div className="erp-inline" style={{ marginTop: 14, maxWidth: 520, alignItems: "flex-end", gap: 10 }}>
+            <Field id={`status-${doc.id}`} label="Approval status"><select className="erp-select" id={`status-${doc.id}`} value={doc.status} onChange={(event) => commit((current) => setDocumentStatus(current, doc.id, event.target.value as DocStatus, nowIso()))}>{DOC_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></Field>
+            {doc.file?.data && <a className="erp-btn erp-btn-sm" style={{ marginBottom: 4 }} href={doc.file.data} download={doc.file.name}><Download size={13} /> {doc.file.name}</a>}
+          </div>
           {doc.type === "Drawing" && <p className="erp-faint" style={{ marginTop: 10 }}>{RULES.engineering}</p>}
         </div>}
       </div>;
@@ -240,12 +247,12 @@ export function MaterialsModule() {
   const state = useErp();
   const hydrated = useHydrated();
   const filter = useProjectFilter(state);
-  const head = <PageHead eyebrow="Operations" title="Purchasing" description="Material requirements come from the project. Each has a procurement record; production waits until the material is received." />;
+  const head = <PageHead eyebrow="Operations" title="Purchasing" description="Purchase recommendations come from the material of each part. Place orders and book goods receipt here, whenever it suits you." />;
   if (!hydrated) return <>{head}<Loading /></>;
   if (!state.materialRequirements.length) return <>{head}<NoProjects what="material requirements" /></>;
   const reqs = filter ? state.materialRequirements.filter((req) => req.projectId === filter.id) : state.materialRequirements;
   const columns = "minmax(0,2fr) 100px minmax(0,1.2fr) minmax(0,1.3fr) minmax(0,1fr) 150px";
-  return <>{head}<FilterBar project={filter} base="/demo/materials" /><ViewOnly /><section className="erp-card"><Rows columns={columns} head={["Material", "Quantity", "For", "Supplier · PO", "Status", ""]}>
+  return <>{head}<FilterBar project={filter} base="/demo/materials" /><section className="erp-card"><Rows columns={columns} head={["Material", "Quantity", "For", "Supplier · PO", "Status", ""]}>
     {reqs.map((req) => {
       const record = state.procurement.find((item) => item.requirementId === req.id);
       const project = projectOf(state, req.projectId);
@@ -255,7 +262,7 @@ export function MaterialsModule() {
         <span>{project && <ProjectLink id={project.id} code={project.code} />}<small>{line ? `${partNumber(state, line.partId)} rev ${revisionLabel(state, line.revisionId)}` : "Whole project"}</small></span>
         <span>{record?.supplier || "Not chosen"}<small>{record?.number}</small></span>
         <span>{record && <Badge>{record.status}</Badge>}</span>
-        <span>{record && record.status !== "Received" && <GuideLink to={record.status === "Not ordered" ? "order-material" : "receive-material"}>{record.status === "Not ordered" ? "Place order" : "Mark received"}</GuideLink>}</span>
+        <span>{record && record.status !== "Received" && <button type="button" className="erp-btn erp-btn-sm" onClick={() => commit((current) => advanceProcurement(current, record.id, nowIso()))}>{record.status === "Not ordered" ? "Place order" : "Mark received"}</button>}</span>
       </div>;
     })}
   </Rows></section><div style={{ marginTop: 14 }}><Rule>{RULES.materials}</Rule></div></>;
@@ -268,23 +275,23 @@ export function ProductionModule() {
   const hydrated = useHydrated();
   const filter = useProjectFilter(state);
   const [output, setOutput] = useState<OutputState>(null);
-  const head = <PageHead eyebrow="Operations" title="Production" description="Production orders are created per line item, only when the drawing is approved and the material is received." />;
+  const head = <PageHead eyebrow="Operations" title="Production" description="Production orders per part, with quantity, planned start and shop-floor details. Unapproved drawings or missing material show as warnings." />;
   if (!hydrated) return <>{head}<Loading /></>;
   if (!state.lineItems.length) return <>{head}<NoProjects what="production orders" /></>;
   const lines = state.lineItems.filter((line) => !filter || line.projectId === filter.id);
   const orders = state.productionOrders.filter((order) => !filter || order.projectId === filter.id);
   const waiting = lines.filter((line) => !state.productionOrders.some((order) => order.lineItemId === line.id));
   const columns = "minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr) 90px 120px minmax(0,1.4fr)";
-  return <>{head}<FilterBar project={filter} base="/demo/production" /><ViewOnly />
+  return <>{head}<FilterBar project={filter} base="/demo/production" />
     <section className="erp-card"><div className="erp-card-head"><div><h2>Production orders</h2><p>Each references its project, part, revision and required documents.</p></div></div>
       {orders.length ? <Rows columns={columns} head={["Order", "Project", "Part · revision", "Qty", "Status", ""]}>
         {orders.map((order) => {
           const project = projectOf(state, order.projectId);
           return <div key={order.id} role="row" className="erp-row" style={{ gridTemplateColumns: columns }}>
             <strong>{order.number}</strong><span>{project && <ProjectLink id={project.id} code={project.code} />}</span>
-            <span>{partNumber(state, order.partId)} rev {revisionLabel(state, order.revisionId)}</span><span>{order.quantity}</span><span><Badge>{order.status}</Badge></span>
+            <span>{partNumber(state, order.partId)} rev {revisionLabel(state, order.revisionId)}{(order.startDate || order.notes) && <small>{[order.startDate ? `Start ${formatDate(order.startDate)}` : "", order.notes ?? ""].filter(Boolean).join(" · ")}</small>}</span><span>{order.quantity}</span><span><Badge>{order.status}</Badge></span>
             <span className="erp-head-actions">
-              {order.status !== "Complete" && <GuideLink to={order.status === "Planned" ? "start" : "complete"}>{order.status === "Planned" ? "Start" : "Complete"}</GuideLink>}
+              {order.status !== "Complete" && <button type="button" className="erp-btn erp-btn-sm" onClick={() => commit((current) => advanceProduction(current, order.id, nowIso()))}>{order.status === "Planned" ? "Start" : "Complete"}</button>}
               <button type="button" className="erp-btn erp-btn-ghost erp-btn-sm" onClick={() => setOutput({ projectId: order.projectId, kind: "production", productionOrderId: order.id })}><Printer size={13} /> Order</button>
             </span>
           </div>;
@@ -299,8 +306,8 @@ export function ProductionModule() {
           const mat = lineMaterialReady(state, line);
           return <div key={line.id} role="row" className="erp-row" style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,1.3fr) minmax(0,2fr) 200px" }}>
             <span>{project && <ProjectLink id={project.id} code={project.code} />}</span><span>{partNumber(state, line.partId)} rev {revisionLabel(state, line.revisionId)} · {line.quantity}</span>
-            <span><Badge tone={eng ? "ok" : "warn"}>{eng ? "Drawing approved" : "Drawing not approved"}</Badge> <Badge tone={mat ? "ok" : "warn"}>{mat ? "Material received" : "Material not received"}</Badge></span>
-            <span><GuideLink to={!eng ? "approve" : !mat ? "order-material" : "release"}>{eng && mat ? "Release to production" : "Fix in guided demo"}</GuideLink></span>
+            <span><Badge tone={eng ? "ok" : "warn"}>{eng ? "Drawing approved" : "Drawing not approved (warning)"}</Badge> <Badge tone={mat ? "ok" : "warn"}>{mat ? "Material received" : "Material not received (warning)"}</Badge></span>
+            <span><GuideLink to="production-order">Create production order</GuideLink></span>
           </div>;
         })}
       </Rows>
@@ -316,11 +323,11 @@ export function QualityModule() {
   const hydrated = useHydrated();
   const filter = useProjectFilter(state);
   const [output, setOutput] = useState<OutputState>(null);
-  const head = <PageHead eyebrow="Operations" title="Quality and inspection" description="Inspection requirements come from the project. Generate an illustrative inspection report once production is complete." />;
+  const head = <PageHead eyebrow="Operations" title="Quality and inspection" description="Inspection parameters per part. The final inspection is recorded in the guided demo; the inspection report is printed here." />;
   if (!hydrated) return <>{head}<Loading /></>;
   if (!state.projects.length) return <>{head}<NoProjects what="inspection requirements" /></>;
   const projects = filter ? [filter] : state.projects;
-  return <>{head}<FilterBar project={filter} base="/demo/quality" /><ViewOnly /><div className="erp-stack">
+  return <>{head}<FilterBar project={filter} base="/demo/quality" /><div className="erp-stack">
     {projects.map((project) => {
       const ready = readiness(state, project.id);
       const reqs = state.inspectionRequirements.filter((req) => req.projectId === project.id);
@@ -356,7 +363,7 @@ export function DispatchModule() {
   if (!hydrated) return <>{head}<Loading /></>;
   if (!state.purchaseOrders.length) return <>{head}<NoProjects what="orders to dispatch" /></>;
   const orders = state.purchaseOrders.filter((order) => !filter || order.projectId === filter.id);
-  return <>{head}<FilterBar project={filter} base="/demo/dispatch" /><ViewOnly /><div className="erp-stack">
+  return <>{head}<FilterBar project={filter} base="/demo/dispatch" /><div className="erp-stack">
     {orders.map((order) => {
       const project = projectOf(state, order.projectId);
       const ready = readiness(state, order.projectId);
@@ -391,7 +398,7 @@ export function FinanceModule() {
   if (!state.projects.length) return <>{head}<NoProjects what="invoices" /></>;
   const projects = state.projects.filter((project) => !filter || project.id === filter.id);
   const columns = "minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 200px";
-  return <>{head}<FilterBar project={filter} base="/demo/finance" /><ViewOnly /><section className="erp-card"><Rows columns={columns} head={["Project", "Customer", "Order", "Invoice", "Total", ""]}>
+  return <>{head}<FilterBar project={filter} base="/demo/finance" /><section className="erp-card"><Rows columns={columns} head={["Project", "Customer", "Order", "Invoice", "Total", ""]}>
     {projects.map((project) => {
       const order = state.purchaseOrders.find((item) => item.projectId === project.id);
       const invoice = state.invoices.find((item) => item.projectId === project.id);

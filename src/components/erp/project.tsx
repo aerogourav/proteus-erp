@@ -7,10 +7,11 @@ import {
 } from "lucide-react";
 import { stepForAction, useOpenGuide } from "@/components/erp/guide-link";
 import { OUTPUT_LABELS, OutputDialog, outputAvailability, type OutputKind } from "@/components/erp/outputs";
-import { useErp, useHydrated } from "@/components/erp/store";
+import { commit, nowIso, useErp, useHydrated } from "@/components/erp/store";
+import { LineItemsEditor } from "@/components/erp/line-items";
 import { Badge, EmptyState, ReadinessBadge, ReadinessIcon, Rule } from "@/components/erp/ui";
 import {
-  RULES, STAGE_ORDER, documentCompleteness, formatDate, formatMoney, projectRecords, projectStage, readiness,
+  RULES, STAGE_ORDER, documentCompleteness, formatDate, formatMoney, projectRecords, projectStage, readiness, resolve,
   type Readiness, type ResolveAction,
 } from "@/lib/erp/model";
 
@@ -33,7 +34,11 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
   const docs = documentCompleteness(state, projectId);
 
   // Department views are read-only: every fix opens the matching step of the guided demo.
-  const run = (action: ResolveAction) => openGuide(stepForAction(state, action));
+  // Approvals and purchasing happen right here; flow steps open the guided demo.
+  const run = (action: ResolveAction) => {
+    if (action.kind === "approve-document" || action.kind === "advance-procurement") { commit((current) => resolve(current, projectId, action, nowIso())); return; }
+    openGuide(stepForAction(state, action));
+  };
 
   const cards: { key: string; title: string; icon: typeof Boxes; ready: Readiness; rule: string; extra?: string }[] = [
     { key: "engineering", title: "Engineering", icon: FileText, ready: ready.engineering, rule: RULES.engineering, extra: `${docs.approved} of ${docs.total} documents approved` },
@@ -72,7 +77,12 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
         {po && <span>Delivery <b>{formatDate(po.deliveryDate)}</b></span>}
       </div>
       <ol className="erp-lifecycle" aria-label={`Lifecycle: ${stage}`}>{STAGE_ORDER.map((item, index) => <li key={item} className={index < stageIndex ? "is-done" : index === stageIndex ? "is-current" : ""}>{item}</li>)}</ol>
-      {nextStep?.action && <div className="erp-hint" style={{ margin: 0 }}><ArrowRight size={16} /><span><b>Next step:</b> {nextStep.text}</span><button type="button" className="erp-btn erp-btn-primary erp-btn-sm" style={{ marginLeft: "auto" }} onClick={() => run(nextStep.action!)}>{nextStep.action.label} in guided demo</button></div>}
+      {nextStep?.action && <div className="erp-hint" style={{ margin: 0 }}><ArrowRight size={16} /><span><b>Next step:</b> {nextStep.text}</span><button type="button" className="erp-btn erp-btn-primary erp-btn-sm" style={{ marginLeft: "auto" }} onClick={() => run(nextStep.action!)}>{nextStep.action.label}</button></div>}
+    </section>
+
+    <section className="erp-card" aria-labelledby="lines-title">
+      <div className="erp-card-head"><div><h2 id="lines-title">Parts, quantity and price</h2><p>Change them here or in the Sales orders tab.</p></div></div>
+      <div className="erp-card-pad"><LineItemsEditor projectId={projectId} /></div>
     </section>
 
     <section className="erp-status-grid" aria-label="Readiness">

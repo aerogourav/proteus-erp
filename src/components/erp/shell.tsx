@@ -10,7 +10,7 @@ import {
 import { BohMark } from "@/components/brand/boh-logo";
 import { Modal } from "@/components/erp/ui";
 import { commit, resetDemo, useErp, useHydrated } from "@/components/erp/store";
-import { PHASES, STEPS, WORK_STEPS, firstStepOfPhase, phaseIndex } from "@/components/erp/guide-steps";
+import { PHASES, firstStepOfPhase, guideSteps, phaseIndex, workStepCount } from "@/components/erp/guide-steps";
 
 const groups = [
   { label: "Workspace", items: [{ label: "Overview", href: "/demo/overview", icon: LayoutDashboard }, { label: "Guided demo", href: "/demo", icon: Sparkles }, { label: "Projects", href: "/demo/projects", icon: FolderKanban }] },
@@ -32,10 +32,12 @@ export function ErpShell({ children }: { children: ReactNode }) {
   const hydrated = useHydrated();
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
-  const step = hydrated ? Math.min(state.guide.step, STEPS.length - 1) : 0;
+  const steps = guideSteps(state);
+  const WORK_STEPS = workStepCount(steps);
+  const step = hydrated ? Math.min(state.guide.step, steps.length - 1) : 0;
   const furthest = Math.max(step, state.guide.furthest ?? 0);
   const onGuide = pathname === "/demo";
-  const current = phaseIndex(step);
+  const current = phaseIndex(steps, step);
 
   const goTo = (target: number) => {
     commit((value) => ({ ...value, guide: { ...value.guide, step: target } }));
@@ -45,8 +47,8 @@ export function ErpShell({ children }: { children: ReactNode }) {
 
   const phases = <ol className="erp-phases" aria-label="Guided demo steps">
     {PHASES.map((phase, index) => {
-      const first = firstStepOfPhase(phase.key);
-      const nextFirst = index < PHASES.length - 1 ? firstStepOfPhase(PHASES[index + 1].key) : Infinity;
+      const first = firstStepOfPhase(steps, phase.key);
+      const nextFirst = index < PHASES.length - 1 ? firstStepOfPhase(steps, PHASES[index + 1].key) : Infinity;
       const reached = hydrated && first <= furthest;
       const isCurrent = index === current;
       const isDone = hydrated && !isCurrent && nextFirst <= furthest;

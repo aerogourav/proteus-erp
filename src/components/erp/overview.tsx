@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, Boxes, Factory, FileText, PackageCheck, Receipt, ShieldCheck, ShoppingCart, Sparkles, Truck, Users } from "lucide-react";
 import { GuideLink } from "@/components/erp/guide-link";
-import { STEPS, WORK_STEPS } from "@/components/erp/guide-steps";
+import { guideSteps, workStepCount } from "@/components/erp/guide-steps";
 import { useErp, useHydrated } from "@/components/erp/store";
 import { Badge, EmptyState, PageHead } from "@/components/erp/ui";
 import { STAGE_ORDER, formatDate, formatMoney, partNumber, projectRecords, projectStage, revisionLabel } from "@/lib/erp/model";
@@ -23,33 +23,37 @@ export function Overview() {
   const r = projectRecords(state, projectId);
   const project = r.project!;
   const po = r.purchaseOrders[0];
-  const line = r.lineItems[0];
   const stage = projectStage(state, projectId);
   const stageIndex = STAGE_ORDER.indexOf(stage);
-  const drawing = r.documents.find((doc) => doc.type === "Drawing");
-  const procurement = r.procurement[0];
-  const production = r.productionOrders[0];
+  const drawings = r.documents.filter((doc) => doc.type === "Drawing");
+  const approved = drawings.filter((doc) => doc.status === "Approved").length;
+  const received = r.procurement.filter((item) => item.status === "Received").length;
+  const orders = r.productionOrders;
+  const completeOrders = orders.filter((order) => order.status === "Complete").length;
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
   const report = r.inspectionReports[0];
   const dispatch = r.dispatches[0];
   const invoice = r.invoices[0];
   const finished = Boolean(invoice);
-  const step = Math.min(state.guide.step, STEPS.length - 1);
+  const steps = guideSteps(state);
+  const WORK_STEPS = workStepCount(steps);
+  const step = Math.min(state.guide.step, steps.length - 1);
 
   const kpis = [
     { label: "Order value", value: po?.value != null ? formatMoney(po.value, po.currency) : "—", note: po ? `${po.number}` : "" },
     { label: "Delivery due", value: po ? formatDate(po.deliveryDate) : "—", note: dispatch ? `Shipped ${formatDate(dispatch.dispatchedAt)}` : "Not shipped yet" },
-    { label: "Production", value: production?.status ?? "Not released", note: production ? `${production.number} · ${production.quantity} pcs` : "" },
+    { label: "Production", value: orders.length ? `${completeOrders} of ${r.lineItems.length} complete` : "Not released", note: orders.length ? orders.map((order) => order.number).join(", ") : plural(r.lineItems.length, "part") },
     { label: "Invoiced", value: invoice ? formatMoney(invoice.total, invoice.currency) : "—", note: invoice ? `${invoice.number} · due ${formatDate(invoice.dueAt)}` : "After dispatch" },
   ];
 
   const depts = [
     { icon: Users, name: "CRM", href: "/demo/crm", value: r.customer?.name ?? "—", status: r.customer ? "Customer" : "", tone: "ok" as const },
     { icon: ShoppingCart, name: "Sales", href: "/demo/sales", value: po?.number ?? "—", status: po ? (dispatch ? "Delivered" : "Open order") : "" },
-    { icon: Boxes, name: "Parts", href: "/demo/parts", value: line ? `${partNumber(state, line.partId)} rev ${revisionLabel(state, line.revisionId)}` : "—", status: line ? `${line.quantity} ${line.unit}` : "" },
-    { icon: FileText, name: "Documents", href: "/demo/documents", value: drawing?.number ?? "No drawing yet", status: drawing?.status ?? "" },
-    { icon: PackageCheck, name: "Purchasing", href: "/demo/materials", value: r.materialRequirements[0]?.material ?? "No material yet", status: procurement?.status ?? "" },
-    { icon: Factory, name: "Production", href: "/demo/production", value: production?.number ?? "Not released", status: production?.status ?? "" },
-    { icon: ShieldCheck, name: "Quality", href: "/demo/quality", value: report?.number ?? r.inspectionRequirements[0]?.name ?? "No requirement yet", status: report ? "Passed" : r.inspectionRequirements.length ? "Planned" : "" },
+    { icon: Boxes, name: "Parts", href: "/demo/parts", value: r.lineItems.map((line) => `${partNumber(state, line.partId)} rev ${revisionLabel(state, line.revisionId)}`).join(", ") || "—", status: plural(r.lineItems.length, "part") },
+    { icon: FileText, name: "Documents", href: "/demo/documents", value: drawings.length ? plural(drawings.length, "drawing") : "No drawing yet", status: drawings.length ? (approved === drawings.length ? "Approved" : `${approved} of ${drawings.length} approved`) : "" },
+    { icon: PackageCheck, name: "Purchasing", href: "/demo/materials", value: r.materialRequirements.map((req) => req.material).join(", ") || "No material yet", status: r.procurement.length ? (received === r.procurement.length ? "Received" : `${received} of ${r.procurement.length} received`) : "" },
+    { icon: Factory, name: "Production", href: "/demo/production", value: orders.length ? orders.map((order) => order.number).join(", ") : "Not released", status: orders.length ? (completeOrders === orders.length ? "Complete" : `${completeOrders} of ${orders.length} complete`) : "" },
+    { icon: ShieldCheck, name: "Quality", href: "/demo/quality", value: report?.number ?? (r.inspectionRequirements.length ? plural(r.inspectionRequirements.length, "parameter") : "No requirement yet"), status: report ? (report.passed ? "Passed" : "Failed") : r.inspectionRequirements.length ? "Planned" : "" },
     { icon: Truck, name: "Dispatch", href: "/demo/dispatch", value: dispatch?.number ?? "Not dispatched", status: dispatch ? "Dispatched" : "" },
     { icon: Receipt, name: "Finance", href: "/demo/finance", value: invoice?.number ?? "Not invoiced", status: invoice ? "Invoiced" : "" },
   ];

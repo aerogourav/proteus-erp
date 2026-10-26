@@ -13,7 +13,9 @@
 export type Currency = "EUR" | "USD" | "GBP";
 export type DocType = "Drawing" | "Specification" | "Bill of materials" | "Inspection plan";
 export type DocStatus = "Draft" | "In review" | "Approved";
-export type DocSource = "sample" | "metadata";
+export type DocSource = "sample" | "metadata" | "upload";
+/** A file kept in this browser only. `data` (a data URL) is omitted for large files. */
+export type StoredFile = { name: string; size: number; type: string; data?: string };
 export type ProcurementStatus = "Not ordered" | "Ordered" | "Received";
 export type ProductionStatus = "Planned" | "In progress" | "Complete";
 
@@ -30,11 +32,11 @@ export type Project = { id: string; code: string; name: string; description: str
 export type LineItem = { id: string; projectId: string; purchaseOrderId: string; partId: string; revisionId: string; quantity: number; unit: string; unitPrice: number | null };
 export type Part = { id: string; number: string; description: string };
 export type PartRevision = { id: string; partId: string; revision: string; createdAt: string };
-export type DocumentRecord = { id: string; number: string; name: string; type: DocType; revision: string; status: DocStatus; source: DocSource; projectIds: string[]; partId: string | null; updatedAt: string };
+export type DocumentRecord = { id: string; number: string; name: string; type: DocType; revision: string; status: DocStatus; source: DocSource; projectIds: string[]; partId: string | null; updatedAt: string; file?: StoredFile };
 export type InspectionRequirement = { id: string; projectId: string; partId: string | null; name: string; spec: string; unit: string; acceptance: string };
 export type MaterialRequirement = { id: string; projectId: string; lineItemId: string | null; material: string; quantity: number; unit: string };
 export type ProcurementRecord = { id: string; number: string; requirementId: string; supplier: string; status: ProcurementStatus; updatedAt: string };
-export type ProductionOrder = { id: string; number: string; projectId: string; lineItemId: string; partId: string; revisionId: string; quantity: number; status: ProductionStatus; createdAt: string };
+export type ProductionOrder = { id: string; number: string; projectId: string; lineItemId: string; partId: string; revisionId: string; quantity: number; status: ProductionStatus; createdAt: string; startDate?: string; notes?: string };
 export type InspectionResult = { requirementId: string; observed: string; pass: boolean };
 export type InspectionReport = { id: string; number: string; projectId: string; productionOrderIds: string[]; results: InspectionResult[]; passed: boolean; createdAt: string };
 export type DispatchRecord = { id: string; number: string; projectId: string; purchaseOrderId: string; dispatchedAt: string };
@@ -45,7 +47,7 @@ export type ActivityEvent = { id: string; at: string; projectId: string | null; 
 export type ModuleKey = "projects" | "crm" | "sales" | "parts" | "documents" | "materials" | "procurement" | "production" | "quality" | "dispatch" | "finance";
 
 export type DraftLine = { key: string; partNumber: string; description: string; quantity: string; unit: string; unitPrice: string; revision: string };
-export type DraftDocument = { key: string; name: string; type: DocType; number: string; revision: string; partKey: string; status: DocStatus; source: DocSource };
+export type DraftDocument = { key: string; name: string; type: DocType; number: string; revision: string; partKey: string; status: DocStatus; source: DocSource; file?: StoredFile };
 export type DraftInspection = { key: string; name: string; spec: string; unit: string; acceptance: string; partKey: string };
 export type DraftMaterial = { key: string; material: string; quantity: string; unit: string; supplier: string; status: ProcurementStatus; lineKey: string };
 export type ProjectDraft = {
@@ -370,7 +372,7 @@ export function createProjectFromDraft(input: ErpState, draft: ProjectDraft, now
       continue;
     }
     [id, state] = nextId(state, "doc");
-    state = { ...state, documents: [...state.documents, { id, number: normCode(doc.number), name: doc.name.trim(), type: doc.type, revision: normCode(doc.revision), status: doc.status, source: doc.source, projectIds: [projectId], partId, updatedAt: now }] };
+    state = { ...state, documents: [...state.documents, { id, number: normCode(doc.number), name: doc.name.trim(), type: doc.type, revision: normCode(doc.revision), status: doc.status, source: doc.source, projectIds: [projectId], partId, updatedAt: now, ...(doc.file ? { file: doc.file } : {}) }] };
     state = log(state, now, "documents", `${doc.type} ${normCode(doc.number)} rev ${normCode(doc.revision)} added (${doc.status})`, projectId);
   }
 
@@ -443,10 +445,10 @@ export type Readiness = { state: ReadinessState; summary: string; reasons: Reaso
 export type ProjectReadiness = { engineering: Readiness; materials: Readiness; inspection: Readiness; production: Readiness; quality: Readiness; dispatch: Readiness; invoice: Readiness };
 
 export const RULES = {
-  engineering: "Every ordered part needs an approved drawing for the ordered revision.",
-  materials: "Every ordered part needs a material requirement, and its material must be received.",
+  engineering: "Every ordered part needs a drawing for the ordered revision. Approval can happen later, outside the guided flow.",
+  materials: "Every ordered part needs a material requirement. Purchasing is a recommendation until the material is ordered and received.",
   inspection: "The project needs at least one inspection requirement.",
-  production: "A production order is created for a line item once its drawing is approved and its material is received.",
+  production: "A production order can be created for any line item. A drawing that is not yet approved or material that is not yet received is shown as a warning.",
   quality: "An inspection report can be generated when all production orders are complete. It must pass.",
   dispatch: "An order can be dispatched only when production is complete and the inspection report has passed.",
   invoice: "The invoice is generated from the dispatched line items and their unit prices.",
@@ -480,7 +482,7 @@ export function readiness(state: ErpState, projectId: string): ProjectReadiness 
     else if (drawing.status !== "Approved") engReasons.push({ text: `Drawing ${drawing.number} rev ${drawing.revision} is ${drawing.status.toLowerCase()}.`, action: { kind: "approve-document", documentId: drawing.id, label: "Approve drawing" } });
   }
   const approvedDrawings = lineItems.length - engReasons.length;
-  const engineering: Readiness = engReasons.length ? { state: "blocked", summary: `${approvedDrawings} of ${lineItems.length} drawings approved`, reasons: engReasons } : { state: "complete", summary: "All drawings approved", reasons: [] };
+  const engineering: Readiness = engReasons.length ? { state: engReasons.some((reason) => reason.action?.kind === "add-drawing") ? "blocked" : "incomplete", summary: `${approvedDrawings} of ${lineItems.length} drawings approved`, reasons: engReasons } : { state: "complete", summary: "All drawings approved", reasons: [] };
 
   // Materials
   const matReasons: Reason[] = [];
@@ -505,10 +507,8 @@ export function readiness(state: ErpState, projectId: string): ProjectReadiness 
     const order = records.productionOrders.find((item) => item.lineItemId === line.id);
     const label = partNumber(state, line.partId);
     if (!order) {
-      const eligible = lineEngineeringReady(state, projectId, line) && lineMaterialReady(state, line);
-      prodReasons.push(eligible
-        ? { text: `${label} is ready for production.`, action: { kind: "create-production-order", lineItemId: line.id, label: "Create production order" } }
-        : { text: `${label} is waiting for ${[!lineEngineeringReady(state, projectId, line) ? "an approved drawing" : "", !lineMaterialReady(state, line) ? "material" : ""].filter(Boolean).join(" and ")}.` });
+      const warnings = [!lineEngineeringReady(state, projectId, line) ? "drawing not approved yet" : "", !lineMaterialReady(state, line) ? "material not received yet" : ""].filter(Boolean);
+      prodReasons.push({ text: `${label} has no production order${warnings.length ? ` (${warnings.join(", ")})` : ""}.`, action: { kind: "create-production-order", lineItemId: line.id, label: "Create production order" } });
     } else if (order.status !== "Complete") {
       prodReasons.push({ text: `${order.number} (${label}) is ${order.status.toLowerCase()}.`, action: { kind: "advance-production", productionOrderId: order.id, label: order.status === "Planned" ? "Start production" : "Complete production" } });
     }
@@ -523,7 +523,7 @@ export function readiness(state: ErpState, projectId: string): ProjectReadiness 
   if (!records.inspectionRequirements.length) quality = { state: "blocked", summary: "No inspection requirements", reasons: [{ text: "Inspection requirements are needed before a report can be generated.", action: { kind: "add-inspection", label: "Add requirement" } }] };
   else if (!productionDone) quality = { state: "blocked", summary: "Waiting for production", reasons: [{ text: "The inspection report is generated after all production orders are complete." }] };
   else if (!latestReport) quality = { state: "incomplete", summary: "Report not generated", reasons: [{ text: "Production is complete. Generate the inspection report.", action: { kind: "generate-inspection-report", label: "Generate inspection report" } }] };
-  else quality = latestReport.passed ? { state: "complete", summary: `${latestReport.number} passed`, reasons: [] } : { state: "blocked", summary: `${latestReport.number} failed`, reasons: [{ text: "The inspection report contains a failed result." }] };
+  else quality = latestReport.passed ? { state: "complete", summary: `${latestReport.number} passed`, reasons: [] } : { state: "blocked", summary: `${latestReport.number} failed`, reasons: [{ text: "The last inspection has a failed result. Inspect again after rework.", action: { kind: "generate-inspection-report", label: "Inspect again" } }] };
 
   // Dispatch
   const dispatched = records.dispatches[0] ?? null;
@@ -669,17 +669,18 @@ export function addInspectionRequirement(state: ErpState, projectId: string, inp
   return log(next, now, "quality", `Inspection requirement added: ${input.name.trim()}`, projectId);
 }
 
-export function createProductionOrder(state: ErpState, lineItemId: string, now: string): ErpState {
+export function createProductionOrder(state: ErpState, lineItemId: string, now: string, details: { quantity?: number; startDate?: string; notes?: string } = {}): ErpState {
   const line = state.lineItems.find((item) => item.id === lineItemId);
   if (!line) return state;
   if (state.productionOrders.some((order) => order.lineItemId === lineItemId)) return state;
-  if (!lineEngineeringReady(state, line.projectId, line) || !lineMaterialReady(state, line)) return state;
+  const quantity = details.quantity !== undefined ? details.quantity : line.quantity;
+  if (!Number.isInteger(quantity) || quantity <= 0) return state;
   let id: string;
   let next: ErpState;
   [id, next] = nextId(state, "mo");
   const number = numberFor("MO-2026-", next.productionOrders.map((order) => order.number), 201);
-  next = { ...next, productionOrders: [...next.productionOrders, { id, number, projectId: line.projectId, lineItemId, partId: line.partId, revisionId: line.revisionId, quantity: line.quantity, status: "Planned", createdAt: now }] };
-  return log(next, now, "production", `Production order ${number} created for ${line.quantity} × ${partNumber(state, line.partId)} rev ${revisionLabel(state, line.revisionId)}`, line.projectId);
+  next = { ...next, productionOrders: [...next.productionOrders, { id, number, projectId: line.projectId, lineItemId, partId: line.partId, revisionId: line.revisionId, quantity, status: "Planned", createdAt: now, ...(details.startDate ? { startDate: details.startDate } : {}), ...(details.notes?.trim() ? { notes: details.notes.trim() } : {}) }] };
+  return log(next, now, "production", `Production order ${number} created for ${quantity} × ${partNumber(state, line.partId)} rev ${revisionLabel(state, line.revisionId)}`, line.projectId);
 }
 
 export function advanceProduction(state: ErpState, productionOrderId: string, now: string): ErpState {
@@ -690,7 +691,7 @@ export function advanceProduction(state: ErpState, productionOrderId: string, no
   return log(next, now, "production", `${order.number} ${status === "Complete" ? "completed" : "started"}`, order.projectId);
 }
 
-export function generateInspectionReport(state: ErpState, projectId: string, now: string): ErpState {
+export function generateInspectionReport(state: ErpState, projectId: string, now: string, measured: Record<string, { observed: string; pass: boolean }> = {}): ErpState {
   const ready = readiness(state, projectId);
   if (ready.production.state !== "complete" || ready.inspection.state !== "complete") return state;
   const records = projectRecords(state, projectId);
@@ -698,10 +699,14 @@ export function generateInspectionReport(state: ErpState, projectId: string, now
   let next: ErpState;
   [id, next] = nextId(state, "rep");
   const number = numberFor("IR-2026-", next.inspectionReports.map((report) => report.number), 301);
-  const results: InspectionResult[] = records.inspectionRequirements.map((req) => ({ requirementId: req.id, observed: `Within specification (${req.spec}${req.unit ? ` ${req.unit}` : ""})`, pass: true }));
+  const results: InspectionResult[] = records.inspectionRequirements.map((req) => {
+    const entry = measured[req.id];
+    const observed = entry?.observed.trim() ? `${entry.observed.trim()}${req.unit && !entry.observed.includes(req.unit) ? ` ${req.unit}` : ""}` : `Within specification (${req.spec}${req.unit ? ` ${req.unit}` : ""})`;
+    return { requirementId: req.id, observed, pass: entry ? entry.pass : true };
+  });
   const report: InspectionReport = { id, number, projectId, productionOrderIds: records.productionOrders.map((order) => order.id), results, passed: results.every((result) => result.pass), createdAt: now };
   next = { ...next, inspectionReports: [report, ...next.inspectionReports] };
-  return log(next, now, "quality", `Inspection report ${number} generated · ${results.length} of ${results.length} passed (illustrative)`, projectId);
+  return log(next, now, "quality", `Final inspection ${number} recorded · ${results.filter((result) => result.pass).length} of ${results.length} passed`, projectId);
 }
 
 export function dispatchProject(state: ErpState, projectId: string, now: string): ErpState {
@@ -757,8 +762,49 @@ export function generateInvoice(state: ErpState, projectId: string, now: string)
 export function setLineItemPrice(state: ErpState, lineItemId: string, price: number, now: string): ErpState {
   const line = state.lineItems.find((item) => item.id === lineItemId);
   if (!line || !(price >= 0)) return state;
-  const next = { ...state, lineItems: touch(state.lineItems, lineItemId, (item) => ({ ...item, unitPrice: round2(price) })) };
+  const next = recalcOrderValue({ ...state, lineItems: touch(state.lineItems, lineItemId, (item) => ({ ...item, unitPrice: round2(price) })) }, line.projectId);
   return log(next, now, "sales", `Unit price set for ${partNumber(state, line.partId)}`, line.projectId);
+}
+
+/** Keeps the purchase order value in line with priced line items. */
+function recalcOrderValue(state: ErpState, projectId: string): ErpState {
+  const lines = state.lineItems.filter((item) => item.projectId === projectId);
+  if (!lines.length || lines.some((item) => item.unitPrice === null)) return state;
+  const value = round2(lines.reduce((sum, item) => sum + (item.unitPrice ?? 0) * item.quantity, 0));
+  return { ...state, purchaseOrders: state.purchaseOrders.map((order) => order.projectId === projectId ? { ...order, value } : order) };
+}
+
+export function setLineItemQuantity(state: ErpState, lineItemId: string, quantity: number, now: string): ErpState {
+  const line = state.lineItems.find((item) => item.id === lineItemId);
+  if (!line || !Number.isInteger(quantity) || quantity <= 0 || line.quantity === quantity) return state;
+  if (state.dispatches.some((item) => item.projectId === line.projectId)) return state;
+  const next = recalcOrderValue({ ...state, lineItems: touch(state.lineItems, lineItemId, (item) => ({ ...item, quantity })) }, line.projectId);
+  return log(next, now, "sales", `Quantity for ${partNumber(state, line.partId)} changed to ${quantity}`, line.projectId);
+}
+
+/** Values already used anywhere (other projects or earlier parts in the draft), offered as dropdowns for reuse. */
+export function reuseCatalog(state: ErpState, draft: ProjectDraft | null) {
+  const uniq = <T,>(items: T[], key: (item: T) => string) => { const seen = new Set<string>(); return items.filter((item) => { const k = key(item); if (!k || seen.has(k)) return false; seen.add(k); return true; }); };
+  const lines = draft?.lines ?? [];
+  const parts = uniq([
+    ...state.parts.map((part) => ({ number: part.number, description: part.description, revision: state.revisions.filter((rev) => rev.partId === part.id).at(-1)?.revision ?? "A" })),
+    ...lines.map((line) => ({ number: normCode(line.partNumber), description: line.description.trim(), revision: normCode(line.revision) })),
+  ], (item) => item.number);
+  const drawings = uniq([
+    ...state.documents.filter((doc) => doc.type === "Drawing").map((doc) => ({ number: doc.number, revision: doc.revision, name: doc.name, file: doc.file?.name ?? "" })),
+    ...(draft?.documents ?? []).filter((doc) => doc.type === "Drawing").map((doc) => ({ number: normCode(doc.number), revision: normCode(doc.revision), name: doc.name, file: doc.file?.name ?? "" })),
+  ], (item) => `${item.number}|${item.revision}`);
+  const supplierFor = (reqId: string) => state.procurement.find((record) => record.requirementId === reqId)?.supplier ?? "";
+  const materials = uniq([
+    ...state.materialRequirements.map((req) => ({ material: req.material, unit: req.unit, supplier: supplierFor(req.id) })),
+    ...(draft?.materials ?? []).map((item) => ({ material: item.material.trim(), unit: item.unit, supplier: item.supplier.trim() })),
+  ], (item) => item.material.toLowerCase());
+  const parameters = uniq([
+    ...state.inspectionRequirements.map((req) => ({ name: req.name, spec: req.spec, unit: req.unit })),
+    ...(draft?.inspections ?? []).map((item) => ({ name: item.name.trim(), spec: item.spec.trim(), unit: item.unit.trim() })),
+  ], (item) => `${item.name.toLowerCase()}|${item.spec}`);
+  const suppliers = uniq(materials.map((item) => item.supplier).filter(Boolean).map((name) => ({ name })), (item) => item.name.toLowerCase()).map((item) => item.name);
+  return { parts, drawings, materials, parameters, suppliers };
 }
 
 export function updateSettings(state: ErpState, settings: Partial<Settings>): ErpState {

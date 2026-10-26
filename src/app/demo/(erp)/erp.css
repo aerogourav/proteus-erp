@@ -362,3 +362,49 @@
   .erp-print { position: absolute; inset: 0 0 auto 0; box-shadow: none !important; border-radius: 0 !important; }
   .erp-overlay { position: static; background: none; backdrop-filter: none; padding: 0; }
 }
+
+/* ---------- Multi-part guided flow ---------- */
+.erp-step-part { color: #A14A12 !important; background: rgba(255, 178, 126, .22) !important; }
+.erp-counter { display: flex; align-items: center; gap: 18px; }
+.erp-counter .erp-btn { width: 52px; height: 52px; padding: 0; }
+.erp-counter output { display: grid; min-width: 110px; place-items: center; padding: 10px 18px; background: rgba(255, 255, 255, .8); border: 1px solid var(--e-border-2); border-radius: 18px; }
+.erp-counter output strong { font-family: var(--b-display), sans-serif; font-size: 40px; line-height: 1; }
+.erp-counter output span { color: var(--e-text-3); font-size: 13px; }
+.erp-upload { position: relative; display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 12px 16px; color: var(--e-text-2); background: rgba(255, 255, 255, .7); border: 1.5px dashed rgba(242, 86, 111, .45); border-radius: 16px; cursor: pointer; transition: border-color .15s ease, background .15s ease; }
+.erp-upload:hover { border-color: var(--e-accent); background: rgba(255, 255, 255, .9); }
+.erp-upload svg { flex: 0 0 auto; color: var(--e-accent-ink); }
+.erp-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.erp-upload:focus-within { outline: 3px solid var(--e-accent); outline-offset: 2px; }
+.erp-param { display: grid; gap: 12px; padding: 14px 16px; background: rgba(255, 255, 255, .55); border: 1px solid var(--e-border); border-radius: 16px; }
+.erp-param-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.erp-review { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.erp-review article { padding: 14px 16px; background: rgba(255, 255, 255, .6); border: 1px solid var(--e-border); border-radius: 16px; }
+.erp-review header { display: grid; gap: 2px; margin-bottom: 8px; }
+.erp-review header span { color: var(--e-text-3); font-size: 13px; }
+.erp-review ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 13.5px; }
+.erp-review li { display: flex; align-items: flex-start; gap: 8px; }
+.erp-review li svg { flex: 0 0 auto; margin-top: 3px; color: var(--e-accent-ink); }
+.erp-recs { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.erp-recs li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; background: rgba(255, 255, 255, .6); border: 1px solid var(--e-border); border-radius: 14px; }
+.erp-recs li > svg { color: var(--e-accent-ink); }
+.erp-recs span { display: grid; gap: 2px; min-width: 0; }
+.erp-recs small { color: var(--e-text-3); font-size: 12.5px; }
+.erp-inspect-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 110px; gap: 10px; align-items: center; }
+.erp-inspect-row > span { display: grid; gap: 2px; }
+.erp-inspect-row small { color: var(--e-text-3); font-size: 12.5px; }
+.erp-lines { display: grid; gap: 8px; }
+.erp-lines-head, .erp-lines-row { display: grid; grid-template-columns: minmax(0, 1.4fr) 110px 150px minmax(0, 1fr) 96px; gap: 10px; align-items: center; }
+.erp-lines-head { color: var(--e-text-3); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.erp-lines-row strong { display: grid; font-size: 14px; }
+.erp-lines-row strong small { color: var(--e-text-3); font-size: 12px; font-weight: 500; }
+.erp-lines-row .erp-input { min-height: 40px; }
+.erp-lines-total { display: flex; justify-content: space-between; padding-top: 10px; border-top: 1px solid var(--e-border); }
+@media (max-width: 640px) {
+  .erp-inspect-row { grid-template-columns: 1fr 1fr; }
+  .erp-inspect-row > span { grid-column: 1 / -1; }
+  .erp-lines-head { display: none; }
+  .erp-lines-row { grid-template-columns: 1fr 1fr; }
+  .erp-lines-row strong { grid-column: 1 / -1; }
+  .erp-recs li { grid-template-columns: 22px minmax(0, 1fr); }
+  .erp-recs li > :last-child { grid-column: 2; justify-self: start; }
+}

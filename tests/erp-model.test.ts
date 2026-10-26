@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   createInitialState, newDraft, validateStep, firstInvalidStep, createProjectFromDraft, draftFlow, readiness, projectStage, isActiveOrder,
   loadSample, resolve, approveDocument, advanceProcurement, createProductionOrder, advanceProduction, generateInspectionReport, dispatchProject,
-  generateInvoice, addDrawingForLine, addDocumentToProject, addInspectionRequirement, addMaterialRequirement, suggestProjectCode, parseStoredState, projectRecords, SAMPLE_PROJECT_CODE, type ErpState, type ProjectDraft,
+  generateInvoice, addDrawingForLine, setLineItemQuantity, setLineItemPrice, reuseCatalog, addDocumentToProject, addInspectionRequirement, addMaterialRequirement, suggestProjectCode, parseStoredState, projectRecords, SAMPLE_PROJECT_CODE, type ErpState, type ProjectDraft,
 } from "../src/lib/erp/model.ts";
 
 const NOW = "2026-10-26T10:00:00.000Z";
@@ -81,12 +81,13 @@ test("readiness rules block and unblock with the underlying records", () => {
   const base = createInitialState();
   let { state, projectId } = createProjectFromDraft(base, validDraft(base), NOW);
   let ready = readiness(state, projectId);
-  assert.equal(ready.engineering.state, "blocked");
+  assert.equal(ready.engineering.state, "incomplete", "drawing exists, approval can come later");
   assert.equal(ready.materials.state, "incomplete");
   assert.equal(ready.dispatch.state, "blocked");
   assert.equal(projectStage(state, projectId), "Engineering");
   const line = state.lineItems[0];
-  assert.equal(createProductionOrder(state, line.id, NOW), state, "production order refused before drawing approval");
+  assert.match(ready.production.reasons[0].text, /drawing not approved yet/, "approval is a warning, not a block");
+  assert.equal(ready.production.reasons[0].action?.kind, "create-production-order");
 
   state = approveDocument(state, state.documents[0].id, NOW);
   state = advanceProcurement(state, state.procurement[0].id, NOW);
@@ -190,4 +191,69 @@ test("guided demo: one project moves from order to invoice step by step", () => 
   assert.equal(records.dispatches.length, 1);
   assert.equal(records.invoices.length, 1);
   assert.equal(records.invoices[0].subtotal, 125);
+});
+
+test("multi-part order: production details, inspection results, editable quantity and reuse catalog", () => {
+  let state = createInitialState();
+  const draft: ProjectDraft = {
+    ...newDraft(state, "2026-10-26"),
+    projectName: "Two Part Run", projectCode: "BOH-PRJ-2026-060", poNumber: "PO-MP-1", customerName: "Multi GmbH",
+    lines: [
+      { key: "a", partNumber: "MP-1", description: "Bracket", quantity: "10", unit: "pcs", unitPrice: "5", revision: "A" },
+      { key: "b", partNumber: "MP-2", description: "Shaft", quantity: "4", unit: "pcs", unitPrice: "20", revision: "B" },
+    ],
+    documents: [
+      { key: "da", name: "Bracket drawing", type: "Drawing", number: "DRW-MP-1", revision: "A", partKey: "a", status: "In review", source: "upload", file: { name: "mp1.pdf", size: 1200, type: "application/pdf", data: "data:application/pdf;base64,AA==" } },
+      { key: "db", name: "Shaft drawing", type: "Drawing", number: "DRW-MP-2", revision: "B", partKey: "b", status: "In review", source: "metadata" },
+    ],
+    inspections: [
+      { key: "i1", name: "Length", spec: "100 ± 0.1", unit: "mm", acceptance: "", partKey: "a" },
+      { key: "i2", name: "Hole", spec: "Ø8 H7", unit: "", acceptance: "", partKey: "a" },
+      { key: "i3", name: "Diameter", spec: "20 h6", unit: "mm", acceptance: "", partKey: "b" },
+    ],
+    materials: [
+      { key: "ma", material: "Steel plate", quantity: "3", unit: "kg", supplier: "Northline", status: "Not ordered", lineKey: "a" },
+      { key: "mb", material: "Steel bar", quantity: "2", unit: "kg", supplier: "", status: "Not ordered", lineKey: "b" },
+    ],
+  };
+  const created = createProjectFromDraft(state, draft, NOW);
+  state = created.state;
+  const id = created.projectId;
+  const records = projectRecords(state, id);
+  assert.equal(records.lineItems.length, 2);
+  assert.equal(records.purchaseOrders[0].value, 130);
+  assert.equal(records.documents.find((doc) => doc.number === "DRW-MP-1")?.file?.name, "mp1.pdf", "uploaded file is kept on the document");
+
+  // Quantity and price can change later; the order value follows.
+  state = setLineItemQuantity(state, records.lineItems[0].id, 12, NOW);
+  state = setLineItemPrice(state, records.lineItems[1].id, 25, NOW);
+  assert.equal(projectRecords(state, id).purchaseOrders[0].value, 160);
+
+  // Production orders without approvals, with details.
+  for (const line of projectRecords(state, id).lineItems) state = createProductionOrder(state, line.id, NOW, { quantity: line.quantity + 1, startDate: "2026-11-02", notes: "Cell 2" });
+  const orders = projectRecords(state, id).productionOrders;
+  assert.equal(orders.length, 2);
+  assert.equal(orders[0].quantity, 13);
+  assert.equal(orders[0].notes, "Cell 2");
+  assert.equal(createProductionOrder(state, projectRecords(state, id).lineItems[0].id, NOW), state, "one order per part");
+  for (const order of orders) state = advanceProduction(advanceProduction(state, order.id, NOW), order.id, NOW);
+
+  // A failed result blocks dispatch until inspected again.
+  const reqs = projectRecords(state, id).inspectionRequirements;
+  state = generateInspectionReport(state, id, NOW, { [reqs[0].id]: { observed: "100.3", pass: false } });
+  assert.equal(projectRecords(state, id).inspectionReports[0].passed, false);
+  assert.equal(dispatchProject(state, id, NOW), state);
+  state = generateInspectionReport(state, id, NOW, { [reqs[0].id]: { observed: "100.02", pass: true } });
+  assert.equal(projectRecords(state, id).inspectionReports[0].results[0].observed, "100.02 mm");
+  state = generateInvoice(dispatchProject(state, id, NOW), id, NOW);
+  assert.equal(projectRecords(state, id).invoices[0].subtotal, 160);
+  assert.equal(setLineItemQuantity(state, projectRecords(state, id).lineItems[0].id, 20, NOW), state, "quantity locked after dispatch");
+
+  // Everything used before is offered for reuse.
+  const catalog = reuseCatalog(state, null);
+  assert.deepEqual(catalog.parts.map((part) => part.number).sort(), ["MP-1", "MP-2"]);
+  assert.ok(catalog.drawings.some((doc) => doc.number === "DRW-MP-1" && doc.file === "mp1.pdf"));
+  assert.deepEqual(catalog.materials.map((item) => item.material).sort(), ["Steel bar", "Steel plate"]);
+  assert.equal(catalog.parameters.length, 3);
+  assert.deepEqual(catalog.suppliers, ["Northline"]);
 });
