@@ -54,7 +54,7 @@ export function ErpShell({ children }: { children: ReactNode }) {
   }, [hydrated, baseline, latest, pathname]);
 
   const routeProject = pathname.startsWith("/demo/projects/") ? state.projects.find((project) => project.id === pathname.split("/")[3]) : undefined;
-  const current = routeProject ?? state.projects[state.projects.length - 1];
+  const current = routeProject ?? [...state.projects].reverse().find((project) => !project.isSample) ?? state.projects.find((project) => project.isSample);
   const showHint = Boolean(latest && baseline !== undefined && latest.id !== baseline && latest.id !== dismissed && pathname !== "/demo/new");
 
   const doReset = () => {

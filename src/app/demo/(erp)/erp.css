@@ -120,7 +120,7 @@
 .erp-empty .erp-head-actions { justify-content: center; margin-top: 6px; }
 
 /* ---------- Hints ---------- */
-.erp-hint { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 18px; padding: 12px 14px; color: #CFE3FF; background: rgba(59, 130, 246, .1); border: 1px solid rgba(96, 165, 250, .3); border-radius: 12px; font-size: 14px; animation: erp-in .3s ease both; }
+.erp-hint { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 18px; padding: 12px 14px; color: #CFE3FF; background: rgba(59, 130, 246, .1); border: 1px solid rgba(96, 165, 250, .3); border-radius: 12px; font-size: 14px; animation: erp-in .3s ease; }
 .erp-hint svg { flex: 0 0 auto; margin-top: 2px; color: var(--e-cyan); }
 .erp-hint button { margin-left: auto; padding: 0 4px; color: var(--e-text-3); background: none; border: 0; cursor: pointer; }
 .erp-rule { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; color: var(--e-text-2); background: rgba(148, 163, 184, .05); border: 1px dashed var(--e-border-2); border-radius: 10px; font-size: 13px; }
@@ -188,7 +188,7 @@
 .erp-step-card > header p { margin-top: 6px; color: var(--e-text-2); font-size: 14px; }
 .erp-step-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--e-border); }
 .erp-saved { display: inline-flex; align-items: center; gap: 6px; color: var(--e-text-3); font-size: 12px; }
-.erp-item { position: relative; display: grid; gap: 14px; padding: 16px; background: rgba(2, 6, 15, .3); border: 1px solid var(--e-border); border-radius: 12px; animation: erp-in .25s ease both; }
+.erp-item { position: relative; display: grid; gap: 14px; padding: 16px; background: rgba(2, 6, 15, .3); border: 1px solid var(--e-border); border-radius: 12px; animation: erp-in .25s ease; }
 .erp-item + .erp-item { margin-top: 12px; }
 .erp-item-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--e-text-2); font-size: 13px; font-weight: 700; }
 .erp-item-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
@@ -214,10 +214,10 @@
 .erp-flow-source { display: flex; align-items: center; gap: 10px; margin: 16px 0 0; padding: 10px 12px; background: rgba(59, 130, 246, .12); border: 1px solid rgba(96, 165, 250, .35); border-radius: 10px; font-size: 13px; font-weight: 600; }
 .erp-flow-list { position: relative; display: grid; gap: 10px; margin: 0; padding: 14px 0 0 18px; list-style: none; }
 .erp-flow-list::before { content: ""; position: absolute; top: 0; bottom: 14px; left: 7px; width: 2px; background: linear-gradient(var(--e-blue), rgba(34, 211, 238, .4)); border-radius: 2px; }
-.erp-flow-group { position: relative; padding: 10px 12px; background: rgba(2, 6, 15, .4); border: 1px solid var(--e-border); border-radius: 10px; animation: erp-in .3s ease both; }
+.erp-flow-group { position: relative; padding: 10px 12px; background: rgba(2, 6, 15, .4); border: 1px solid var(--e-border); border-radius: 10px; animation: erp-in .3s ease; }
 .erp-flow-group::before { content: ""; position: absolute; top: 18px; left: -12px; width: 12px; height: 2px; background: rgba(96, 165, 250, .7); }
 .erp-flow-group > strong { display: flex; align-items: center; gap: 6px; color: var(--e-cyan); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
-.erp-flow-rec { display: grid; gap: 1px; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(148, 163, 184, .08); animation: erp-flash .9s ease both; }
+.erp-flow-rec { display: grid; gap: 1px; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(148, 163, 184, .08); animation: erp-flash .9s ease; }
 .erp-flow-rec:first-of-type { border-top: 0; padding-top: 0; }
 .erp-flow-rec b { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .erp-flow-rec span { color: var(--e-text-3); font-size: 12px; }
@@ -268,13 +268,13 @@
 .erp-tabs { display: inline-flex; gap: 4px; padding: 4px; background: var(--e-surface); border: 1px solid var(--e-border); border-radius: 12px; }
 .erp-tabs button { min-height: 34px; padding: 0 14px; color: var(--e-text-2); background: transparent; border: 0; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .erp-tabs button[aria-pressed="true"] { color: #fff; background: rgba(59, 130, 246, .3); }
-.erp-detail { padding: 18px 20px; background: rgba(59, 130, 246, .05); border-top: 1px solid var(--e-border); animation: erp-in .2s ease both; }
+.erp-detail { padding: 18px 20px; background: rgba(59, 130, 246, .05); border-top: 1px solid var(--e-border); animation: erp-in .2s ease; }
 .erp-kv { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .erp-kv div small { display: block; color: var(--e-text-3); font-size: 12px; }
 .erp-kv div b { display: block; margin-top: 2px; font-size: 14px; font-weight: 600; }
 
 /* ---------- Dialog + printable documents ---------- */
-.erp-overlay { position: fixed; inset: 0; z-index: 100; display: grid; place-items: start center; padding: 32px 16px; overflow-y: auto; background: rgba(2, 6, 15, .7); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: erp-fade .2s ease both; }
+.erp-overlay { position: fixed; inset: 0; z-index: 100; display: grid; place-items: start center; padding: 32px 16px; overflow-y: auto; background: rgba(2, 6, 15, .7); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: erp-fade .2s ease; }
 .erp-dialog { width: min(820px, 100%); }
 .erp-dialog-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .erp-dialog-bar h2 { font-size: 18px; }

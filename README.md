@@ -80,13 +80,20 @@ src/
     configuration-rules.ts
 ```
 
-## Demonstration limits
+## Interactive demo (`/demo`)
 
-The homepage product preview and `/demo` workspace use synthetic records. The fictional manufacturing workspace is Apex Precision Components GmbH. The demo includes overview, documents, parts and revisions, production orders, CRM, suppliers, raw materials, finance, workflows, browser-local configuration, revision links, activity, and an optional walkthrough. Sample companies, contacts, supplier records, opportunities, material lots, and finance entries are in `src/lib/business-data.ts`; engineering, parts, and orders are in `src/lib/demo-data.ts`. Explicit IDs connect customers to orders, lots to suppliers and certificate-reference records, and financial entries to companies or suppliers. Charts and summary totals derive from the listed entries.
+The demo shows one principle: **enter project information once, connect it across the business, and generate outputs from the same data.**
 
-Configuration, synthetic documents, and CRM opportunities created in the demo persist in this browser's `localStorage`. This storage is not encrypted by the application, shared, or intended for confidential data. Reset restores sample configuration and removes browser-created documents and opportunities. Completeness checks do not inspect files and do not establish manufacturing readiness or compliance. Material-certificate entries are reference metadata only; no files are included and conformity is not verified. Approval workflows are definitions and visual examples; the demo does not assign work or execute approvals. Technical illustrations are original schematic SVGs, labeled illustrative and not to scale or for manufacture.
+- `/demo` explains the concept and offers **Create a Project** or **Explore Sample Project**.
+- `/demo/new` is a 7-step wizard (project, customer and order, line items, documents, inspection, materials, review). A live panel shows where each value will be stored. Progress is saved in the browser.
+- `/demo/projects/[id]` is the project workspace. Readiness is calculated from linked records with transparent rules; blocked items show the reason and a fix. Five illustrative printable outputs come from the same data: PO summary, production order, inspection report, dispatch note and invoice.
+- Module views: `/demo/projects`, `/crm`, `/sales` (purchase orders vs active orders), `/parts`, `/documents`, `/materials`, `/production`, `/quality`, `/dispatch`, `/finance`, `/configuration`. Add `?project=<id>` to filter a module to one project.
+- The data model, rules and actions live in `src/lib/erp/model.ts` (no React; unit-tested in `tests/`). UI components are in `src/components/erp/`; styles in `src/app/demo/(erp)/erp.css`.
+- The earlier workspace and the order-journey simulation are preserved at `/demo/classic` and `/demo/classic/journey`. Old `/demo/...` detail URLs redirect there.
 
-No real customer drawings or confidential manufacturing information are included. There is no authentication, server-side authorization, shared backend, external integration, contact-message delivery, or production security review. Until a verified address is configured, the contact page explains that inquiry delivery is unavailable. With an address configured, it opens a visitor-side email draft and the site cannot verify whether it is sent. No server-side contact endpoint exists. No QR code is shown because no verified destination is configured. No AI model or AI provider is connected; AI assistance is a concept direction, while current completeness checks are deterministic rules. Do not enter confidential information into the demonstration.
+### Demonstration limits
+
+All companies, people, parts and values are fictional. Demo data is stored only in the visitor's browser (`localStorage` key `boh-erp-demo-v2`); it is not encrypted, shared, or a production database. "Reset demo" clears it. Documents are metadata only; no files are uploaded. Inspection results and invoices are illustrative and not real measurements or tax-compliant invoices. There is no authentication, server-side authorization, shared backend or AI model. Do not enter confidential information.
 
 ## Available scripts
 
@@ -97,3 +104,4 @@ No real customer drawings or confidential manufacturing information are included
 | `pnpm start` | Serve the production build |
 | `pnpm lint` | Run ESLint |
 | `pnpm typecheck` | Check TypeScript without emitting files |
+| `pnpm test` | Run the demo data-model tests (Node 22.6+, uses built-in type stripping) |
