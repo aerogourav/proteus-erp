@@ -33,7 +33,7 @@ const DEPT_LABEL: Record<Dept, { label: string; icon: typeof Users }> = {
 };
 
 function setStep(step: number) {
-  commit((state) => ({ ...state, guide: { ...state.guide, step } }));
+  commit((state) => ({ ...state, guide: { ...state.guide, step, furthest: Math.max(step, state.guide.furthest ?? 0) } }));
   if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -106,7 +106,7 @@ export function GuidedDemo() {
 /* ---------------- Welcome & finish ---------------- */
 
 function Welcome() {
-  const start = () => { commit((state) => ensureDraft({ ...state, guide: { step: 1, projectId: state.guide.projectId } })); window.scrollTo({ top: 0 }); };
+  const start = () => { commit((state) => ensureDraft({ ...state, guide: { ...state.guide, step: 1, furthest: Math.max(1, state.guide.furthest ?? 0) } })); window.scrollTo({ top: 0 }); };
   return <section className="erp-card erp-step erp-welcome" aria-labelledby="welcome-title">
     <div><span className="erp-eyebrow">Interactive demo · about 5 minutes</span>
       <h1 id="welcome-title">Follow one project from order to invoice.</h1>
@@ -255,7 +255,7 @@ function SalesStep({ id, step, state }: { id: StepId; step: number; state: ErpSt
       const current = getState();
       if (!current.draft) return;
       const result = createProjectFromDraft(current, current.draft, nowIso());
-      commit(() => ({ ...result.state, guide: { step: step + 1, projectId: result.projectId } }));
+      commit(() => ({ ...result.state, guide: { step: step + 1, projectId: result.projectId, furthest: step + 1 } }));
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }

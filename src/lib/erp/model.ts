@@ -76,7 +76,7 @@ export type ErpState = {
   activity: ActivityEvent[];
   draft: ProjectDraft | null;
   /** Guided demo position: the visitor's single project moves through every step. */
-  guide: { step: number; projectId: string | null };
+  guide: { step: number; projectId: string | null; furthest?: number };
 };
 
 /* ============================== Helpers ============================== */

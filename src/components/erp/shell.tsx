@@ -36,9 +36,10 @@ export function ErpShell({ children }: { children: ReactNode }) {
         <ol className="erp-phases">
           {PHASES.map((phase, index) => {
             const first = firstStepOfPhase(phase.key);
-            const reached = hydrated && first <= step;
+            const reached = hydrated && first <= Math.max(step, state.guide.furthest ?? 0);
             const isCurrent = onGuide && index === current;
-            const isDone = hydrated && index < current;
+            const nextFirst = index < PHASES.length - 1 ? firstStepOfPhase(PHASES[index + 1].key) : Infinity;
+            const isDone = hydrated && index !== current && nextFirst <= Math.max(step, state.guide.furthest ?? 0);
             return <li key={phase.key}>
               <button type="button" className={isCurrent ? "is-current" : isDone ? "is-done" : ""} disabled={!reached} aria-current={isCurrent ? "step" : undefined} onClick={() => goTo(first)}>
                 <span>{isDone ? <Check size={13} /> : index + 1}</span>{phase.label}
