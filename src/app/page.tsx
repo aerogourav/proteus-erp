@@ -5,7 +5,7 @@ import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { pageMetadata } from "@/lib/seo";
 
-export const metadata = pageMetadata("Your business. Your workflows. Your ERP.", "BOH ERP sets up configurable business software around how your company works. Explore the guided demo and talk to us about your workflow.", "/");
+export const metadata = pageMetadata("BOH ERP — Your business. Your workflows. Your ERP.", "BOH ERP sets up configurable business software around how your company works. Explore the guided demo and talk to us about your workflow.", "/");
 
 const problems = [
   ["Work lives in too many places", "Orders, drawings, approvals and status updates are spread across spreadsheets, inboxes and shared folders."],
