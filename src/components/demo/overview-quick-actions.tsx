@@ -60,7 +60,7 @@ export function OverviewQuickActions() {
       <header className={styles.quickActionsHead}><div><span className={styles.visualEyebrow}>WORKSPACE SHORTCUTS</span><h2 id="quick-actions-title">Quick actions</h2><p>Start common tasks without leaving the overview.</p></div><span className={styles.quickActionsMark}><Plus size={16} /></span></header>
       {notice && <p className={styles.quickActionsNotice} role="status">{notice}</p>}
       <div className={styles.quickActionList}>{actions.map(({ id, title, detail, icon: Icon }) => <button type="button" key={id} className={styles.quickAction} onClick={() => openAction(id)}><span className={styles.quickActionIcon}><Icon size={15} /></span><span className={styles.quickActionCopy}><strong>{title}</strong><small>{detail}</small></span></button>)}</div>
-      <div className={styles.quickActionLinks}><Link href="/demo/activity"><span><MessageSquareText size={14} /> Activity history</span><ArrowRight size={13} /></Link><Link href="/demo/configuration?tab=workflows#approval-workflows"><span><GitBranch size={14} /> Manage workflows</span><ArrowRight size={13} /></Link></div>
+      <div className={styles.quickActionLinks}><Link href="/demo/classic/activity"><span><MessageSquareText size={14} /> Activity history</span><ArrowRight size={13} /></Link><Link href="/demo/classic/configuration?tab=workflows#approval-workflows"><span><GitBranch size={14} /> Manage workflows</span><ArrowRight size={13} /></Link></div>
       <p className={styles.quickActionsFoot}>Synthetic records · saved in this browser</p>
     </section>
 

@@ -329,4 +329,18 @@ export const deSiteTranslations: [string, string][] = [
   ["Simulated order journey from enquiry to dispatch and invoice", "Simulierter Auftragsdurchlauf von Anfrage bis Versand und Rechnung"],
   ["Before margin", "Vor Marge"],
   ["€35.36 per piece · 22% margin", "35,36 € pro Stück · 22 % Marge"],
+  // New project-centred demo (homepage)
+  ["See Demo", "Demo ansehen"],
+  ["One project. One source of truth.", "Ein Projekt. Eine verlässliche Datenquelle."],
+  ["Create a project once and see how BOH ERP connects its information across sales, engineering, procurement, production, quality and dispatch.", "Legen Sie ein Projekt einmal an und sehen Sie, wie BOH ERP die Informationen über Vertrieb, Technik, Einkauf, Fertigung, Qualität und Versand verbindet."],
+  ["Watch an order journey", "Einen Auftragsdurchlauf ansehen"],
+  ["Enter it once", "Einmal erfassen"],
+  ["Create a project in a short guided form: customer, purchase order, line items, documents, inspection and materials.", "Legen Sie ein Projekt in einem kurzen, geführten Formular an: Kunde, Bestellung, Positionen, Dokumente, Prüfung und Material."],
+  ["Watch it connect", "Zusehen, wie alles verknüpft wird"],
+  ["As you type, a live panel shows where each value goes: CRM, sales, parts, documents, quality and procurement.", "Während Sie tippen, zeigt ein Live-Panel, wohin jeder Wert geht: CRM, Vertrieb, Teile, Dokumente, Qualität und Einkauf."],
+  ["See what is missing", "Sehen, was fehlt"],
+  ["Clear rules show why work is blocked, such as an unapproved drawing or missing material, and let you fix it.", "Klare Regeln zeigen, warum etwas blockiert ist – etwa eine nicht freigegebene Zeichnung oder fehlendes Material – und wie Sie es beheben."],
+  ["Generate the outputs", "Dokumente erzeugen"],
+  ["Purchase order summary, production order, inspection report, dispatch note and invoice, all from the same data.", "Bestellübersicht, Fertigungsauftrag, Prüfbericht, Lieferschein und Rechnung – alles aus denselben Daten."],
+  ["Guided project setup with a live view of where every value goes", "Geführte Projektanlage mit Live-Ansicht, wohin jeder Wert geht"],
 ];

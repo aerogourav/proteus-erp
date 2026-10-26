@@ -26,14 +26,15 @@ const steps = [
 ] as const;
 
 const story = [
-  ["Enquiry to quote", "A website enquiry becomes a lead. The drawing is reviewed and the price is built from routing, material and subcontract cost."],
-  ["Order checked against the quote", "The customer PO asks for the wrong drawing revision. BOH ERP catches it before the order is confirmed."],
-  ["Released only when ready", "Production starts only when documents are approved, certified material is reserved and the first article passes."],
-  ["Inspected, shipped, invoiced", "Final inspection, certificate of conformity, delivery note and invoice, with every step on the audit trail."],
+  ["Enter it once", "Create a project in a short guided form: customer, purchase order, line items, documents, inspection and materials."],
+  ["Watch it connect", "As you type, a live panel shows where each value goes: CRM, sales, parts, documents, quality and procurement."],
+  ["See what is missing", "Clear rules show why work is blocked, such as an unapproved drawing or missing material, and let you fix it."],
+  ["Generate the outputs", "Purchase order summary, production order, inspection report, dispatch note and invoice, all from the same data."],
 ] as const;
 
 const today = [
   "Interactive demo with a fictional precision-manufacturing company",
+  "Guided project setup with a live view of where every value goes",
   "Simulated order journey from enquiry to dispatch and invoice",
   "Linked orders, parts, revisions and engineering documents",
   "Configurable document types, fields and requirement rules",
@@ -68,7 +69,7 @@ export default function Home() {
             <p className="b-lead">BOH ERP is business software we set up around how your company already works, so orders, parts, documents and approvals stay connected.</p>
             <div className="b-hero-actions">
               <Link className="b-btn b-btn-primary" href="/contact">Book a workflow call <ArrowRight size={18} /></Link>
-              <Link className="b-btn b-btn-ghost" href="/demo/journey"><PlayCircle size={18} /> See an order from enquiry to dispatch</Link>
+              <Link className="b-btn b-btn-ghost" href="/demo"><PlayCircle size={18} /> See Demo</Link>
             </div>
             <span className="b-tagline" data-no-translate>BUILD. OPERATE. HARMONISE.</span>
           </div>
@@ -122,10 +123,10 @@ export default function Home() {
         <div className="b-wrap b-demo">
           <div>
             <span className="b-kicker">See it working</span>
-            <h2 className="b-h2" id="demo-title">One order, from first enquiry to dispatch.</h2>
-            <p className="b-lead">Follow 120 precision-machined parts through a fictional manufacturer: sales, engineering, purchasing, production, quality, logistics and finance in one connected flow.</p>
+            <h2 className="b-h2" id="demo-title">One project. One source of truth.</h2>
+            <p className="b-lead">Create a project once and see how BOH ERP connects its information across sales, engineering, procurement, production, quality and dispatch.</p>
             <ol className="b-story" style={{ marginTop: 28 }}>{story.map(([title, body], index) => <li key={title} className="b-reveal"><span className="b-story-num">{index + 1}</span><div><strong>{title}</strong><span>{body}</span></div></li>)}</ol>
-            <div className="b-hero-actions"><Link className="b-btn b-btn-dark" href="/demo/journey">Start the order journey <ArrowRight size={18} /></Link><Link className="b-btn b-btn-ghost" href="/demo">Explore the workspace</Link></div>
+            <div className="b-hero-actions"><Link className="b-btn b-btn-dark" href="/demo">See Demo <ArrowRight size={18} /></Link><Link className="b-btn b-btn-ghost" href="/demo/classic/journey">Watch an order journey</Link></div>
           </div>
           <div className="b-window b-reveal" role="img" aria-label="Preview of the BOH ERP demo workspace with production orders and their document checks">
             <div className="b-window-bar" aria-hidden="true"><i /><i /><i /><span>BOH ERP · Demo workspace</span></div>

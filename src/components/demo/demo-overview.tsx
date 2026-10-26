@@ -29,28 +29,28 @@ export function DemoOverview() {
 
   return <>
     <PageHeader eyebrow={`${DEMO_COMPANY.name} · Fictional demo`} title="Good morning, team" description="Orders, parts, revisions and engineering documents in one connected view." meta="SYNTHETIC WORKSPACE" />
-    <Link href="/demo/journey" className={styles.journeyPromo}><span><strong>Order journey: from enquiry to dispatch</strong><small>Follow 120 precision parts through quote, order, engineering, material, production, inspection, shipping and invoice.</small></span><span className={styles.journeyPromoCta}>Start <ArrowRight size={16} /></span></Link>
+    <Link href="/demo/classic/journey" className={styles.journeyPromo}><span><strong>Order journey: from enquiry to dispatch</strong><small>Follow 120 precision parts through quote, order, engineering, material, production, inspection, shipping and invoice.</small></span><span className={styles.journeyPromoCta}>Start <ArrowRight size={16} /></span></Link>
     <DemoStory />
     <DemoWalkthroughLauncher />
     <div className={styles.metrics}>
-      <Metric label="Engineering documents" value={documents.length} note="Synthetic records in this workspace" href="/demo/documents" icon="documents" />
-      <Metric label="Awaiting approval" value={reviewQueue.length} note="Records currently in review" href="/demo/documents?status=In%20review" icon="review" />
-      <Metric label="Controlled parts" value={releasedParts.length} note="Released with current approved drawing" href="/demo/parts" icon="parts" />
-      <Metric label="Active orders" value={activeOrders.length} note="Open production order records" href="/demo/production" icon="orders" />
-      <Metric label="Orders with issues" value={needingAttention.length} note="Configured record checks only" href="/demo/production" icon="orders" />
+      <Metric label="Engineering documents" value={documents.length} note="Synthetic records in this workspace" href="/demo/classic/documents" icon="documents" />
+      <Metric label="Awaiting approval" value={reviewQueue.length} note="Records currently in review" href="/demo/classic/documents?status=In%20review" icon="review" />
+      <Metric label="Controlled parts" value={releasedParts.length} note="Released with current approved drawing" href="/demo/classic/parts" icon="parts" />
+      <Metric label="Active orders" value={activeOrders.length} note="Open production order records" href="/demo/classic/production" icon="orders" />
+      <Metric label="Orders with issues" value={needingAttention.length} note="Configured record checks only" href="/demo/classic/production" icon="orders" />
     </div>
 
     <div className={styles.dashboardQuickGrid}>
       <div className={styles.dashboardQuickPrimary}>
     <div className={styles.split}>
-      <Panel title="Production orders needing attention" description="Configured document checks against synthetic linked records" href="/demo/production" linkLabel="All orders">
+      <Panel title="Production orders needing attention" description="Configured document checks against synthetic linked records" href="/demo/classic/production" linkLabel="All orders">
         {needingAttention.length ? <div className={styles.linkList}>{needingAttention.map(({ order, issues }) => {
           const part = parts.find((item) => item.id === order.partId);
-          return <div className={styles.linkRow} key={order.id}><Link href={`/demo/production/${order.id}`}><strong>{order.number} · {part?.number} {part?.name}</strong><small>{issues.map((issue) => `${issue.label}: ${issue.reason.toLowerCase()}`).join(" · ")}</small><span className={styles.dashboardActions}>View order</span></Link><div className={styles.dashboardIssueActions}><StatusPill status="Needs attention" />{part && <Link href={`/demo/parts/${part.id}`}>Related records</Link>}</div></div>;
+          return <div className={styles.linkRow} key={order.id}><Link href={`/demo/classic/production/${order.id}`}><strong>{order.number} · {part?.number} {part?.name}</strong><small>{issues.map((issue) => `${issue.label}: ${issue.reason.toLowerCase()}`).join(" · ")}</small><span className={styles.dashboardActions}>View order</span></Link><div className={styles.dashboardIssueActions}><StatusPill status="Needs attention" />{part && <Link href={`/demo/classic/parts/${part.id}`}>Related records</Link>}</div></div>;
         })}</div> : <p className={styles.detailDescription}>No configured record issues in the current sample.</p>}
       </Panel>
-      <Panel title="Document review queue" description="Synthetic records currently marked in review" href="/demo/documents?status=In%20review" linkLabel="Open documents">
-        {reviewQueue.length ? <div className={styles.reviewQueue}>{reviewQueue.map((document) => <div className={styles.reviewRow} key={document.id}><FileClock size={15} /><Link href={`/demo/documents/${document.id}`}><strong>{document.number} · Rev {document.revision}</strong><small>{document.title} · {document.owner}</small></Link><StatusPill status={document.status} /></div>)}</div> : <div className={styles.empty}>No synthetic documents are currently in review.</div>}
+      <Panel title="Document review queue" description="Synthetic records currently marked in review" href="/demo/classic/documents?status=In%20review" linkLabel="Open documents">
+        {reviewQueue.length ? <div className={styles.reviewQueue}>{reviewQueue.map((document) => <div className={styles.reviewRow} key={document.id}><FileClock size={15} /><Link href={`/demo/classic/documents/${document.id}`}><strong>{document.number} · Rev {document.revision}</strong><small>{document.title} · {document.owner}</small></Link><StatusPill status={document.status} /></div>)}</div> : <div className={styles.empty}>No synthetic documents are currently in review.</div>}
       </Panel>
     </div>
       </div>
@@ -67,9 +67,9 @@ export function DemoOverview() {
     </div>
 
     <div className={styles.split}>
-      <Panel title="Recently updated documents" description="Latest synthetic engineering records" href="/demo/documents" linkLabel="All documents"><DocumentRows rows={[...documents].sort((a, b) => Date.parse(b.updated) - Date.parse(a.updated)).slice(0, 5)} /></Panel>
-      <Panel title="Revision activity" description="Recent revision events with linked record context" href="/demo/activity" linkLabel="Activity history"><ActivityRows rows={activity.filter((event) => /revision/i.test(event.title)).slice(0, 4)} /><p className={styles.chartNote}>A revision link identifies records for review; it does not confirm that dependent instructions or orders have been updated.</p></Panel>
+      <Panel title="Recently updated documents" description="Latest synthetic engineering records" href="/demo/classic/documents" linkLabel="All documents"><DocumentRows rows={[...documents].sort((a, b) => Date.parse(b.updated) - Date.parse(a.updated)).slice(0, 5)} /></Panel>
+      <Panel title="Revision activity" description="Recent revision events with linked record context" href="/demo/classic/activity" linkLabel="Activity history"><ActivityRows rows={activity.filter((event) => /revision/i.test(event.title)).slice(0, 4)} /><p className={styles.chartNote}>A revision link identifies records for review; it does not confirm that dependent instructions or orders have been updated.</p></Panel>
     </div>
-    <div className={styles.dashboardFoot}><GitBranch size={14} /><span>Rules are configurable in this browser. They do not inspect files or certify manufacturing readiness.</span><Link href="/demo/configuration">Review rules <ArrowRight size={12} /></Link></div>
+    <div className={styles.dashboardFoot}><GitBranch size={14} /><span>Rules are configurable in this browser. They do not inspect files or certify manufacturing readiness.</span><Link href="/demo/classic/configuration">Review rules <ArrowRight size={12} /></Link></div>
   </>;
 }

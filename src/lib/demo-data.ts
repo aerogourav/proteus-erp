@@ -116,11 +116,11 @@ export const activity: ActivityEvent[] = [
 ];
 
 export function getRecordHref(id: string) {
-  if (id.startsWith("mo-")) return `/demo/production/${id}`;
-  if (id.startsWith("sup-")) return `/demo/suppliers#${id}`;
-  if (id.startsWith("lot-")) return `/demo/materials#${id}`;
-  if (id.startsWith("fin-")) return `/demo/finance#${id}`;
-  if (id.startsWith("demo-")) return `/demo/documents/${id}`;
-  if (documents.some((document) => document.id === id)) return `/demo/documents/${id}`;
-  return `/demo/parts/${id}`;
+  if (id.startsWith("mo-")) return `/demo/classic/production/${id}`;
+  if (id.startsWith("sup-")) return `/demo/classic/suppliers#${id}`;
+  if (id.startsWith("lot-")) return `/demo/classic/materials#${id}`;
+  if (id.startsWith("fin-")) return `/demo/classic/finance#${id}`;
+  if (id.startsWith("demo-")) return `/demo/classic/documents/${id}`;
+  if (documents.some((document) => document.id === id)) return `/demo/classic/documents/${id}`;
+  return `/demo/classic/parts/${id}`;
 }

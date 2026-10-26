@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
     return [
       { source: "/product", destination: "/#how-it-works", permanent: false },
       { source: "/about", destination: "/", permanent: false },
+      // The earlier demo workspace now lives under /demo/classic.
+      ...["journey", "suppliers", "workflows", "activity", "community"].map((path) => ({ source: `/demo/${path}`, destination: `/demo/classic/${path}`, permanent: false })),
+      ...["parts", "documents", "production", "crm"].map((path) => ({ source: `/demo/${path}/:id`, destination: `/demo/classic/${path}/:id`, permanent: false })),
     ];
   },
 };

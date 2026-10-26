@@ -17,5 +17,5 @@ export function resetAllDemoData() {
   try { localKeys.forEach((key) => window.localStorage.removeItem(key)); } catch { /* Storage may be blocked. */ }
   try { sessionKeys.forEach((key) => window.sessionStorage.removeItem(key)); } catch { /* Storage may be blocked. */ }
   try { if (typeof indexedDB !== "undefined") indexedDB.deleteDatabase(billDatabase); } catch { /* IndexedDB may be blocked. */ }
-  window.location.assign("/demo");
+  window.location.assign("/demo/classic");
 }

@@ -13,11 +13,11 @@ import { translateText } from "@/lib/de-translations";
 import styles from "@/components/demo/demo.module.css";
 
 const stops = [
-  { label: "Documents", detail: "The released drawing and the old inspection-plan revision.", href: "/demo/documents", icon: FileStack, guide: "Start with the controlled drawing. Revision C is approved and linked to AP-1001." },
-  { label: "Parts", detail: "The part record connects its current revision to documents.", href: "/demo/parts/ap-1001", icon: Boxes, guide: "AP-1001 is on revision C. Its linked records stay together on the part." },
-  { label: "Production", detail: "The order points back to the same part and revision.", href: "/demo/production/mo-2026-0142", icon: ClipboardList, guide: "MO-2026-0142 is for 48 pieces of AP-1001, revision C." },
-  { label: "Configuration", detail: "A configurable rule checks the required records.", href: "/demo/configuration", icon: Settings2, guide: "This rule expects an approved inspection plan. The linked revision is outdated." },
-  { label: "Activity", detail: "Record history explains why the order is held.", href: "/demo/activity", icon: Activity, guide: "The activity trail records the drawing release and the inspection-plan warning." },
+  { label: "Documents", detail: "The released drawing and the old inspection-plan revision.", href: "/demo/classic/documents", icon: FileStack, guide: "Start with the controlled drawing. Revision C is approved and linked to AP-1001." },
+  { label: "Parts", detail: "The part record connects its current revision to documents.", href: "/demo/classic/parts/ap-1001", icon: Boxes, guide: "AP-1001 is on revision C. Its linked records stay together on the part." },
+  { label: "Production", detail: "The order points back to the same part and revision.", href: "/demo/classic/production/mo-2026-0142", icon: ClipboardList, guide: "MO-2026-0142 is for 48 pieces of AP-1001, revision C." },
+  { label: "Configuration", detail: "A configurable rule checks the required records.", href: "/demo/classic/configuration", icon: Settings2, guide: "This rule expects an approved inspection plan. The linked revision is outdated." },
+  { label: "Activity", detail: "Record history explains why the order is held.", href: "/demo/classic/activity", icon: Activity, guide: "The activity trail records the drawing release and the inspection-plan warning." },
 ] as const;
 
 function GuideFigure({ className = "", style }: { className?: string; style?: CSSProperties }) {

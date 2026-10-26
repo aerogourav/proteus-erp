@@ -26,7 +26,7 @@ export function DocumentBrowser() {
     if (value && value !== "All statuses") params.set(key, value);
     else params.delete(key);
     const queryString = params.toString();
-    router.replace(`/demo/documents${queryString ? `?${queryString}` : ""}`, { scroll: false });
+    router.replace(`/demo/classic/documents${queryString ? `?${queryString}` : ""}`, { scroll: false });
   };
   const filtered = useMemo(() => allDocuments.filter((document) => {
     const match = `${document.number} ${document.title} ${document.partId}`.toLowerCase().includes(query.toLowerCase());

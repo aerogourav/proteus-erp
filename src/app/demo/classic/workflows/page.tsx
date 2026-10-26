@@ -18,7 +18,7 @@ export default function WorkflowsPage() {
 
   return <>
     <PageHeader eyebrow="Process visibility" title="Workflows" description="Inspect the ordered approval stages and responsible roles configured for synthetic records." meta="DEMONSTRATION ONLY" />
-    <div className={styles.configToolbar}><p>Create and edit descriptive workflow definitions in Configuration.</p><Link className={styles.primaryButton} href="/demo/configuration?tab=workflows#approval-workflows"><Settings2 size={14} /> Manage workflows</Link></div>
+    <div className={styles.configToolbar}><p>Create and edit descriptive workflow definitions in Configuration.</p><Link className={styles.primaryButton} href="/demo/classic/configuration?tab=workflows#approval-workflows"><Settings2 size={14} /> Manage workflows</Link></div>
     <div className={styles.detailGrid}>
       <div className={styles.detailMain}>
         {activeFlows.map((flow) => <Panel key={flow.id} title={flow.name} description={`${documentTypes.find((type) => type.id === flow.documentTypeId)?.name ?? "All document types"} · configured stage order`}>
@@ -36,7 +36,7 @@ export default function WorkflowsPage() {
             {sampleFlow?.id === flow.id && sample && <p className={styles.workflowGraphNote}>Sample status is shown as a mapping only; no stage assignment is stored.</p>}
           </div> : <div className={styles.empty}>This configured workflow has no stages.</div>}
         </Panel>)}
-        {sample && <Panel title="Synthetic workflow example" description="Sample record mapped to the configured sequence"><div className={styles.workflowRecordSummary}><span className={styles.workflowRecordIcon}><GitBranch size={15} /></span><span><Link href={`/demo/documents/${sample.id}`}>{sample.number} · Rev {sample.revision}</Link><small>{sample.title}</small><small>{sample.owner} · {sample.updated}</small></span><StatusPill status={sample.status} /></div></Panel>}
+        {sample && <Panel title="Synthetic workflow example" description="Sample record mapped to the configured sequence"><div className={styles.workflowRecordSummary}><span className={styles.workflowRecordIcon}><GitBranch size={15} /></span><span><Link href={`/demo/classic/documents/${sample.id}`}>{sample.number} · Rev {sample.revision}</Link><small>{sample.title}</small><small>{sample.owner} · {sample.updated}</small></span><StatusPill status={sample.status} /></div></Panel>}
         {!activeFlows.length && <Panel title="No active workflows" description="No active workflow definitions are saved in this browser."><p className={styles.detailDescription}>Add a workflow and its stage sequence in Configuration to show it here.</p></Panel>}
       </div>
       <aside className={styles.detailSide}>
@@ -44,7 +44,7 @@ export default function WorkflowsPage() {
         {sample && <Panel title="Example record"><div className={styles.workflowExampleRecord}>
           <div className={styles.workflowExampleRecordIdentity}>
             <span className={styles.workflowExampleRecordIcon}><FileText size={15} /></span>
-            <div><Link href={`/demo/documents/${sample.id}`}>{sample.title}</Link><div className={styles.workflowExampleRecordMeta}><span>{sample.number}</span><span>REV {sample.revision}</span></div></div>
+            <div><Link href={`/demo/classic/documents/${sample.id}`}>{sample.title}</Link><div className={styles.workflowExampleRecordMeta}><span>{sample.number}</span><span>REV {sample.revision}</span></div></div>
           </div>
           <div className={styles.workflowExampleRecordFooter}><span>{sample.owner}<small>Record owner · Updated {sample.updated}</small></span><StatusPill status={sample.status} /></div>
         </div></Panel>}

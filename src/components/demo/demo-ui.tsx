@@ -24,7 +24,7 @@ export function CompletenessPanel({ issues, compact = false }: { issues: Complet
   return <div className={compact ? styles.checkList : styles.warningStack}>
     {issues.length === 0 ? <div className={compact ? styles.checkItem : styles.notice}><Check size={15} /><span>{compact ? "All configured document records are approved and current." : "All required document records are present, approved, and current."}</span></div> : issues.map((issue, index) => {
       const description = issue.reason === "Missing" ? "No linked record is present for this requirement." : issue.reason === "Outdated" ? `${issue.document?.number} · Rev ${issue.document?.revision} does not match the configured revision requirement.` : `${issue.document?.number} · Rev ${issue.document?.revision} is ${issue.document?.status.toLowerCase()}; an acceptable status is required.`;
-      return compact ? <div className={styles.checkItem} key={`${issue.ruleId}-${index}`}><span className={`${styles.checkIcon} ${styles.checkIconIssue}`}><AlertTriangle size={11} /></span><span>{issue.label}<small>{description}</small></span><span className={styles.checkState}>{issue.reason}</span></div> : <div className={styles.warning} key={`${issue.ruleId}-${index}`}><AlertTriangle size={15} /><div><strong>{issue.reason}: {issue.label}</strong><p>{description}</p>{issue.document && <Link href={`/demo/documents/${issue.document.id}`}>Open linked record <ArrowRight size={11} /></Link>}</div></div>;
+      return compact ? <div className={styles.checkItem} key={`${issue.ruleId}-${index}`}><span className={`${styles.checkIcon} ${styles.checkIconIssue}`}><AlertTriangle size={11} /></span><span>{issue.label}<small>{description}</small></span><span className={styles.checkState}>{issue.reason}</span></div> : <div className={styles.warning} key={`${issue.ruleId}-${index}`}><AlertTriangle size={15} /><div><strong>{issue.reason}: {issue.label}</strong><p>{description}</p>{issue.document && <Link href={`/demo/classic/documents/${issue.document.id}`}>Open linked record <ArrowRight size={11} /></Link>}</div></div>;
     })}
   </div>;
 }
@@ -34,7 +34,7 @@ export function DocumentRows({ rows }: { rows: EngineeringDocument[] }) {
   const { parts } = useDemoBusinessRecords();
   return <div className={styles.tableWrap}><table className={styles.table}><thead><tr><th>Document</th><th>Type</th><th>Part</th><th>Revision</th><th>Status</th><th>Updated</th></tr></thead><tbody>{rows.map((document) => {
     const part = parts.find((item) => item.id === document.partId);
-    return <tr key={document.id}><td><Link className={styles.recordLink} href={`/demo/documents/${document.id}`}>{document.number}<span className={styles.subText}>{document.title}</span></Link></td><td>{documentTypeFor(document)?.name ?? document.type}</td><td>{part && <Link className={styles.recordLink} href={`/demo/parts/${part.id}`}>{part.number}<span className={styles.subText}>{part.name}</span></Link>}</td><td>Rev {document.revision}</td><td><StatusPill status={document.status} /></td><td>{document.updated}</td></tr>;
+    return <tr key={document.id}><td><Link className={styles.recordLink} href={`/demo/classic/documents/${document.id}`}>{document.number}<span className={styles.subText}>{document.title}</span></Link></td><td>{documentTypeFor(document)?.name ?? document.type}</td><td>{part && <Link className={styles.recordLink} href={`/demo/classic/parts/${part.id}`}>{part.number}<span className={styles.subText}>{part.name}</span></Link>}</td><td>Rev {document.revision}</td><td><StatusPill status={document.status} /></td><td>{document.updated}</td></tr>;
   })}</tbody></table>{rows.length === 0 && <div className={styles.empty}>No documents match these filters.</div>}</div>;
 }
 
@@ -45,7 +45,7 @@ export function PartRows({ rows }: { rows: Part[] }) {
     const partDocs = allDocuments.filter((document) => document.partId === part.id);
     const orders = productionOrders.filter((order) => order.partId === part.id);
     const issues = evaluatePartCompleteness(part, state, allDocuments);
-    return <tr key={part.id}><td><Link className={styles.recordLink} href={`/demo/parts/${part.id}`}>{part.number}<span className={styles.subText}>{part.name}</span></Link></td><td>{part.material}</td><td>Rev {part.currentRevision}</td><td><StatusPill status={part.status} /></td><td>{partDocs.length} linked <span className={styles.subText}>{issues.length ? `${issues.length} requirement issue${issues.length === 1 ? "" : "s"}` : "Configured records ready"}</span></td><td>{orders.length} orders</td></tr>;
+    return <tr key={part.id}><td><Link className={styles.recordLink} href={`/demo/classic/parts/${part.id}`}>{part.number}<span className={styles.subText}>{part.name}</span></Link></td><td>{part.material}</td><td>Rev {part.currentRevision}</td><td><StatusPill status={part.status} /></td><td>{partDocs.length} linked <span className={styles.subText}>{issues.length ? `${issues.length} requirement issue${issues.length === 1 ? "" : "s"}` : "Configured records ready"}</span></td><td>{orders.length} orders</td></tr>;
   })}</tbody></table>{rows.length === 0 && <div className={styles.empty}>No parts match this search.</div>}</div>;
 }
 
@@ -55,7 +55,7 @@ export function OrderRows({ rows }: { rows: ProductionOrder[] }) {
   return <div className={styles.tableWrap}><table className={styles.table}><thead><tr><th>Production order</th><th>Part / revision</th><th>Quantity</th><th>Planned dates</th><th>Document readiness</th><th>Status</th></tr></thead><tbody>{rows.map((order) => {
     const part = parts.find((item) => item.id === order.partId)!;
     const issues = evaluateOrderCompleteness(order, state, allDocuments, parts);
-    return <tr key={order.id}><td><Link className={styles.recordLink} href={`/demo/production/${order.id}`}>{order.number}<span className={styles.subText}>{order.workflow}</span></Link></td><td><Link className={styles.recordLink} href={`/demo/parts/${part.id}`}>{part.number} · Rev {order.partRevision}<span className={styles.subText}>{part.name}</span></Link></td><td>{order.quantity} pcs</td><td>{order.plannedStart}<span className={styles.subText}>Due {order.plannedDue}</span></td><td>{issues.length ? <><StatusPill status="Needs attention" /><span className={styles.subText}>{issues.length} configured record issue{issues.length === 1 ? "" : "s"}</span></> : <StatusPill status="Complete" />}</td><td><StatusPill status={order.status} /></td></tr>;
+    return <tr key={order.id}><td><Link className={styles.recordLink} href={`/demo/classic/production/${order.id}`}>{order.number}<span className={styles.subText}>{order.workflow}</span></Link></td><td><Link className={styles.recordLink} href={`/demo/classic/parts/${part.id}`}>{part.number} · Rev {order.partRevision}<span className={styles.subText}>{part.name}</span></Link></td><td>{order.quantity} pcs</td><td>{order.plannedStart}<span className={styles.subText}>Due {order.plannedDue}</span></td><td>{issues.length ? <><StatusPill status="Needs attention" /><span className={styles.subText}>{issues.length} configured record issue{issues.length === 1 ? "" : "s"}</span></> : <StatusPill status="Complete" />}</td><td><StatusPill status={order.status} /></td></tr>;
   })}</tbody></table>{rows.length === 0 && <div className={styles.empty}>No orders match this search.</div>}</div>;
 }
 
@@ -83,7 +83,7 @@ export function DocumentOrderLinks({ document }: { document: EngineeringDocument
   const { productionOrders, parts } = useDemoBusinessRecords();
   const linkedOrders = productionOrders.filter((order) => getOrderDocuments(order, allDocuments).some((item) => item.id === document.id) || document.orderIds.includes(order.id));
   const part = parts.find((item) => item.id === document.partId);
-  return <div className={styles.linkList}><div className={styles.linkRow}><Link href={`/demo/parts/${document.partId}`}>{part?.number} · {part?.name}<small>Linked part · current drawing Rev {part?.currentRevision}</small></Link></div>{linkedOrders.map((order) => <div className={styles.linkRow} key={order.id}><Link href={`/demo/production/${order.id}`}>{order.number}<small>{order.quantity} pcs · {order.status}</small></Link><ArrowRight size={13} /></div>)}</div>;
+  return <div className={styles.linkList}><div className={styles.linkRow}><Link href={`/demo/classic/parts/${document.partId}`}>{part?.number} · {part?.name}<small>Linked part · current drawing Rev {part?.currentRevision}</small></Link></div>{linkedOrders.map((order) => <div className={styles.linkRow} key={order.id}><Link href={`/demo/classic/production/${order.id}`}>{order.number}<small>{order.quantity} pcs · {order.status}</small></Link><ArrowRight size={13} /></div>)}</div>;
 }
 
 export function PartLinkedRecords({ part }: { part: Part }) {
@@ -91,13 +91,13 @@ export function PartLinkedRecords({ part }: { part: Part }) {
   const { productionOrders } = useDemoBusinessRecords();
   const partDocs = allDocuments.filter((document) => document.partId === part.id);
   const orders = productionOrders.filter((order) => order.partId === part.id);
-  return <div className={styles.linkList}>{partDocs.map((document) => <div className={styles.linkRow} key={document.id}><Link href={`/demo/documents/${document.id}`}>{document.number}<small>{documentTypeFor(document)?.name ?? document.type} · Rev {document.revision} · {document.status}</small></Link><ArrowRight size={13} />{document.status !== "Approved" && <StatusPill status={document.status} />}</div>)}{orders.map((order) => <div className={styles.linkRow} key={order.id}><Link href={`/demo/production/${order.id}`}>{order.number}<small>{order.quantity} pcs · {order.status}</small></Link><ArrowRight size={13} /></div>)}{partDocs.length + orders.length === 0 && <div className={styles.empty}>No linked records.</div>}</div>;
+  return <div className={styles.linkList}>{partDocs.map((document) => <div className={styles.linkRow} key={document.id}><Link href={`/demo/classic/documents/${document.id}`}>{document.number}<small>{documentTypeFor(document)?.name ?? document.type} · Rev {document.revision} · {document.status}</small></Link><ArrowRight size={13} />{document.status !== "Approved" && <StatusPill status={document.status} />}</div>)}{orders.map((order) => <div className={styles.linkRow} key={order.id}><Link href={`/demo/classic/production/${order.id}`}>{order.number}<small>{order.quantity} pcs · {order.status}</small></Link><ArrowRight size={13} /></div>)}{partDocs.length + orders.length === 0 && <div className={styles.empty}>No linked records.</div>}</div>;
 }
 
 export function OrderDocuments({ order }: { order: ProductionOrder }) {
   const { documents: allDocuments, documentTypeFor } = useDemoConfiguration();
   const linked = getOrderDocuments(order, allDocuments);
-  return <div className={styles.linkList}>{linked.map((document) => <div className={styles.linkRow} key={document.id}><Link href={`/demo/documents/${document.id}`}>{document.number}<small>{documentTypeFor(document)?.name ?? document.type} · Rev {document.revision}</small></Link><StatusPill status={document.status} /></div>)}</div>;
+  return <div className={styles.linkList}>{linked.map((document) => <div className={styles.linkRow} key={document.id}><Link href={`/demo/classic/documents/${document.id}`}>{document.number}<small>{documentTypeFor(document)?.name ?? document.type} · Rev {document.revision}</small></Link><StatusPill status={document.status} /></div>)}</div>;
 }
 
 export function ReadinessNote() {

@@ -10,23 +10,23 @@ import { LanguageSwitcher } from "@/components/language-provider";
 import { BohMark } from "@/components/brand/boh-logo";
 
 const nav = [
-  { label: "Overview", href: "/demo", icon: LayoutDashboard },
-  { label: "Order Journey", href: "/demo/journey", icon: Route },
-  { label: "Production Orders", href: "/demo/production", icon: ClipboardList },
-  { label: "Parts & Revisions", href: "/demo/parts", icon: Boxes },
-  { label: "Documents", href: "/demo/documents", icon: FileStack },
-  { label: "Configuration", href: "/demo/configuration", icon: Settings2 },
-  { label: "Activity", href: "/demo/activity", icon: Activity },
+  { label: "Overview", href: "/demo/classic", icon: LayoutDashboard },
+  { label: "Order Journey", href: "/demo/classic/journey", icon: Route },
+  { label: "Production Orders", href: "/demo/classic/production", icon: ClipboardList },
+  { label: "Parts & Revisions", href: "/demo/classic/parts", icon: Boxes },
+  { label: "Documents", href: "/demo/classic/documents", icon: FileStack },
+  { label: "Configuration", href: "/demo/classic/configuration", icon: Settings2 },
+  { label: "Activity", href: "/demo/classic/activity", icon: Activity },
 ];
 
 /** Modules kept in the codebase but hidden from the focused demo navigation. */
 const hiddenModules = [
-  { label: "CRM", href: "/demo/crm" },
-  { label: "Suppliers", href: "/demo/suppliers" },
-  { label: "Raw Materials", href: "/demo/materials" },
-  { label: "Finance", href: "/demo/finance" },
-  { label: "Workflows", href: "/demo/workflows" },
-  { label: "Community", href: "/demo/community" },
+  { label: "CRM", href: "/demo/classic/crm" },
+  { label: "Suppliers", href: "/demo/classic/suppliers" },
+  { label: "Raw Materials", href: "/demo/classic/materials" },
+  { label: "Finance", href: "/demo/classic/finance" },
+  { label: "Workflows", href: "/demo/classic/workflows" },
+  { label: "Community", href: "/demo/classic/community" },
 ];
 
 export function DemoWorkspace({ children }: { children: ReactNode }) {
@@ -34,7 +34,7 @@ export function DemoWorkspace({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const hidden = hiddenModules.find((item) => pathname.startsWith(item.href));
-  const active = nav.find((item) => item.href === "/demo" ? pathname === "/demo" : pathname.startsWith(item.href)) ?? { ...nav[0], label: hidden?.label ?? nav[0].label, href: hidden?.href ?? nav[0].href };
+  const active = nav.find((item) => item.href === "/demo/classic" ? pathname === "/demo/classic" : pathname.startsWith(item.href)) ?? { ...nav[0], label: hidden?.label ?? nav[0].label, href: hidden?.href ?? nav[0].href };
   const onNav = () => setMenuOpen(false);
 
   return <div className={styles.app}>
@@ -50,9 +50,9 @@ export function DemoWorkspace({ children }: { children: ReactNode }) {
     <div className={styles.main}>
       <header className={styles.topbar}>
         <button type="button" className={styles.mobileToggle} aria-label={menuOpen ? "Close navigation" : "Open navigation"} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={17} /> : <Menu size={17} />}</button>
-        <Link className={styles.mobileBrand} href="/demo">BOH ERP</Link>
-        <div className={styles.crumbs}><Link href="/demo">Workspace</Link><span>/</span><strong>{active.label}</strong></div>
-        <div className={styles.topActions}><label className={styles.searchTop}><Search size={14} /><input aria-label="Search the demo workspace" placeholder="Search records" onKeyDown={(event) => { if (event.key === "Enter" && event.currentTarget.value.trim()) router.push(`/demo/documents?q=${encodeURIComponent(event.currentTarget.value.trim())}`); }} /></label><LanguageSwitcher className="demo-language" /><span className={styles.demoBadge}><i /> DEMO ENVIRONMENT</span></div>
+        <Link className={styles.mobileBrand} href="/demo/classic">BOH ERP</Link>
+        <div className={styles.crumbs}><Link href="/demo/classic">Workspace</Link><span>/</span><strong>{active.label}</strong></div>
+        <div className={styles.topActions}><label className={styles.searchTop}><Search size={14} /><input aria-label="Search the demo workspace" placeholder="Search records" onKeyDown={(event) => { if (event.key === "Enter" && event.currentTarget.value.trim()) router.push(`/demo/classic/documents?q=${encodeURIComponent(event.currentTarget.value.trim())}`); }} /></label><LanguageSwitcher className="demo-language" /><span className={styles.demoBadge}><i /> DEMO ENVIRONMENT</span></div>
       </header>
       <main className={styles.content}>{children}</main>
     </div>
