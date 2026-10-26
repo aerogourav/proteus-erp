@@ -48,8 +48,10 @@ export function ErpShell({ children }: { children: ReactNode }) {
   const latest: ActivityEvent | undefined = state.activity[0];
 
   useEffect(() => {
-    if (hydrated && baseline === undefined) setBaseline(latest?.id ?? null);
-  }, [hydrated, baseline, latest]);
+    if (!hydrated) return;
+    // Events created while in the wizard are summarised on its own success screen.
+    if (baseline === undefined || pathname === "/demo/new") setBaseline(latest?.id ?? null);
+  }, [hydrated, baseline, latest, pathname]);
 
   const routeProject = pathname.startsWith("/demo/projects/") ? state.projects.find((project) => project.id === pathname.split("/")[3]) : undefined;
   const current = routeProject ?? state.projects[state.projects.length - 1];

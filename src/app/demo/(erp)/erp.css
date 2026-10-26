@@ -130,7 +130,7 @@
 .erp-field { display: grid; gap: 6px; }
 .erp-field > label, .erp-label { color: var(--e-text); font-size: 13px; font-weight: 600; }
 .erp-field .erp-help { color: var(--e-text-3); font-size: 12px; }
-.erp-input, .erp-select, .erp-textarea { width: 100%; min-height: 42px; padding: 9px 12px; color: var(--e-text); background: rgba(2, 6, 15, .45); border: 1px solid var(--e-border-2); border-radius: 10px; font: inherit; font-size: 14px; transition: border-color .15s ease, box-shadow .15s ease; }
+.erp-input, .erp-select, .erp-textarea { scroll-margin-top: 96px; width: 100%; min-height: 42px; padding: 9px 12px; color: var(--e-text); background: rgba(2, 6, 15, .45); border: 1px solid var(--e-border-2); border-radius: 10px; font: inherit; font-size: 14px; transition: border-color .15s ease, box-shadow .15s ease; }
 .erp-textarea { min-height: 84px; resize: vertical; }
 .erp-select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--e-text-3) 50%), linear-gradient(135deg, var(--e-text-3) 50%, transparent 50%); background-position: calc(100% - 17px) 18px, calc(100% - 12px) 18px; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 30px; }
 .erp-select option { color: #0B1220; }
@@ -171,7 +171,9 @@
 
 /* ---------- Wizard ---------- */
 .erp-wizard { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; }
-.erp-steps { display: flex; gap: 6px; margin: 0 0 18px; padding: 0; overflow-x: auto; list-style: none; }
+.erp-steps { display: flex; gap: 6px; margin: 0 0 18px; padding: 0 0 4px; overflow-x: auto; list-style: none; scrollbar-width: thin; scrollbar-color: rgba(148, 163, 184, .25) transparent; }
+.erp-steps::-webkit-scrollbar { height: 4px; }
+.erp-steps::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, .25); border-radius: 4px; }
 .erp-steps li { flex: 1 0 auto; }
 .erp-steps button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; color: var(--e-text-3); background: transparent; border: 1px solid transparent; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .erp-steps button:disabled { cursor: default; }
@@ -311,6 +313,7 @@
   .erp-flow-mobile summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; font-weight: 600; cursor: pointer; list-style: none; }
   .erp-flow-mobile summary::-webkit-details-marker { display: none; }
   .erp-flow-mobile .erp-flow { position: static; display: block; padding-top: 0; background: transparent; border: 0; backdrop-filter: none; }
+  .erp-flow-mobile .erp-flow > header h3 { display: none; }
   .erp-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .erp-modules { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .erp-outputs { grid-template-columns: repeat(3, minmax(0, 1fr)); }

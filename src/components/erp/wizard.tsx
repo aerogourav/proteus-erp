@@ -99,7 +99,7 @@ export function ProjectWizard() {
 
     <details className="erp-card erp-flow-mobile">
       <summary>Where your information goes <span className="erp-chip">{recordCount} records</span></summary>
-      <FlowPanel state={state} draft={draft} lastChange={lastChange} />
+      <div className="erp-flow"><FlowPanel state={state} draft={draft} lastChange={lastChange} /></div>
     </details>
 
     <div className="erp-wizard">

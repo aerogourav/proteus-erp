@@ -785,7 +785,7 @@ export const SAMPLE_PROJECT_CODE = "BOH-PRJ-2026-001";
 
 /** Loads the fictional sample customer with three purchase orders in different states. Idempotent. */
 export function loadSample(input: ErpState, now: string): { state: ErpState; projectId: string } {
-  const existing = input.projects.find((project) => project.code === SAMPLE_PROJECT_CODE);
+  const existing = input.projects.find((project) => project.isSample && project.name === "Hydraulic Actuator Assembly");
   if (existing) return { state: input, projectId: existing.id };
   let state = input;
   const sampleDrafts: ProjectDraft[] = [
@@ -831,7 +831,13 @@ export function loadSample(input: ErpState, now: string): { state: ErpState; pro
     },
   ];
   const ids: string[] = [];
-  for (const draft of sampleDrafts) {
+  for (const sample of sampleDrafts) {
+    // Never collide with a visitor's own project ID or PO number.
+    const draft = { ...sample };
+    if (state.projects.some((project) => project.code === draft.projectCode)) draft.projectCode = suggestProjectCode(state);
+    let poNumber = Number(draft.poNumber.slice(-4));
+    while (state.purchaseOrders.some((order) => order.number === `PO-2026-${poNumber}`)) poNumber += 1;
+    draft.poNumber = `PO-2026-${poNumber}`;
     const result = createProjectFromDraft(state, draft, now);
     state = result.state;
     ids.push(result.projectId);

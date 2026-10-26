@@ -150,3 +150,14 @@ test("stored state survives a round-trip and bad data falls back to empty", () =
   assert.equal(parseStoredState("{broken").projects.length, 0);
   assert.equal(parseStoredState(JSON.stringify({ version: 1 })).projects.length, 0);
 });
+
+test("sample never collides with a visitor project that reused its IDs", () => {
+  const base = createInitialState();
+  const own = createProjectFromDraft(base, { ...validDraft(base), projectCode: SAMPLE_PROJECT_CODE, poNumber: "PO-2026-1042" }, NOW);
+  const { state, projectId } = loadSample(own.state, NOW);
+  assert.notEqual(projectId, own.projectId, "the visitor's project is not treated as the sample");
+  assert.equal(state.projects.length, 4);
+  assert.equal(new Set(state.projects.map((project) => project.code)).size, 4, "project IDs stay unique");
+  assert.equal(new Set(state.purchaseOrders.map((order) => order.number)).size, 4, "PO numbers stay unique");
+  assert.equal(loadSample(state, NOW).projectId, projectId, "loading again returns the same sample");
+});
