@@ -94,7 +94,7 @@ export default function Home() {
         <div className="b-wrap">
           <span className="b-kicker">The problem</span>
           <h2 className="b-h2" id="problem-title">Growing companies outgrow spreadsheets before they are ready for a big ERP.</h2>
-          <div className="b-problems">{problems.map(([title, body]) => <article className="b-problem" key={title}><h3>{title}</h3><p>{body}</p></article>)}</div>
+          <div className="b-problems">{problems.map(([title, body]) => <article className="b-problem b-reveal" key={title}><h3>{title}</h3><p>{body}</p></article>)}</div>
         </div>
       </section>
 
@@ -103,7 +103,7 @@ export default function Home() {
           <span className="b-kicker">Our approach</span>
           <h2 className="b-h2" id="pillars-title">One shared platform, configured for your business.</h2>
           <p className="b-lead">Not a collection of custom apps. Every customer runs on the same reliable core, set up for their own way of working.</p>
-          <div className="b-pillars">{pillars.map(({ icon: Icon, title, sub, body }) => <article className="b-pillar" key={title}><span className="b-pillar-icon"><Icon size={22} /></span><h3 data-no-translate>{title}</h3><span className="b-pillar-sub">{sub}</span><p>{body}</p></article>)}</div>
+          <div className="b-pillars">{pillars.map(({ icon: Icon, title, sub, body }) => <article className="b-pillar b-reveal" key={title}><span className="b-pillar-icon"><Icon size={22} /></span><h3 data-no-translate>{title}</h3><span className="b-pillar-sub">{sub}</span><p>{body}</p></article>)}</div>
         </div>
       </section>
 
@@ -112,7 +112,7 @@ export default function Home() {
           <span className="b-kicker">How it works</span>
           <h2 className="b-h2" id="how-title">Start with one workflow. Grow from there.</h2>
           <p className="b-lead">We start small and prove the value with one workflow before you commit to more.</p>
-          <ol className="b-steps">{steps.map(([title, body]) => <li key={title}><h3>{title}</h3><p>{body}</p></li>)}</ol>
+          <ol className="b-steps">{steps.map(([title, body]) => <li key={title} className="b-reveal"><h3>{title}</h3><p>{body}</p></li>)}</ol>
           <p className="b-fineprint">Fees depend on scope and are agreed in writing before any work starts. Custom development and complex integrations are quoted separately.</p>
         </div>
       </section>
@@ -123,9 +123,23 @@ export default function Home() {
             <span className="b-kicker">See it working</span>
             <h2 className="b-h2" id="demo-title">One order. Four steps. Three minutes.</h2>
             <p className="b-lead">The demo follows a fictional precision-engineering company through one realistic situation: a drawing changes while an order is waiting.</p>
+            <ol className="b-story" style={{ marginTop: 28 }}>{story.map(([title, body], index) => <li key={title} className="b-reveal"><span className="b-story-num">{index + 1}</span><div><strong>{title}</strong><span>{body}</span></div></li>)}</ol>
             <div className="b-hero-actions"><Link className="b-btn b-btn-dark" href="/demo">Start the guided demo <ArrowRight size={18} /></Link></div>
           </div>
-          <ol className="b-story">{story.map(([title, body], index) => <li key={title}><span className="b-story-num">{index + 1}</span><div><strong>{title}</strong><span>{body}</span></div></li>)}</ol>
+          <div className="b-window b-reveal" role="img" aria-label="Preview of the BOH ERP demo workspace with production orders and their document checks">
+            <div className="b-window-bar" aria-hidden="true"><i /><i /><i /><span>BOH ERP · Demo workspace</span></div>
+            <div className="b-window-body" aria-hidden="true">
+              <div className="b-window-side"><b><BohMark size={20} tone="dark" /> BOH ERP</b><span>Overview</span><span className="on">Production Orders</span><span>Parts &amp; Revisions</span><span>Documents</span><span>Configuration</span><span>Activity</span></div>
+              <div className="b-window-main">
+                <div className="b-window-kpis"><div><small>Active orders</small><strong>5</strong></div><div><small>Parts</small><strong>6</strong></div><div><small>Docs in review</small><strong>5</strong></div></div>
+                <div className="b-window-rows">
+                  <div><span><b>MO-2026-0142</b><small>48 × AP-1001 · Rev C</small></span><span className="b-pill b-pill-warn">1 issue</span></div>
+                  <div><span><b>MO-2026-0143</b><small>24 × AP-1024 · Rev B</small></span><span className="b-pill b-pill-ok">In progress</span></div>
+                  <div><span><b>MO-2026-0144</b><small>12 × AP-1088 · Rev D</small></span><span className="b-pill b-pill-ok">In progress</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

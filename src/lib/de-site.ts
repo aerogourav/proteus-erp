@@ -212,4 +212,12 @@ export const deSiteTranslations: [string, string][] = [
   ["Orders, parts, revisions and engineering documents in one connected view.", "Aufträge, Teile, Revisionen und technische Dokumente in einer verbundenen Ansicht."],
   ["Let BOH guide you through documents, revisions, production, and the rule behind an order warning.", "BOH führt Sie durch Dokumente, Revisionen, Fertigung und die Regel hinter einem Auftragshinweis."],
   ["BOH · YOUR GUIDE", "BOH · IHR GUIDE"],
+  ["Preview of the BOH ERP demo workspace with production orders and their document checks", "Vorschau des BOH ERP Demo-Arbeitsbereichs mit Fertigungsaufträgen und ihren Dokumentprüfungen"],
+  ["BOH ERP · Demo workspace", "BOH ERP · Demo-Arbeitsbereich"],
+  ["Active orders", "Aktive Aufträge"],
+  ["Parts", "Teile"],
+  ["Docs in review", "Dokumente in Prüfung"],
+  ["24 × AP-1024 · Rev B", "24 × AP-1024 · Rev. B"],
+  ["12 × AP-1088 · Rev D", "12 × AP-1088 · Rev. D"],
+  ["In progress", "In Bearbeitung"],
 ];
