@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { createInitialState, parseStoredState, STORAGE_KEY, type ErpState } from "@/lib/erp/model";
+import { guideSteps, stepIndex } from "@/components/erp/guide-steps";
 
 /** Browser-local store shared by every demo screen. Not a database: data stays in this browser only. */
 const SERVER_STATE = createInitialState();
@@ -10,8 +11,15 @@ let cache: ErpState | null = null;
 
 function read(): ErpState {
   if (cache) return cache;
-  try { cache = parseStoredState(window.localStorage.getItem(STORAGE_KEY)); } catch { cache = createInitialState(); }
+  try { cache = migrateGuide(parseStoredState(window.localStorage.getItem(STORAGE_KEY))); } catch { cache = createInitialState(); }
   return cache;
+}
+
+/** Progress saved by the earlier single-part flow used different step numbers: resume at the first operational step. */
+function migrateGuide(state: ErpState): ErpState {
+  if (state.guide.v === 2) return state;
+  const step = state.guide.projectId ? stepIndex(guideSteps(state), "purchase") : 0;
+  return { ...state, guide: { step, projectId: state.guide.projectId, furthest: step, v: 2 } };
 }
 
 function notify() { listeners.forEach((listener) => listener()); }

@@ -165,7 +165,7 @@ test("sample never collides with a visitor project that reused its IDs", () => {
 
 test("guided demo: one project moves from order to invoice step by step", () => {
   let state = createInitialState();
-  assert.deepEqual(state.guide, { step: 0, projectId: null });
+  assert.deepEqual(state.guide, { step: 0, projectId: null, v: 2 });
   const draft = { ...validDraft(state), documents: [], inspections: [], materials: [] };
   const created = createProjectFromDraft(state, draft, NOW);
   state = created.state;

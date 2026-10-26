@@ -506,7 +506,7 @@ function DraftStep({ current, step, state }: { current: GuideStep; step: number;
       const latest = getState();
       if (!latest.draft || firstInvalidStep(latest, latest.draft) !== -1 || missing.length) { setShown(true); return; }
       const result = createProjectFromDraft(latest, latest.draft, nowIso());
-      commit(() => ({ ...result.state, guide: { step: step + 1, projectId: result.projectId, furthest: step + 1 } }));
+      commit(() => ({ ...result.state, guide: { step: step + 1, projectId: result.projectId, furthest: step + 1, v: 2 } }));
       window.scrollTo({ top: 0, behavior: "smooth" });
     };
   }
