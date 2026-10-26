@@ -7,7 +7,7 @@ import { evaluateOrderCompleteness } from "@/lib/configuration-rules";
 import { useDemoConfiguration } from "@/components/demo/configuration-context";
 import { useDemoBusinessRecords } from "@/components/demo/business-records-context";
 import { DemoWalkthroughLauncher } from "@/components/demo/demo-walkthrough";
-import { GuidedDemo } from "@/components/demo/guided-demo";
+import { DemoStory } from "@/components/demo/demo-story";
 import { OverviewQuickActions } from "@/components/demo/overview-quick-actions";
 import { ActivityRows, DocumentRows, Metric, PageHeader, Panel, StatusPill } from "@/components/demo/demo-ui";
 import styles from "@/components/demo/demo.module.css";
@@ -28,7 +28,8 @@ export function DemoOverview() {
   const clearOrderCount = readiness.length - needingAttention.length;
 
   return <>
-    <PageHeader eyebrow={`${DEMO_COMPANY.name} · Fictional demo`} title="Good morning, team" description="A connected view of engineering records, part revisions, and the work moving through the shop." meta="SYNTHETIC WORKSPACE" />
+    <PageHeader eyebrow={`${DEMO_COMPANY.name} · Fictional demo`} title="Good morning, team" description="Orders, parts, revisions and engineering documents in one connected view." meta="SYNTHETIC WORKSPACE" />
+    <DemoStory />
     <DemoWalkthroughLauncher />
     <div className={styles.metrics}>
       <Metric label="Engineering documents" value={documents.length} note="Synthetic records in this workspace" href="/demo/documents" icon="documents" />
@@ -69,6 +70,5 @@ export function DemoOverview() {
       <Panel title="Revision activity" description="Recent revision events with linked record context" href="/demo/activity" linkLabel="Activity history"><ActivityRows rows={activity.filter((event) => /revision/i.test(event.title)).slice(0, 4)} /><p className={styles.chartNote}>A revision link identifies records for review; it does not confirm that dependent instructions or orders have been updated.</p></Panel>
     </div>
     <div className={styles.dashboardFoot}><GitBranch size={14} /><span>Rules are configurable in this browser. They do not inspect files or certify manufacturing readiness.</span><Link href="/demo/configuration">Review rules <ArrowRight size={12} /></Link></div>
-    <GuidedDemo />
   </>;
 }

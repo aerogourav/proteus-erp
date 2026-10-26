@@ -23,17 +23,19 @@ function FieldControl({ field, value, onChange }: { field: ConfiguredField; valu
   return <div className={styles.formField}><label htmlFor={field.id}>{field.label}{field.required && <span className={styles.requiredMark}> *</span>}</label>{control}{field.helpText && <small id={`${field.id}-help`}>{field.helpText}</small>}</div>;
 }
 
-export function DocumentCreateDialog({ onClose }: { onClose: () => void }) {
+export type DocumentPreset = { typeId?: string; partId?: string; orderId?: string; title?: string; revision?: string; status?: RecordStatus };
+
+export function DocumentCreateDialog({ onClose, preset }: { onClose: () => void; preset?: DocumentPreset }) {
   const { documentTypes, documents: allDocuments, addDocument } = useDemoConfiguration();
   const { parts, productionOrders, addActivity } = useDemoBusinessRecords();
   const activeTypes = documentTypes.filter((type) => type.active);
-  const [typeId, setTypeId] = useState(activeTypes[0]?.id ?? "");
+  const [typeId, setTypeId] = useState(activeTypes.find((type) => type.id === preset?.typeId)?.id ?? activeTypes[0]?.id ?? "");
   const selectedType = activeTypes.find((type) => type.id === typeId);
-  const [partId, setPartId] = useState(parts[0]?.id ?? "");
-  const [orderId, setOrderId] = useState("");
-  const [title, setTitle] = useState("");
-  const [revision, setRevision] = useState("A");
-  const [status, setStatus] = useState<RecordStatus>("Draft");
+  const [partId, setPartId] = useState(parts.find((part) => part.id === preset?.partId)?.id ?? parts[0]?.id ?? "");
+  const [orderId, setOrderId] = useState(preset?.orderId ?? "");
+  const [title, setTitle] = useState(preset?.title ?? "");
+  const [revision, setRevision] = useState(preset?.revision ?? "A");
+  const [status, setStatus] = useState<RecordStatus>(preset?.status ?? "Draft");
   const [fieldValues, setFieldValues] = useState<Record<string, string | number | boolean>>({});
   const [error, setError] = useState("");
   const availableOrders = productionOrders.filter((order) => order.partId === partId);

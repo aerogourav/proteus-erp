@@ -68,7 +68,7 @@ export function DemoBusinessRecordsProvider({ children }: { children: ReactNode 
           if (validRecords(parsed)) setRecords(parsed);
         }
       } catch {
-        console.warn("PROTEUS sample business records could not be read from this browser.");
+        console.warn("BOH ERP sample business records could not be read from this browser.");
       } finally {
         setReady(true);
       }
@@ -90,7 +90,7 @@ export function DemoBusinessRecordsProvider({ children }: { children: ReactNode 
   useEffect(() => {
     if (!ready) return;
     try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); }
-    catch { console.warn("PROTEUS sample business records could not be saved to this browser."); }
+    catch { console.warn("BOH ERP sample business records could not be saved to this browser."); }
   }, [records, ready]);
 
   const setParts = useCallback((items: Part[]) => setRecords((current) => ({ ...current, parts: items })), []);

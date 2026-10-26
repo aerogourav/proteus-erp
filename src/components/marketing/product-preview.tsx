@@ -180,10 +180,10 @@ export function ProductPreview() {
   const [view, setView] = useState<View>("Overview");
 
   return (
-    <section className="product-preview-wrap" id="product-preview" aria-label="Interactive PROTEUS interface preview">
+    <section className="product-preview-wrap" id="product-preview" aria-label="Interactive BOH ERP interface preview">
       <div className="preview-window">
         <div className="window-topbar">
-          <div className="window-brand"><span className="mini-mark"><i /></span><strong>PROTEUS</strong><span className="workspace-label">{DEMO_COMPANY.name.toUpperCase()}</span></div>
+          <div className="window-brand"><span className="mini-mark"><i /></span><strong>BOH ERP</strong><span className="workspace-label">{DEMO_COMPANY.name.toUpperCase()}</span></div>
           <div className="window-actions"><span className="preview-mode-label">SYNTHETIC DEMO</span><Link className="round-action" href="/demo/activity" aria-label="Open demo activity"><Bell size={15} /><i /></Link><span className="avatar" aria-label="Fictional sample workspace">AP</span></div>
         </div>
         <div className="window-body">

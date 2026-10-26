@@ -558,7 +558,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 @media (max-width: 420px) { .erp-overview-map { grid-template-columns:1fr; }.erp-overview-heading h2 { font-size:35px; } }
 @media (prefers-reduced-motion: reduce) { .erp-map-orbit { animation:none; }.erp-map-node { transition:none; } }
 
-/* PROTEUS stickman: a short graphic-guide pass around the connected demo map. */
+/* BOH ERP stickman: a short graphic-guide pass around the connected demo map. */
 .erp-map-center { gap: 8px; transition: border-color .25s ease,box-shadow .25s ease; }
 .erp-map-center > span { font-size: 8px; }
 .erp-map-center strong { max-width: 125px; color: #fff; font-size: 16px; }

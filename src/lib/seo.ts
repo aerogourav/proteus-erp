@@ -11,8 +11,8 @@ export function pageMetadata(title: string, description: string, pathname: strin
     robots: { index, follow: index },
     ...(url ? { alternates: { canonical: url } } : {}),
     ...(url && image ? {
-      openGraph: { type: "website", siteName: "PROTEUS", title, description, url, images: [{ url: image, width: 1200, height: 630, alt: "PROTEUS configurable business software" }] },
-      twitter: { card: "summary_large_image", title, description, images: [{ url: image, alt: "PROTEUS configurable business software" }] },
+      openGraph: { type: "website", siteName: "BOH ERP", title, description, url, images: [{ url: image, width: 1200, height: 630, alt: "BOH ERP configurable business software" }] },
+      twitter: { card: "summary_large_image", title, description, images: [{ url: image, alt: "BOH ERP configurable business software" }] },
     } : {}),
   };
 }

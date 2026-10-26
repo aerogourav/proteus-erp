@@ -49,7 +49,7 @@ export function DemoCommunityProvider({ children }: { children: ReactNode }) {
         if (isPostList(parsed)) setPosts(parsed);
       }
     } catch {
-      console.warn("PROTEUS community posts could not be read from this browser.");
+      console.warn("BOH ERP community posts could not be read from this browser.");
     } finally {
       setReady(true);
     }
@@ -70,7 +70,7 @@ export function DemoCommunityProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!ready) return;
     try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(posts)); }
-    catch { console.warn("PROTEUS community posts could not be saved to this browser."); }
+    catch { console.warn("BOH ERP community posts could not be saved to this browser."); }
   }, [posts, ready]);
 
   const addPost = useCallback((post: NewPost) => {

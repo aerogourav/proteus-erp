@@ -57,7 +57,7 @@ export function DemoConfigurationProvider({ children }: { children: ReactNode })
       window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(state));
     } catch {
       // Keep the in-memory demo usable if browser storage is unavailable.
-      console.warn("PROTEUS demo configuration could not be saved to browser storage.");
+      console.warn("BOH ERP demo configuration could not be saved to browser storage.");
     }
   }, [state, ready]);
 

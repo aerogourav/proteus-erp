@@ -1,16 +1,36 @@
-import { ArrowRight, Database, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
+import { legal } from "@/lib/legal";
 import { pageMetadata } from "@/lib/seo";
 
-export const metadata = pageMetadata("Demo data and privacy boundaries", "Learn what the PROTEUS demonstration stores in this browser and which privacy and security capabilities it does not provide.", "/privacy", { indexable: false });
+export const metadata = pageMetadata("Privacy", "How the BOH ERP website and demo handle data.", "/privacy", { indexable: false });
 
 export default function PrivacyPage() {
-  return <><SiteHeader /><main id="top" className="marketing-page"><section className="marketing-page-hero"><div className="page-container privacy-copy"><span className="section-index">DATA HANDLING · DEMONSTRATION</span><h1>Know where the <em>demo data lives.</em></h1><p>The PROTEUS demonstration is a product exploration, not a production service for confidential company records.</p>
-    <div className="privacy-facts"><article><Database size={20} /><h2>Browser-local settings</h2><p>Configuration edits, CRM opportunities, and synthetic documents created in the demo are saved in this browser’s local storage. They do not sync to another browser or user. Reset in Configuration to restore sample settings and remove browser-created opportunities and documents.</p></article><article><ShieldCheck size={20} /><h2>What is not provided</h2><p>This application has no accounts, authentication, server-side authorization, shared backend, or production security review. Local storage is not encrypted by the application. Do not enter confidential information.</p></article></div>
-    <p className="privacy-note">The manufacturing company, people, records, identifiers, dates, and activity shown in the demonstration are fictional. It includes no customer drawing files, no connected AI provider, no analytics tracking, and no external product integration. If a verified contact email is configured, the inquiry form opens a draft in your email application; the website does not receive or store it. This page describes the current prototype and is not a legal compliance statement.</p>
-    <p className="privacy-note">Before public launch, verify the responsible business identity, hosting and data-handling details, inquiry contact, and any legal information required for the intended operating jurisdictions.</p>
-    <Link className="button button-primary" href="/demo">Return to the synthetic demo <ArrowRight size={16} /></Link>
-  </div></section></main><SiteFooter /></>;
+  return <div className="b-site"><SiteHeader /><main id="top" className="b-page"><div className="b-wrap b-prose">
+    <span className="b-kicker">Privacy notice</span>
+    <h1>How this website handles data.</h1>
+    <p>This notice describes the current BOH ERP website and its demo. It will be reviewed before the production product launches.</p>
+
+    <h2>Who is responsible</h2>
+    <p>The provider named in the <Link href="/impressum">Impressum</Link>. Contact: <span data-no-translate>{legal.email || "see Impressum"}</span>.</p>
+
+    <h2>Hosting</h2>
+    <p>The website is hosted on Vercel. When you visit a page, the hosting provider processes technical data such as your IP address and browser information to deliver the page and keep it secure. We do not use analytics or advertising cookies.</p>
+
+    <h2>Contact form</h2>
+    <p>If you send a message, we receive your name, email, company, optional role and your message, and use them only to reply and discuss your inquiry. Messages are delivered by email through the service Resend. If the form opens your own email app instead, the message is sent by your email provider. We delete inquiries that do not lead to a business relationship when they are no longer needed.</p>
+
+    <h2>The demo</h2>
+    <p>The demo shows a fictional company with synthetic records. Anything you change or create in the demo is stored only in your own browser:</p>
+    <ul>
+      <li>Configuration changes, created parts, documents, opportunities, community posts and activity entries are kept in your browser’s local storage.</li>
+      <li>Files you attach to demo finance entries are kept in your browser’s IndexedDB storage.</li>
+      <li>Your language choice is remembered in local storage.</li>
+    </ul>
+    <p>This data is not sent to us or shared with other users. You can remove it with “Reset demo” on the Configuration page or by clearing your browser’s site data. The demo has no accounts and is not encrypted storage, so please don’t enter confidential information.</p>
+
+    <h2>Your rights</h2>
+    <p>You can ask us for access to, correction or deletion of personal data we hold about you, and you can complain to a data protection supervisory authority.</p>
+  </div></main><SiteFooter /></div>;
 }

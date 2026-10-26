@@ -7,8 +7,8 @@ import { DemoBusinessRecordsProvider } from "@/components/demo/business-records-
 import { DemoCommunityProvider } from "@/components/demo/community-context";
 import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = pageMetadata("Product demonstration", "Explore synthetic company, engineering, and production records in the PROTEUS demonstration workspace.", "/demo", { indexable: false });
+export const metadata: Metadata = pageMetadata("Product demonstration", "Explore synthetic company, engineering, and production records in the BOH ERP demonstration workspace.", "/demo", { indexable: false });
 
 export default function DemoLayout({ children }: { children: ReactNode }) {
-  return <DemoBusinessRecordsProvider><DemoCommunityProvider><DemoConfigurationProvider><Suspense fallback={<div role="status" style={{ padding: 24, color: "#536476", fontSize: 12 }}>Loading PROTEUS demo workspace…</div>}><DemoWorkspace>{children}</DemoWorkspace></Suspense></DemoConfigurationProvider></DemoCommunityProvider></DemoBusinessRecordsProvider>;
+  return <DemoBusinessRecordsProvider><DemoCommunityProvider><DemoConfigurationProvider><Suspense fallback={<div role="status" style={{ padding: 24, color: "#536476", fontSize: 12 }}>Loading BOH ERP demo workspace…</div>}><DemoWorkspace>{children}</DemoWorkspace></Suspense></DemoConfigurationProvider></DemoCommunityProvider></DemoBusinessRecordsProvider>;
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Boxes, ClipboardList, FilePlus2, GitBranch, MessageSquareText, Package, Plus, Truck, WalletCards } from "lucide-react";
+import { ArrowRight, Boxes, ClipboardList, FilePlus2, GitBranch, MessageSquareText, Plus } from "lucide-react";
 import { useDemoBusinessRecords } from "@/components/demo/business-records-context";
 import { useDemoConfiguration } from "@/components/demo/configuration-context";
 import { DocumentCreateDialog } from "@/components/demo/document-create-dialog";
@@ -23,9 +23,6 @@ export function OverviewQuickActions() {
     { id: "document" as const, title: "Create document", detail: "Add an engineering record", icon: FilePlus2 },
     { id: "part" as const, title: "Add part", detail: "Create a part and revision", icon: Boxes },
     { id: "order" as const, title: "New production order", detail: "Plan work for a part", icon: ClipboardList },
-    { id: "supplier" as const, title: "Add supplier", detail: "Create a supplier record", icon: Truck },
-    { id: "material" as const, title: "Add material lot", detail: "Record synthetic stock", icon: Package },
-    { id: "finance" as const, title: "New payment record", detail: "Add a sample transaction", icon: WalletCards },
   ];
 
   const closeAction = () => setActiveAction(null);
@@ -63,7 +60,7 @@ export function OverviewQuickActions() {
       <header className={styles.quickActionsHead}><div><span className={styles.visualEyebrow}>WORKSPACE SHORTCUTS</span><h2 id="quick-actions-title">Quick actions</h2><p>Start common tasks without leaving the overview.</p></div><span className={styles.quickActionsMark}><Plus size={16} /></span></header>
       {notice && <p className={styles.quickActionsNotice} role="status">{notice}</p>}
       <div className={styles.quickActionList}>{actions.map(({ id, title, detail, icon: Icon }) => <button type="button" key={id} className={styles.quickAction} onClick={() => openAction(id)}><span className={styles.quickActionIcon}><Icon size={15} /></span><span className={styles.quickActionCopy}><strong>{title}</strong><small>{detail}</small></span></button>)}</div>
-      <div className={styles.quickActionLinks}><Link href="/demo/community"><span><MessageSquareText size={14} /> Community updates</span><ArrowRight size={13} /></Link><Link href="/demo/configuration?tab=workflows#approval-workflows"><span><GitBranch size={14} /> Manage workflows</span><ArrowRight size={13} /></Link></div>
+      <div className={styles.quickActionLinks}><Link href="/demo/activity"><span><MessageSquareText size={14} /> Activity history</span><ArrowRight size={13} /></Link><Link href="/demo/configuration?tab=workflows#approval-workflows"><span><GitBranch size={14} /> Manage workflows</span><ArrowRight size={13} /></Link></div>
       <p className={styles.quickActionsFoot}>Synthetic records · saved in this browser</p>
     </section>
 

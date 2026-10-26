@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import {
-  Activity, ArrowRight, Boxes, ClipboardList, FileStack, GitBranch,
+  Activity, ArrowRight, Boxes, ClipboardList, FileStack,
   Pause, Play, Route, Settings2, X,
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 import { DEMO_COMPANY } from "@/lib/demo-data";
+import { BohMark } from "@/components/brand/boh-logo";
 import { translateText } from "@/lib/de-translations";
 import styles from "@/components/demo/demo.module.css";
 
@@ -15,25 +16,12 @@ const stops = [
   { label: "Documents", detail: "The released drawing and the old inspection-plan revision.", href: "/demo/documents", icon: FileStack, guide: "Start with the controlled drawing. Revision C is approved and linked to AP-1001." },
   { label: "Parts", detail: "The part record connects its current revision to documents.", href: "/demo/parts/ap-1001", icon: Boxes, guide: "AP-1001 is on revision C. Its linked records stay together on the part." },
   { label: "Production", detail: "The order points back to the same part and revision.", href: "/demo/production/mo-2026-0142", icon: ClipboardList, guide: "MO-2026-0142 is for 48 pieces of AP-1001, revision C." },
-  { label: "Workflows", detail: "Review stages make the approval path visible.", href: "/demo/workflows", icon: GitBranch, guide: "The workflow screen describes review stages. Approvals do not run automatically in this demo." },
   { label: "Configuration", detail: "A configurable rule checks the required records.", href: "/demo/configuration", icon: Settings2, guide: "This rule expects an approved inspection plan. The linked revision is outdated." },
   { label: "Activity", detail: "Record history explains why the order is held.", href: "/demo/activity", icon: Activity, guide: "The activity trail records the drawing release and the inspection-plan warning." },
 ] as const;
 
 function GuideFigure({ className = "", style }: { className?: string; style?: CSSProperties }) {
-  return <svg className={className} style={style} viewBox="0 0 64 88" aria-hidden="true">
-    <circle className="guide-head" cx="32" cy="14" r="8" />
-    <circle className="guide-eye" cx="29" cy="13" r="0.8" />
-    <circle className="guide-eye" cx="35" cy="13" r="0.8" />
-    <path className="guide-smile" d="M29 17 Q32 19 35 17" />
-    <path className="guide-body" d="M32 23v29" />
-    <path className="guide-arm guide-arm-left" d="M32 30 19 42" />
-    <path className="guide-arm guide-arm-right" d="M32 30l13 10" />
-    <path className="guide-leg guide-leg-left" d="M32 52 21 69" />
-    <path className="guide-leg guide-leg-right" d="M32 52l12 15" />
-    <path className="guide-bag" d="M39 27h11v12H39z" />
-    <path className="guide-bag-mark" d="M42 31h5m-5 3h5" />
-  </svg>;
+  return <span className={className} style={style} aria-hidden="true"><BohMark size={40} smile className="boh-guide-figure" style={{ display: "block", margin: "0 auto" }} /></span>;
 }
 
 export function DemoWalkthroughLauncher() {
@@ -93,7 +81,7 @@ export function DemoWalkthroughLauncher() {
     <div className={styles.walkthroughLauncher}>
       <div className={styles.walkthroughLauncherCopy}>
         <span><Route size={14} /> {t("OPTIONAL WALKTHROUGH · SYNTHETIC RECORDS")}</span>
-        <p>{t("Let PROTEUS guide you through documents, revisions, production, and the rule behind an order warning.")}</p>
+        <p>{t("Let BOH guide you through documents, revisions, production, and the rule behind an order warning.")}</p>
       </div>
       <button type="button" className={styles.walkthroughLaunchButton} onClick={start}>
         <Play size={15} fill="currentColor" />
@@ -111,7 +99,7 @@ export function DemoWalkthroughLauncher() {
       <div className={styles.walkthroughDialogHead}>
         <div>
           <span>{t("INTERACTIVE PRODUCT TOUR · SYNTHETIC RECORDS")}</span>
-          <h2 id="proteus-walkthrough-title">{t("PROTEUS demo walkthrough")}</h2>
+          <h2 id="proteus-walkthrough-title">{t("BOH ERP demo walkthrough")}</h2>
           <p>{t("Follow one sample order across the actual demo screens, from its engineering records to the rule that flags a missing requirement.")}</p>
         </div>
         <button ref={closeButtonRef} type="button" className={styles.walkthroughCloseButton} aria-label={t("Close walkthrough")} onClick={close}>
@@ -121,7 +109,7 @@ export function DemoWalkthroughLauncher() {
 
       <div className="walkthrough-video" data-playing={playing}>
         <div className="walkthrough-appbar">
-          <span className="walkthrough-brand"><i><FileStack size={14} /></i><b>PROTEUS</b></span>
+          <span className="walkthrough-brand"><i><FileStack size={14} /></i><b>BOH ERP</b></span>
           <div><span>{DEMO_COMPANY.name}</span><i /><small>{t("SYNTHETIC DEMO")}</small></div>
           <span className="walkthrough-appbar-status"><i />{t("Interactive preview")}</span>
         </div>
@@ -129,7 +117,7 @@ export function DemoWalkthroughLauncher() {
         <div className="walkthrough-route">
           <div className="walkthrough-route-path" aria-hidden="true">
             <span className="walkthrough-route-line" />
-            <span className="walkthrough-route-progress" style={{ width: `${(active / (stops.length - 1)) * 83.34}%` }} />
+            <span className="walkthrough-route-progress" style={{ width: `${(active / (stops.length - 1)) * ((stops.length - 1) / stops.length) * 100}%` }} />
             <GuideFigure className="walkthrough-route-guide" style={{ left: `${progress}%` }} />
           </div>
           <nav aria-label={t("Walkthrough steps")}>
@@ -145,7 +133,7 @@ export function DemoWalkthroughLauncher() {
         <div className="walkthrough-guidebar">
           <div className="walkthrough-guide-avatar"><GuideFigure /></div>
           <div className="walkthrough-speech" aria-live="polite">
-            <span><b>{t("PROTEUS GUIDE")}</b> · {String(active + 1).padStart(2, "0")} / 06</span>
+            <span><b>{t("BOH · YOUR GUIDE")}</b> · {String(active + 1).padStart(2, "0")} / {String(stops.length).padStart(2, "0")}</span>
             <p>{t(stop.guide)}</p>
           </div>
           <button className="walkthrough-play" type="button" onClick={() => setPlaying((value) => !value)} aria-label={playing ? t("Pause walkthrough") : t("Play walkthrough")}>
@@ -157,7 +145,7 @@ export function DemoWalkthroughLauncher() {
           <iframe
             key={stop.href}
             src={stop.href}
-            title={`${t("Interactive PROTEUS demo")}: ${t(stop.label)}`}
+            title={`${t("Interactive BOH ERP demo")}: ${t(stop.label)}`}
             loading="eager"
             onLoad={() => setFrameLoading(false)}
             onError={() => setFrameLoading(false)}

@@ -1,19 +1,24 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Manrope, Space_Grotesk } from "next/font/google";
 import { siteConfig } from "@/lib/site-config";
 import { LanguageProvider } from "@/components/language-provider";
 import "./globals.css";
+import "./site.css";
+
+const display = Space_Grotesk({ subsets: ["latin"], weight: ["400", "500", "700"], variable: "--font-display", display: "swap" });
+const body = Manrope({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-body", display: "swap" });
 
 export const metadata: Metadata = {
   metadataBase: siteConfig.publicUrl ? new URL(siteConfig.publicUrl) : undefined,
-  title: { default: "PROTEUS — Your business. Your workflows. Your ERP.", template: "%s | PROTEUS" },
-  description: "PROTEUS is developing configurable business software shaped around how a company works. Explore the synthetic product demonstration and its current limits.",
-  applicationName: "PROTEUS",
+  title: { default: "BOH ERP — Your business. Your workflows. Your ERP.", template: "%s | BOH ERP" },
+  description: "BOH ERP sets up configurable business software around how your company works. Explore the guided demo and talk to us about your workflow.",
+  applicationName: "BOH ERP",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" data-scroll-behavior="smooth">
+    <html lang="en" data-scroll-behavior="smooth" className={`${display.variable} ${body.variable}`}>
       <body><LanguageProvider>{children}</LanguageProvider></body>
     </html>
   );

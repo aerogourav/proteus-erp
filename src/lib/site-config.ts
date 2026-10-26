@@ -15,6 +15,6 @@ const validContactEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail) ? cont
 export const siteConfig = {
   contactEmail: validContactEmail,
   publicUrl: verifiedHttpsOrigin(process.env.NEXT_PUBLIC_SITE_URL),
-  indexingEnabled: process.env.PROTEUS_INDEXING_ENABLED === "true",
+  indexingEnabled: (process.env.BOH_INDEXING_ENABLED ?? process.env.PROTEUS_INDEXING_ENABLED) === "true",
   qrDestination: "",
 } as const;

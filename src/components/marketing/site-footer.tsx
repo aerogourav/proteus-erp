@@ -1,13 +1,26 @@
-import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import { DEMO_COMPANY } from "@/lib/demo-data";
-import { siteConfig } from "@/lib/site-config";
+import { BohLogo } from "@/components/brand/boh-logo";
 
 export function SiteFooter() {
-  return <footer className="site-footer"><div className="page-container footer-main">
-    <Link className="brand footer-brand" href="/"><span className="brand-mark"><span className="footer-mark-outline" /><i /></span><span className="brand-word">PROTEUS</span></Link>
-    <p>Business software shaped around your work.</p>
-    <div className="footer-links"><Link href="/product">Product</Link><Link href="/#solutions">Solutions</Link><Link href="/#vision">Vision</Link><Link href="/about">About</Link><Link href="/contact">Contact</Link>{siteConfig.contactEmail && <a href={`mailto:${siteConfig.contactEmail}`}>Email PROTEUS</a>}<Link href="/privacy">Data & privacy</Link></div>
-    <a className="back-top" href="#top">BACK TO TOP <ArrowUpRight size={13} /></a>
-  </div><div className="page-container footer-legal"><span>© 2026 PROTEUS</span><span>Configurable business software</span><span>{DEMO_COMPANY.label}; all records are synthetic</span></div></footer>;
+  return <footer className="b-footer">
+    <div className="b-wrap">
+      <div className="b-footer-top">
+        <div>
+          <Link href="/" aria-label="BOH ERP home"><BohLogo tone="dark" /></Link>
+          <span className="b-footer-tagline" data-no-translate>BUILD. OPERATE. HARMONISE.</span>
+        </div>
+        <nav className="b-footer-links" aria-label="Footer navigation">
+          <Link href="/#how-it-works">How it works</Link>
+          <Link href="/demo">Demo</Link>
+          <Link href="/contact">Contact</Link>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/impressum">Impressum</Link>
+        </nav>
+      </div>
+      <div className="b-footer-bottom">
+        <span>© 2026 BOH ERP</span>
+        <span>The demo uses a fictional company and synthetic records.</span>
+      </div>
+    </div>
+  </footer>;
 }

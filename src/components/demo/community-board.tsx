@@ -79,7 +79,7 @@ export function CommunityBoard() {
             </header>
             <div className={styles.communityPostBody}><h2>{post.title}</h2><p>{post.body}</p></div>
             {post.category === "Events" && post.eventDate && <div className={styles.communityEventDetails}><span><CalendarDays size={13} />{dateLabel(post.eventDate)}</span>{post.location && <span><MapPin size={13} />{post.location}</span>}</div>}
-            <footer className={styles.communityPostFooter}><span>Fictional demonstration post</span><span>PROTEUS team space</span></footer>
+            <footer className={styles.communityPostFooter}><span>Fictional demonstration post</span><span>BOH ERP team space</span></footer>
           </article>)}
           {visiblePosts.length === 0 && <div className={styles.communityEmpty}><MessageSquareText size={20} /><strong>No posts in this view yet</strong><span>Start the conversation with a synthetic demo update.</span><button type="button" className={styles.secondaryButton} onClick={() => openComposer()}><Plus size={13} /> Create post</button></div>}
         </div>
