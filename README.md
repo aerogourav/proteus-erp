@@ -84,6 +84,7 @@ src/
 
 The demo shows one principle: **enter project information once, connect it across the business, and generate outputs from the same data.**
 
+- The sidebar works like a real ERP: **Overview** (`/demo/overview`, KPIs, lifecycle and department tiles for the visitor's project), **Guided demo** (`/demo`), Projects, CRM, Sales orders, Parts, Documents, Purchasing, Production, Quality, Dispatch, Invoices and Configuration. Department views are read-only and show the data entered in the guided demo; their action buttons open the matching guided step.
 - `/demo` is a guided journey for **one project the visitor creates** (no pre-filled sample). 17 small steps, one or two fields or one button each, move it through Sales, Engineering, Quality planning, Purchasing, Production, Final inspection, Dispatch and Invoice. A side panel shows the single project record growing department by department. The sidebar lists the phases; reached phases can be revisited. Steps live in `src/components/erp/guide-steps.ts`, the UI in `guided.tsx`.
 - Business rules still apply: production needs an approved drawing and received material; dispatch needs completed production and a passed inspection report. The finish screen opens five illustrative printable outputs (PO summary, production order, inspection report, dispatch note, invoice).
 - `/demo/projects/[id]` shows the full project record with readiness rules. The old wizard URL `/demo/new` redirects to `/demo`.

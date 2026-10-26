@@ -5,21 +5,22 @@ import { useState } from "react";
 import {
   ArrowRight, Boxes, ClipboardList, Factory, FileText, PackageCheck, Receipt, ShieldCheck, ShoppingCart, Truck, Users,
 } from "lucide-react";
-import { AddInspectionDialog, AddMaterialDialog } from "@/components/erp/forms";
+import { stepForAction, useOpenGuide } from "@/components/erp/guide-link";
 import { OUTPUT_LABELS, OutputDialog, outputAvailability, type OutputKind } from "@/components/erp/outputs";
-import { commit, nowIso, useErp, useHydrated } from "@/components/erp/store";
+import { useErp, useHydrated } from "@/components/erp/store";
 import { Badge, EmptyState, ReadinessBadge, ReadinessIcon, Rule } from "@/components/erp/ui";
 import {
-  RULES, STAGE_ORDER, documentCompleteness, formatDate, formatMoney, projectRecords, projectStage, readiness, resolve,
+  RULES, STAGE_ORDER, documentCompleteness, formatDate, formatMoney, projectRecords, projectStage, readiness,
   type Readiness, type ResolveAction,
 } from "@/lib/erp/model";
 
-type Dialog = { kind: "material"; lineItemId: string | null } | { kind: "inspection" } | { kind: "output"; output: OutputKind } | null;
+type Dialog = { kind: "output"; output: OutputKind } | null;
 
 export function ProjectWorkspace({ projectId }: { projectId: string }) {
   const state = useErp();
   const hydrated = useHydrated();
   const [dialog, setDialog] = useState<Dialog>(null);
+  const openGuide = useOpenGuide();
   if (!hydrated) return <p className="erp-muted" role="status">Loading project…</p>;
   const records = projectRecords(state, projectId);
   const { project, customer } = records;
@@ -31,11 +32,8 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
   const po = records.purchaseOrders[0];
   const docs = documentCompleteness(state, projectId);
 
-  const run = (action: ResolveAction) => {
-    if (action.kind === "add-material") { setDialog({ kind: "material", lineItemId: action.lineItemId }); return; }
-    if (action.kind === "add-inspection") { setDialog({ kind: "inspection" }); return; }
-    commit((current) => resolve(current, projectId, action, nowIso()));
-  };
+  // Department views are read-only: every fix opens the matching step of the guided demo.
+  const run = (action: ResolveAction) => openGuide(stepForAction(state, action));
 
   const cards: { key: string; title: string; icon: typeof Boxes; ready: Readiness; rule: string; extra?: string }[] = [
     { key: "engineering", title: "Engineering", icon: FileText, ready: ready.engineering, rule: RULES.engineering, extra: `${docs.approved} of ${docs.total} documents approved` },
@@ -74,7 +72,7 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
         {po && <span>Delivery <b>{formatDate(po.deliveryDate)}</b></span>}
       </div>
       <ol className="erp-lifecycle" aria-label={`Lifecycle: ${stage}`}>{STAGE_ORDER.map((item, index) => <li key={item} className={index < stageIndex ? "is-done" : index === stageIndex ? "is-current" : ""}>{item}</li>)}</ol>
-      {nextStep?.action && <div className="erp-hint" style={{ margin: 0 }}><ArrowRight size={16} /><span><b>Next step:</b> {nextStep.text}</span><button type="button" className="erp-btn erp-btn-primary erp-btn-sm" style={{ marginLeft: "auto", color: "#fff" }} onClick={() => run(nextStep.action!)}>{nextStep.action.label}</button></div>}
+      {nextStep?.action && <div className="erp-hint" style={{ margin: 0 }}><ArrowRight size={16} /><span><b>Next step:</b> {nextStep.text}</span><button type="button" className="erp-btn erp-btn-primary erp-btn-sm" style={{ marginLeft: "auto" }} onClick={() => run(nextStep.action!)}>{nextStep.action.label} in guided demo</button></div>}
     </section>
 
     <section className="erp-status-grid" aria-label="Readiness">
@@ -110,8 +108,6 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
 
     <Rule>Every status on this page is calculated from the linked records. Change a record and the status changes with it.</Rule>
 
-    {dialog?.kind === "material" && <AddMaterialDialog state={state} projectId={projectId} lineItemId={dialog.lineItemId} onClose={() => setDialog(null)} />}
-    {dialog?.kind === "inspection" && <AddInspectionDialog state={state} projectId={projectId} onClose={() => setDialog(null)} />}
     {dialog?.kind === "output" && <OutputDialog state={state} projectId={projectId} kind={dialog.output} onClose={() => setDialog(null)} />}
   </div>;
 }

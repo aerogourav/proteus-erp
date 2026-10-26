@@ -2,17 +2,16 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, type FormEvent, type ReactNode } from "react";
-import { ArrowLeft, FileText, Plus, Printer, RotateCcw, Sparkles, X } from "lucide-react";
-import { AddInspectionDialog } from "@/components/erp/forms";
+import { useState, type ReactNode } from "react";
+import { ArrowLeft, FileText, Printer, RotateCcw, Sparkles, X } from "lucide-react";
+import { GuideLink } from "@/components/erp/guide-link";
 import { OutputDialog, type OutputKind } from "@/components/erp/outputs";
-import { commit, nowIso, resetDemo, useErp, useHydrated } from "@/components/erp/store";
+import { commit, resetDemo, useErp, useHydrated } from "@/components/erp/store";
 import { Badge, EmptyState, Field, PageHead, ProjectLink, ReadinessBadge, Rule } from "@/components/erp/ui";
 import {
-  CURRENCIES, DOC_STATUSES, RULES, advanceProcurement, advanceProduction, createProductionOrder, dispatchProject, formatDate, formatMoney,
-  generateInspectionReport, generateInvoice, isActiveOrder, lineEngineeringReady, lineMaterialReady, orderOperationalState,
-  partNumber, projectStage, readiness, revisionLabel, setDocumentStatus, setLineItemPrice, updateSettings,
-  type Currency, type DocStatus, type ErpState, type Project,
+  CURRENCIES, RULES, formatDate, formatMoney, isActiveOrder, lineEngineeringReady, lineMaterialReady, orderOperationalState,
+  partNumber, projectStage, readiness, revisionLabel, updateSettings,
+  type Currency, type ErpState, type Project,
 } from "@/lib/erp/model";
 
 /* ---------------- Shared helpers ---------------- */
@@ -43,6 +42,11 @@ function NoProjects({ what }: { what: string }) {
 
 function Loading() { return <p className="erp-muted" role="status">Loading…</p>; }
 
+/** Department views are read-only; every change is made in the guided demo. */
+function ViewOnly() {
+  return <p className="erp-viewonly"><Sparkles size={14} /> View only. Records here come from your project. Make changes in the <GuideLink>guided demo</GuideLink></p>;
+}
+
 function Rows({ columns, head, children }: { columns: string; head: string[]; children: ReactNode }) {
   return <div className="erp-rows" role="table">
     <div className="erp-row erp-row-head" role="row" style={{ gridTemplateColumns: columns }}>{head.map((label, index) => <span key={index} role="columnheader">{label}</span>)}</div>
@@ -59,7 +63,7 @@ type OutputState = { projectId: string; kind: OutputKind; productionOrderId?: st
 export function ProjectsModule() {
   const state = useErp();
   const hydrated = useHydrated();
-  const head = <PageHead eyebrow="Workspace" title="Projects" description="The single record every module links to. Open a project to see all of its connected information." actions={<Link className="erp-btn erp-btn-primary" href="/demo"><Plus size={15} /> Guided demo</Link>} />;
+  const head = <PageHead eyebrow="Workspace" title="Projects" description="The single record every module links to. Open a project to see all of its connected information." actions={<Link className="erp-btn erp-btn-primary" href="/demo"><Sparkles size={15} /> Open guided demo</Link>} />;
   if (!hydrated) return <>{head}<Loading /></>;
   if (!state.projects.length) return <>{head}<NoProjects what="projects" /></>;
   return <>{head}<section className="erp-card"><Rows columns="minmax(0,2fr) minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) 150px" head={["Project", "Customer", "Purchase order", "Delivery", "Status"]}>
@@ -206,7 +210,7 @@ export function DocumentsModule() {
   if (!state.documents.length) return <>{head}<NoProjects what="documents" /></>;
   const docs = filter ? state.documents.filter((doc) => doc.projectIds.includes(filter.id)) : state.documents;
   const columns = "minmax(0,1.1fr) minmax(0,1.8fr) minmax(0,1fr) 60px minmax(0,1fr) 120px";
-  return <>{head}<FilterBar project={filter} base="/demo/documents" /><section className="erp-card"><Rows columns={columns} head={["Number", "Name", "Type", "Rev", "Linked to", "Approval"]}>
+  return <>{head}<FilterBar project={filter} base="/demo/documents" /><ViewOnly /><section className="erp-card"><Rows columns={columns} head={["Number", "Name", "Type", "Rev", "Linked to", "Approval"]}>
     {docs.map((doc) => {
       const isOpen = open === doc.id;
       return <div key={doc.id}>
@@ -222,9 +226,7 @@ export function DocumentsModule() {
             <div><small>Projects</small><b>{doc.projectIds.map((id) => projectOf(state, id)?.code).join(", ")}</b></div>
             <div><small>Last change</small><b>{formatDate(doc.updatedAt)}</b></div>
           </div>
-          <div className="erp-inline" style={{ marginTop: 14, maxWidth: 420, alignItems: "flex-end" }}>
-            <Field id={`status-${doc.id}`} label="Approval status"><select className="erp-select" id={`status-${doc.id}`} value={doc.status} onChange={(event) => commit((current) => setDocumentStatus(current, doc.id, event.target.value as DocStatus, nowIso()))}>{DOC_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></Field>
-          </div>
+          {doc.status !== "Approved" && doc.type === "Drawing" && <div style={{ marginTop: 14 }}><GuideLink to="approve">Approve in guided demo</GuideLink></div>}
           {doc.type === "Drawing" && <p className="erp-faint" style={{ marginTop: 10 }}>{RULES.engineering}</p>}
         </div>}
       </div>;
@@ -243,7 +245,7 @@ export function MaterialsModule() {
   if (!state.materialRequirements.length) return <>{head}<NoProjects what="material requirements" /></>;
   const reqs = filter ? state.materialRequirements.filter((req) => req.projectId === filter.id) : state.materialRequirements;
   const columns = "minmax(0,2fr) 100px minmax(0,1.2fr) minmax(0,1.3fr) minmax(0,1fr) 150px";
-  return <>{head}<FilterBar project={filter} base="/demo/materials" /><section className="erp-card"><Rows columns={columns} head={["Material", "Quantity", "For", "Supplier · PO", "Status", ""]}>
+  return <>{head}<FilterBar project={filter} base="/demo/materials" /><ViewOnly /><section className="erp-card"><Rows columns={columns} head={["Material", "Quantity", "For", "Supplier · PO", "Status", ""]}>
     {reqs.map((req) => {
       const record = state.procurement.find((item) => item.requirementId === req.id);
       const project = projectOf(state, req.projectId);
@@ -253,7 +255,7 @@ export function MaterialsModule() {
         <span>{project && <ProjectLink id={project.id} code={project.code} />}<small>{line ? `${partNumber(state, line.partId)} rev ${revisionLabel(state, line.revisionId)}` : "Whole project"}</small></span>
         <span>{record?.supplier || "Not chosen"}<small>{record?.number}</small></span>
         <span>{record && <Badge>{record.status}</Badge>}</span>
-        <span>{record && record.status !== "Received" && <button type="button" className="erp-btn erp-btn-sm" onClick={() => commit((current) => advanceProcurement(current, record.id, nowIso()))}>{record.status === "Not ordered" ? "Place order" : "Mark received"}</button>}</span>
+        <span>{record && record.status !== "Received" && <GuideLink to={record.status === "Not ordered" ? "order-material" : "receive-material"}>{record.status === "Not ordered" ? "Place order" : "Mark received"}</GuideLink>}</span>
       </div>;
     })}
   </Rows></section><div style={{ marginTop: 14 }}><Rule>{RULES.materials}</Rule></div></>;
@@ -273,7 +275,7 @@ export function ProductionModule() {
   const orders = state.productionOrders.filter((order) => !filter || order.projectId === filter.id);
   const waiting = lines.filter((line) => !state.productionOrders.some((order) => order.lineItemId === line.id));
   const columns = "minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr) 90px 120px minmax(0,1.4fr)";
-  return <>{head}<FilterBar project={filter} base="/demo/production" />
+  return <>{head}<FilterBar project={filter} base="/demo/production" /><ViewOnly />
     <section className="erp-card"><div className="erp-card-head"><div><h2>Production orders</h2><p>Each references its project, part, revision and required documents.</p></div></div>
       {orders.length ? <Rows columns={columns} head={["Order", "Project", "Part · revision", "Qty", "Status", ""]}>
         {orders.map((order) => {
@@ -282,12 +284,12 @@ export function ProductionModule() {
             <strong>{order.number}</strong><span>{project && <ProjectLink id={project.id} code={project.code} />}</span>
             <span>{partNumber(state, order.partId)} rev {revisionLabel(state, order.revisionId)}</span><span>{order.quantity}</span><span><Badge>{order.status}</Badge></span>
             <span className="erp-head-actions">
-              {order.status !== "Complete" && <button type="button" className="erp-btn erp-btn-sm" onClick={() => commit((current) => advanceProduction(current, order.id, nowIso()))}>{order.status === "Planned" ? "Start" : "Complete"}</button>}
+              {order.status !== "Complete" && <GuideLink to={order.status === "Planned" ? "start" : "complete"}>{order.status === "Planned" ? "Start" : "Complete"}</GuideLink>}
               <button type="button" className="erp-btn erp-btn-ghost erp-btn-sm" onClick={() => setOutput({ projectId: order.projectId, kind: "production", productionOrderId: order.id })}><Printer size={13} /> Order</button>
             </span>
           </div>;
         })}
-      </Rows> : <EmptyState title="No production orders yet" text="Create one below once a line item is eligible." />}
+      </Rows> : <EmptyState title="No production orders yet" text="Production orders appear here once the project is released to production." />}
     </section>
     {waiting.length > 0 && <section className="erp-card" style={{ marginTop: 16 }}><div className="erp-card-head"><div><h2>Line items without a production order</h2><p>{RULES.production}</p></div></div>
       <Rows columns="minmax(0,1fr) minmax(0,1.3fr) minmax(0,2fr) 200px" head={["Project", "Part", "Readiness", ""]}>
@@ -298,7 +300,7 @@ export function ProductionModule() {
           return <div key={line.id} role="row" className="erp-row" style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,1.3fr) minmax(0,2fr) 200px" }}>
             <span>{project && <ProjectLink id={project.id} code={project.code} />}</span><span>{partNumber(state, line.partId)} rev {revisionLabel(state, line.revisionId)} · {line.quantity}</span>
             <span><Badge tone={eng ? "ok" : "warn"}>{eng ? "Drawing approved" : "Drawing not approved"}</Badge> <Badge tone={mat ? "ok" : "warn"}>{mat ? "Material received" : "Material not received"}</Badge></span>
-            <span><button type="button" className="erp-btn erp-btn-primary erp-btn-sm" disabled={!eng || !mat} onClick={() => commit((current) => createProductionOrder(current, line.id, nowIso()))}>Create production order</button></span>
+            <span><GuideLink to={!eng ? "approve" : !mat ? "order-material" : "release"}>{eng && mat ? "Release to production" : "Fix in guided demo"}</GuideLink></span>
           </div>;
         })}
       </Rows>
@@ -314,12 +316,11 @@ export function QualityModule() {
   const hydrated = useHydrated();
   const filter = useProjectFilter(state);
   const [output, setOutput] = useState<OutputState>(null);
-  const [adding, setAdding] = useState<string | null>(null);
   const head = <PageHead eyebrow="Operations" title="Quality and inspection" description="Inspection requirements come from the project. Generate an illustrative inspection report once production is complete." />;
   if (!hydrated) return <>{head}<Loading /></>;
   if (!state.projects.length) return <>{head}<NoProjects what="inspection requirements" /></>;
   const projects = filter ? [filter] : state.projects;
-  return <>{head}<FilterBar project={filter} base="/demo/quality" /><div className="erp-stack">
+  return <>{head}<FilterBar project={filter} base="/demo/quality" /><ViewOnly /><div className="erp-stack">
     {projects.map((project) => {
       const ready = readiness(state, project.id);
       const reqs = state.inspectionRequirements.filter((req) => req.projectId === project.id);
@@ -329,18 +330,17 @@ export function QualityModule() {
         <div className="erp-card-head"><div><h2><ProjectLink id={project.id} code={project.code} /> {project.name}</h2><p>{ready.quality.summary}</p></div><ReadinessBadge state={ready.quality.state} /></div>
         {reqs.length ? <Rows columns="minmax(0,1.3fr) minmax(0,1fr) minmax(0,1.2fr) minmax(0,1.6fr)" head={["Parameter", "Applies to", "Specification", "Acceptance"]}>
           {reqs.map((req) => <div key={req.id} role="row" className="erp-row" style={{ gridTemplateColumns: "minmax(0,1.3fr) minmax(0,1fr) minmax(0,1.2fr) minmax(0,1.6fr)" }}><strong>{req.name}</strong><span>{req.partId ? partNumber(state, req.partId) : "Whole project"}</span><span>{req.spec} {req.unit}</span><span className="erp-muted">{req.acceptance || "—"}</span></div>)}
-        </Rows> : <EmptyState title="No inspection requirements" text="Add at least one so a report can be generated." />}
+        </Rows> : <EmptyState title="No inspection requirements" text="Quality planning adds at least one requirement in the guided demo." />}
         <div className="erp-card-pad" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", borderTop: "1px solid var(--e-border)" }}>
-          <button type="button" className="erp-btn erp-btn-sm" onClick={() => setAdding(project.id)}><Plus size={14} /> Add requirement</button>
+          {!reqs.length && <GuideLink to="inspection">Add requirement</GuideLink>}
           {report ? <button type="button" className="erp-btn erp-btn-sm" onClick={() => setOutput({ projectId: project.id, kind: "inspection" })}><FileText size={14} /> View {report.number}</button>
-            : <button type="button" className="erp-btn erp-btn-primary erp-btn-sm" disabled={!canGenerate} onClick={() => commit((current) => generateInspectionReport(current, project.id, nowIso()))}>Generate inspection report</button>}
+            : canGenerate && <GuideLink to="inspect" primary>Run final inspection</GuideLink>}
           {!report && !canGenerate && <span className="erp-faint">{ready.quality.reasons[0]?.text}</span>}
         </div>
       </section>;
     })}
     <Rule>{RULES.quality} Generated results are illustrative, not real measurements.</Rule>
   </div>
-    {adding && <AddInspectionDialog state={state} projectId={adding} onClose={() => setAdding(null)} />}
     {output && <OutputDialog state={state} projectId={output.projectId} kind={output.kind} onClose={() => setOutput(null)} />}
   </>;
 }
@@ -356,7 +356,7 @@ export function DispatchModule() {
   if (!hydrated) return <>{head}<Loading /></>;
   if (!state.purchaseOrders.length) return <>{head}<NoProjects what="orders to dispatch" /></>;
   const orders = state.purchaseOrders.filter((order) => !filter || order.projectId === filter.id);
-  return <>{head}<FilterBar project={filter} base="/demo/dispatch" /><div className="erp-stack">
+  return <>{head}<FilterBar project={filter} base="/demo/dispatch" /><ViewOnly /><div className="erp-stack">
     {orders.map((order) => {
       const project = projectOf(state, order.projectId);
       const ready = readiness(state, order.projectId);
@@ -370,7 +370,7 @@ export function DispatchModule() {
           {!dispatched && ready.dispatch.reasons.filter((reason) => !reason.action).map((reason) => <p key={reason.text} className="erp-faint">• {reason.text}</p>)}
           <div className="erp-head-actions">
             {dispatched ? <button type="button" className="erp-btn erp-btn-sm" onClick={() => setOutput({ projectId: order.projectId, kind: "dispatch" })}><Printer size={14} /> Dispatch note {dispatched.number}</button>
-              : <button type="button" className="erp-btn erp-btn-primary erp-btn-sm" disabled={!canDispatch} onClick={() => commit((current) => dispatchProject(current, order.projectId, nowIso()))}>Dispatch order</button>}
+              : canDispatch ? <GuideLink to="dispatch" primary>Dispatch in guided demo</GuideLink> : null}
             {!dispatched && !canDispatch && project && <Link className="erp-btn erp-btn-ghost erp-btn-sm" href={`/demo/projects/${project.id}`}>See what’s missing</Link>}
           </div>
         </div>
@@ -380,15 +380,6 @@ export function DispatchModule() {
 }
 
 /* ---------------- Finance ---------------- */
-
-function PriceForm({ lineId, label, currency }: { lineId: string; label: string; currency: Currency }) {
-  const [value, setValue] = useState("");
-  const submit = (event: FormEvent) => { event.preventDefault(); const price = Number(value.replace(",", ".")); if (price >= 0 && value.trim()) commit((current) => setLineItemPrice(current, lineId, price, nowIso())); };
-  return <form onSubmit={submit} className="erp-inline" style={{ alignItems: "flex-end", maxWidth: 420 }}>
-    <Field id={`price-${lineId}`} label={`Unit price for ${label} (${currency})`}><input className="erp-input" id={`price-${lineId}`} inputMode="decimal" value={value} onChange={(event) => setValue(event.target.value)} /></Field>
-    <button type="submit" className="erp-btn erp-btn-sm" style={{ marginBottom: 4 }}>Save</button>
-  </form>;
-}
 
 export function FinanceModule() {
   const state = useErp();
@@ -400,25 +391,21 @@ export function FinanceModule() {
   if (!state.projects.length) return <>{head}<NoProjects what="invoices" /></>;
   const projects = state.projects.filter((project) => !filter || project.id === filter.id);
   const columns = "minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 200px";
-  return <>{head}<FilterBar project={filter} base="/demo/finance" /><section className="erp-card"><Rows columns={columns} head={["Project", "Customer", "Order", "Invoice", "Total", ""]}>
+  return <>{head}<FilterBar project={filter} base="/demo/finance" /><ViewOnly /><section className="erp-card"><Rows columns={columns} head={["Project", "Customer", "Order", "Invoice", "Total", ""]}>
     {projects.map((project) => {
       const order = state.purchaseOrders.find((item) => item.projectId === project.id);
       const invoice = state.invoices.find((item) => item.projectId === project.id);
       const customer = state.customers.find((item) => item.id === project.customerId);
       const ready = readiness(state, project.id);
       const canInvoice = ready.invoice.reasons.some((reason) => reason.action?.kind === "generate-invoice");
-      const missingPrices = ready.invoice.summary === "Prices missing";
       return <div key={project.id}>
         <div role="row" className="erp-row" style={{ gridTemplateColumns: columns }}>
           <span><ProjectLink id={project.id} code={project.code} /></span><span>{customer?.name}</span><span>{order?.number}</span>
           <span>{invoice ? <><strong>{invoice.number}</strong><small>Due {formatDate(invoice.dueAt)}</small></> : <Badge tone={canInvoice ? "info" : "neutral"}>{ready.invoice.summary}</Badge>}</span>
           <span className="erp-num" style={{ textAlign: "left" }}>{invoice ? formatMoney(invoice.total, invoice.currency) : "—"}</span>
           <span className="erp-head-actions">{invoice ? <button type="button" className="erp-btn erp-btn-sm" onClick={() => setOutput({ projectId: project.id, kind: "invoice" })}><Printer size={13} /> View invoice</button>
-            : <button type="button" className="erp-btn erp-btn-primary erp-btn-sm" disabled={!canInvoice} onClick={() => commit((current) => generateInvoice(current, project.id, nowIso()))}>Generate invoice</button>}</span>
+            : canInvoice ? <GuideLink to="invoice" primary>Invoice in guided demo</GuideLink> : null}</span>
         </div>
-        {missingPrices && order && <div className="erp-detail"><p className="erp-faint" style={{ marginBottom: 10 }}>This order has no prices. Add unit prices once and they are reused on the invoice.</p>
-          {state.lineItems.filter((line) => line.projectId === project.id && line.unitPrice === null).map((line) => <PriceForm key={line.id} lineId={line.id} label={partNumber(state, line.partId)} currency={order.currency} />)}
-        </div>}
       </div>;
     })}
   </Rows></section><div style={{ marginTop: 14 }}><Rule>{RULES.invoice} Tax uses the rate in Configuration ({state.settings.taxRate}%).</Rule></div>

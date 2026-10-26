@@ -131,10 +131,10 @@ function Finished({ state, snap, output, setOutput }: { state: ErpState; snap: R
       <h1 id="finished-title">{snap.projectName} is delivered and invoiced.</h1>
       <p className="erp-step-lead">You entered the project once. {departments.length} departments worked on the same record, and every document below was created from it, without typing anything twice.</p>
       <ul className="erp-checks" style={{ marginTop: 24, maxWidth: 620 }}>
-        <li><CheckCircle2 size={18} color="#0E7A52" /> {snap.customer} · purchase order {snap.poNumber}</li>
-        <li><CheckCircle2 size={18} color="#0E7A52" /> {snap.quantity} × {snap.partLabel} · {snap.partDescription}</li>
-        <li><CheckCircle2 size={18} color="#0E7A52" /> Drawing approved, material received, production complete, inspection passed</li>
-        <li><CheckCircle2 size={18} color="#0E7A52" /> Dispatched with {snap.dispatch?.number} · invoice {snap.invoice?.number}{snap.invoice ? ` · ${formatMoney(snap.invoice.total, snap.invoice.currency)}` : ""}</li>
+        <li><CheckCircle2 size={18} color="#1E7F4E" /> {snap.customer} · purchase order {snap.poNumber}</li>
+        <li><CheckCircle2 size={18} color="#1E7F4E" /> {snap.quantity} × {snap.partLabel} · {snap.partDescription}</li>
+        <li><CheckCircle2 size={18} color="#1E7F4E" /> Drawing approved, material received, production complete, inspection passed</li>
+        <li><CheckCircle2 size={18} color="#1E7F4E" /> Dispatched with {snap.dispatch?.number} · invoice {snap.invoice?.number}{snap.invoice ? ` · ${formatMoney(snap.invoice.total, snap.invoice.currency)}` : ""}</li>
       </ul>
     </section>
     <section className="erp-card" aria-labelledby="docs-title">
@@ -396,7 +396,7 @@ function WorkStep({ id, step, state, openOutput }: { id: StepId; step: number; s
 }
 
 function Checks({ items }: { items: [string, boolean, string][] }) {
-  return <ul className="erp-checks">{items.map(([label, ok, status]) => <li key={label}>{ok ? <CheckCircle2 size={18} color="#0E7A52" /> : <CircleDashed size={18} color="#8A5A00" />}<span style={{ flex: 1 }}>{label}</span><span className={`erp-badge ${ok ? "erp-badge-ok" : "erp-badge-warn"}`}>{status}</span></li>)}</ul>;
+  return <ul className="erp-checks">{items.map(([label, ok, status]) => <li key={label}>{ok ? <CheckCircle2 size={18} color="#1E7F4E" /> : <CircleDashed size={18} color="#8A5A00" />}<span style={{ flex: 1 }}>{label}</span><span className={`erp-badge ${ok ? "erp-badge-ok" : "erp-badge-warn"}`}>{status}</span></li>)}</ul>;
 }
 
 function Foot({ step, canContinue, onContinue, label = "Continue" }: { step: number; canContinue: boolean; onContinue?: () => void; label?: string }) {
