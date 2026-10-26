@@ -211,8 +211,8 @@ function StageDetail({ id, done }: { id: JourneyStage["id"]; done: Set<string> }
       return <>
         <table className={styles.journeyTable}><thead><tr><th>Cost element</th><th>Basis</th><th className={styles.num}>Amount</th></tr></thead><tbody>
           {costLines.map((line) => <tr key={line.label}><td>{line.label}</td><td>{line.detail}</td><td className={styles.num}>{done.has("quote-build") ? formatEur(line.amount) : "—"}</td></tr>)}
-          <tr className={styles.totalRow}><td>Total cost</td><td>Margin {Math.round(marginRate * 100)}%</td><td className={styles.num}>{done.has("quote-build") ? formatEur(costTotal) : "—"}</td></tr>
-          <tr className={styles.totalRow}><td>Quote {journeyOrder.quoteId}</td><td>{done.has("quote-build") ? `${formatEur(unitPrice)} per piece` : "—"}</td><td className={styles.num}>{done.has("quote-build") ? formatEur(quoteTotal) : "—"}</td></tr>
+          <tr className={styles.totalRow}><td>Total cost</td><td>Before margin</td><td className={styles.num}>{done.has("quote-build") ? formatEur(costTotal) : "—"}</td></tr>
+          <tr className={styles.totalRow}><td>Quote {journeyOrder.quoteId}</td><td>{done.has("quote-build") ? `${formatEur(unitPrice)} per piece · ${Math.round(marginRate * 100)}% margin` : "—"}</td><td className={styles.num}>{done.has("quote-build") ? formatEur(quoteTotal) : "—"}</td></tr>
         </tbody></table>
         {done.has("quote-accept") && <p className={styles.journeyNote}><CheckCircle2 size={15} /> Accepted by the customer on 5 Nov.</p>}
       </>;

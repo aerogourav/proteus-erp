@@ -327,4 +327,6 @@ export const deSiteTranslations: [string, string][] = [
   ["Inspected, shipped, invoiced", "Geprüft, versendet, berechnet"],
   ["Final inspection, certificate of conformity, delivery note and invoice, with every step on the audit trail.", "Endprüfung, Konformitätszertifikat, Lieferschein und Rechnung – jeder Schritt im Änderungsprotokoll."],
   ["Simulated order journey from enquiry to dispatch and invoice", "Simulierter Auftragsdurchlauf von Anfrage bis Versand und Rechnung"],
+  ["Before margin", "Vor Marge"],
+  ["€35.36 per piece · 22% margin", "35,36 € pro Stück · 22 % Marge"],
 ];
