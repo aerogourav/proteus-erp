@@ -24,11 +24,13 @@ export default function PrivacyPage() {
     <h2>The demo</h2>
     <p>The demo shows a fictional company with synthetic records. Anything you change or create in the demo is stored only in your own browser:</p>
     <ul>
-      <li>Configuration changes, created parts, documents, opportunities, community posts and activity entries are kept in your browser’s local storage.</li>
-      <li>Files you attach to demo finance entries are kept in your browser’s IndexedDB storage.</li>
+      <li>Projects, records, emails in the demo inbox, shop-floor logs, configuration changes and activity entries are kept in your browser’s local storage.</li>
+      <li>Files you attach in the demo (drawings, 3D models, certificates, finance documents) are kept in your browser’s IndexedDB storage.</li>
       <li>Your language choice is remembered in local storage.</li>
     </ul>
     <p>This data is not sent to us or shared with other users. You can remove it with “Reset demo” on the Configuration page or by clearing your browser’s site data. The demo has no accounts and is not encrypted storage, so please don’t enter confidential information.</p>
+    <p>When you open a 3D model (STEP, IGES or STL) in the demo, your browser loads the viewer software (three.js and occt-import-js) from the jsDelivr content network, which receives your IP address for that request. The model itself is processed in your browser and is not uploaded.</p>
+    <p>Connecting Gmail in the demo inbox is optional. If you do, you sign in with Google, and your browser reads your recent inbox messages and sends the emails you choose directly through Google’s Gmail API. The access token stays in the open browser tab; messages you load are stored only in your browser like other demo data. Nothing passes through our servers. You can disconnect in the demo and revoke access in your Google account at any time.</p>
 
     <h2>Your rights</h2>
     <p>You can ask us for access to, correction or deletion of personal data we hold about you, and you can complain to a data protection supervisory authority.</p>

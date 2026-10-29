@@ -1,4 +1,4 @@
-import { DocumentsModule } from "@/components/erp/modules";
+import { DocumentsModule } from "@/components/erp/documents";
 
 export default function Page() {
   return <DocumentsModule />;

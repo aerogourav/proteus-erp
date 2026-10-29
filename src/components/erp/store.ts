@@ -2,16 +2,26 @@
 
 import { useSyncExternalStore } from "react";
 import { createInitialState, parseStoredState, STORAGE_KEY, type ErpState } from "@/lib/erp/model";
+import { createDemoState } from "@/lib/erp/seed";
 import { guideSteps, stepIndex } from "@/components/erp/guide-steps";
 
 /** Browser-local store shared by every demo screen. Not a database: data stays in this browser only. */
 const SERVER_STATE = createInitialState();
 const listeners = new Set<() => void>();
 let cache: ErpState | null = null;
+/** Set when the browser refused to save (storage full or blocked). */
+export let storageFull = false;
 
 function read(): ErpState {
   if (cache) return cache;
-  try { cache = migrateGuide(parseStoredState(window.localStorage.getItem(STORAGE_KEY))); } catch { cache = createInitialState(); }
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    // A first visit starts with the two demo projects already in place.
+    if (raw === null) {
+      cache = createDemoState(new Date().toISOString());
+      try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cache)); } catch { /* keep in memory */ }
+    } else cache = migrateGuide(parseStoredState(raw));
+  } catch { cache = createInitialState(); }
   return cache;
 }
 
@@ -37,16 +47,24 @@ export function commit(update: (state: ErpState) => ErpState) {
   const next = update(current);
   if (next === current) return false;
   cache = next;
-  try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* Keep working in memory if storage is blocked. */ }
+  try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { storageFull = true; /* Keep working in memory if storage is blocked or full. */ }
   notify();
   return true;
 }
 
 export function getState() { return read(); }
 
-export function resetDemo() {
-  cache = createInitialState();
-  try { window.localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+/** "demo" restores the two demo projects; "empty" starts with nothing. */
+export function resetDemo(mode: "demo" | "empty" = "demo") {
+  cache = mode === "demo" ? createDemoState(new Date().toISOString()) : createInitialState();
+  try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cache)); } catch { /* ignore */ }
+  notify();
+}
+
+/** Replaces all data, for example from an imported backup. */
+export function replaceState(next: ErpState) {
+  cache = next;
+  try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* keep in memory */ }
   notify();
 }
 

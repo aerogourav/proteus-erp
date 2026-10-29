@@ -2,20 +2,22 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import {
-  ArrowRight, Boxes, ClipboardList, Factory, FileText, PackageCheck, Receipt, ShieldCheck, ShoppingCart, Truck, Users,
-} from "lucide-react";
+import { ArrowRight, Boxes, ClipboardList, Factory, FileText, PackageCheck, Receipt, ShieldCheck, ShoppingCart, Truck, Users } from "lucide-react";
 import { stepForAction, useOpenGuide } from "@/components/erp/guide-link";
 import { OUTPUT_LABELS, OutputDialog, outputAvailability, type OutputKind } from "@/components/erp/outputs";
 import { commit, nowIso, useErp, useHydrated } from "@/components/erp/store";
 import { LineItemsEditor } from "@/components/erp/line-items";
-import { Badge, EmptyState, ReadinessBadge, ReadinessIcon, Rule } from "@/components/erp/ui";
+import { Badge, EmptyState, Modal, ReadinessBadge, ReadinessIcon, Rule } from "@/components/erp/ui";
+import { DocPreview } from "@/components/erp/doc-preview";
+import { DocIcon } from "@/components/erp/documents";
+import { projectCosting } from "@/lib/erp/finance";
+import { orderOperations } from "@/lib/erp/shopfloor";
 import {
   RULES, STAGE_ORDER, documentCompleteness, formatDate, formatMoney, projectRecords, projectStage, readiness, resolve,
   type Readiness, type ResolveAction,
 } from "@/lib/erp/model";
 
-type Dialog = { kind: "output"; output: OutputKind } | null;
+type Dialog = { kind: "output"; output: OutputKind } | { kind: "doc"; id: string } | null;
 
 export function ProjectWorkspace({ projectId }: { projectId: string }) {
   const state = useErp();
@@ -62,12 +64,14 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
   ];
 
   const outputs: OutputKind[] = ["po", "production", "inspection", "dispatch", "invoice"];
+  const costing = projectCosting(state, projectId);
+  const money = (value: number) => formatMoney(value, costing.currency);
   const nextStep = Object.values(ready).flatMap((item) => item.reasons).find((reason) => reason.action);
 
   return <div className="erp-stack">
     <section className="erp-card erp-project-head" aria-labelledby="project-title">
       <div className="erp-head" style={{ margin: 0 }}>
-        <div><span className="erp-eyebrow">{project.code}{project.isSample ? " · sample project" : ""}</span><h1 id="project-title">{project.name}</h1>{project.description && <p>{project.description}</p>}</div>
+        <div><span className="erp-eyebrow">{project.code}{project.isSample ? " · demo project" : ""}</span><h1 id="project-title">{project.name}</h1>{project.description && <p>{project.description}</p>}</div>
         <Badge>{stage}</Badge>
       </div>
       <div className="erp-project-meta">
@@ -98,6 +102,21 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
     </section>
 
     <div className="erp-grid-2">
+      <section className="erp-card" aria-labelledby="docs-title">
+        <div className="erp-card-head"><div><h2 id="docs-title">Documents</h2><p>Click to preview drawings, certificates and 3D models.</p></div><Link className="erp-btn erp-btn-sm" href={`/demo/documents?project=${projectId}`}>All documents</Link></div>
+        {records.documents.length ? <div className="erp-doctiles">{records.documents.map((doc) => <button key={doc.id} type="button" onClick={() => setDialog({ kind: "doc", id: doc.id })}><span className="erp-docicon"><DocIcon doc={doc} size={18} /></span><span><b>{doc.number}</b><small>{doc.type} · rev {doc.revision}</small></span><Badge>{doc.status}</Badge></button>)}</div> : <p className="erp-faint erp-card-pad">No documents linked yet.</p>}
+      </section>
+      <section className="erp-card" aria-labelledby="cost-title">
+        <div className="erp-card-head"><div><h2 id="cost-title">Costing and shop floor</h2><p>Material from unit costs, labour from the operation log, external bills.</p></div><Link className="erp-btn erp-btn-sm" href="/demo/finance?view=costing">Costing</Link></div>
+        <div className="erp-card-pad erp-stack" style={{ gap: 12 }}>
+          <div className="erp-mini-stats"><span><small>Order value</small><b>{money(costing.orderValue)}</b></span><span><small>Material</small><b>{money(costing.material)}</b></span><span><small>Labour</small><b>{money(costing.labour)}</b></span><span><small>External</small><b>{money(costing.external)}</b></span><span><small>Margin</small><b>{money(costing.margin)}{costing.marginPct !== null ? ` · ${costing.marginPct}%` : ""}</b></span></div>
+          {records.productionOrders.map((order) => { const ops = orderOperations(state, order); const done = ops.filter((op) => op.status === "done").length; const now = ops.find((op) => op.status === "running" || op.status === "next"); return <div key={order.id} className="erp-param"><div className="erp-param-head"><b>{order.number} · {state.parts.find((part) => part.id === order.partId)?.number}</b><span className="erp-faint">{done} of {ops.length} operations{now ? ` · ${now.status === "running" ? "running" : "next"}: Op ${now.seq} ${now.name}` : ""}</span></div><div className="erp-progress-bar"><span style={{ width: `${(done / Math.max(1, ops.length)) * 100}%` }} /></div></div>; })}
+          {records.productionOrders.length > 0 && <Link className="erp-link" href="/demo/shop-floor">Open the shop floor terminal</Link>}
+        </div>
+      </section>
+    </div>
+
+    <div className="erp-grid-2">
       <section className="erp-card" aria-labelledby="related-title">
         <div className="erp-card-head"><div><h2 id="related-title">Connected records</h2><p>One project, linked across every module.</p></div></div>
         <nav className="erp-related">{related.map(({ icon: Icon, label, value, href }) => <Link key={label} href={href}><Icon size={16} /><span><small>{label}</small><br />{value}</span><ArrowRight size={14} /></Link>)}</nav>
@@ -111,7 +130,7 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
         </section>
         <section className="erp-card" aria-labelledby="activity-title">
           <div className="erp-card-head"><div><h2 id="activity-title">Activity</h2><p>What changed, in order.</p></div></div>
-          <ol className="erp-activity">{state.activity.filter((event) => event.projectId === projectId).slice(0, 8).map((event) => <li key={event.id}><time dateTime={event.at}>{formatDate(event.at)}</time><span>{event.text}</span></li>)}</ol>
+          <ol className="erp-activity">{state.activity.filter((event) => event.projectId === projectId).slice(0, 8).map((event) => <li key={event.id}><time dateTime={event.at}>{formatDate(event.at)}</time><span>{event.text}{event.user ? <small> · {event.user}</small> : null}</span></li>)}</ol>
         </section>
       </div>
     </div>
@@ -119,5 +138,6 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
     <Rule>Every status on this page is calculated from the linked records. Change a record and the status changes with it.</Rule>
 
     {dialog?.kind === "output" && <OutputDialog state={state} projectId={projectId} kind={dialog.output} onClose={() => setDialog(null)} />}
+    {dialog?.kind === "doc" && (() => { const doc = state.documents.find((item) => item.id === dialog.id); return doc ? <Modal label={`Preview ${doc.number}`} wide onClose={() => setDialog(null)}><div className="erp-card-pad"><DocPreview state={state} doc={doc} onClose={() => setDialog(null)} /></div></Modal> : null; })()}
   </div>;
 }

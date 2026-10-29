@@ -3,22 +3,30 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
-import { ArrowLeft, Download, FileText, Plus, Printer, RotateCcw, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, FileText, Mail, Plus, Printer, Sparkles, Trash2, X } from "lucide-react";
 import { LineItemsEditor } from "@/components/erp/line-items";
-import { CustomValuesView, EditButton, NOT_SAVED, StatusSelect, customEditFields, customInitial, pickCustom, readStoredFile, useEditor } from "@/components/erp/edit";
+import { CustomValuesView, EditButton, NOT_SAVED, StatusSelect, customEditFields, customInitial, pickCustom, useEditor } from "@/components/erp/edit";
+import { BillDialog, ReorderPanel, SupplierOrderDialog, SupplierOrdersSection, type OrderPrefill } from "@/components/erp/purchasing-ui";
+import type { BillInput } from "@/lib/erp/finance";
 import { InspectionForm } from "@/components/erp/inspection-form";
 import { focusProject } from "@/components/erp/guide-link";
 import { startAnotherProject } from "@/components/erp/guided";
 import { OutputDialog, type OutputKind } from "@/components/erp/outputs";
-import { commit, nowIso, resetDemo, useErp, useHydrated } from "@/components/erp/store";
-import { Badge, EmptyState, Field, Modal, PageHead, ProjectLink, ReadinessBadge, Rule } from "@/components/erp/ui";
+import { commit, nowIso, useErp, useHydrated } from "@/components/erp/store";
+import { Badge, EmptyState, Modal, PageHead, ProjectLink, ReadinessBadge, Rule } from "@/components/erp/ui";
 import {
-  CURRENCIES, DOC_STATUSES, RULES, UNITS, advanceProcurement, createProductionOrder, dispatchProject, formatDate, generateInvoice, setDocumentStatus,
-  addInspectionRequirement, removeInspectionRequirement, setProductionStatus, updateCustomer, updateDocument, updateInspectionRequirement, updateMaterial,
-  updatePart, updateProductionOrder, updateProject, updatePurchaseOrder, isProductionComplete, setCustomValues, docTypes, addDocumentToProject, formatMoney, isActiveOrder, lineEngineeringReady, lineMaterialReady, orderOperationalState,
-  partNumber, projectStage, readiness, revisionLabel, updateSettings,
-  type Currency, type DocStatus, type ErpState, type Project,
+  RULES, UNITS, advanceProcurement, createProductionOrder, deleteProject, dispatchProject, formatDate, rawMaterialFor,
+  addInspectionRequirement, removeInspectionRequirement, setProductionStatus, updateCustomer, updateInspectionRequirement, updateMaterial,
+  updatePart, updateProductionOrder, updateProject, updatePurchaseOrder, isProductionComplete, setCustomValues, formatMoney, isActiveOrder, lineEngineeringReady, lineMaterialReady, orderOperationalState,
+  partNumber, projectStage, readiness, revisionLabel,
+  type ErpState, type Project,
 } from "@/lib/erp/model";
+import { addDemoProjects, hasDemoProjects } from "@/lib/erp/seed";
+import { toast } from "@/components/erp/toast";
+import { DocPreview } from "@/components/erp/doc-preview";
+import { DocIcon } from "@/components/erp/documents";
+import { RoutingDialog } from "@/components/erp/shopfloor";
+import { routingFor } from "@/lib/erp/shopfloor";
 
 /* ---------------- Shared helpers ---------------- */
 
@@ -71,25 +79,39 @@ export function ProjectsModule() {
   const hydrated = useHydrated();
   const router = useRouter();
   const editor = useEditor();
-  const head = <PageHead eyebrow="Workspace" title="Projects" description="Every project you create. Open one to see all of its connected records, or continue it in the guided demo." actions={<button type="button" className="erp-btn erp-btn-primary" onClick={() => { startAnotherProject(); router.push("/demo"); }}><Plus size={15} /> New project</button>} />;
+  const [deleting, setDeleting] = useState<Project | null>(null);
+  const loadDemo = () => { commit((value) => addDemoProjects(value, nowIso())); toast("The 2 demo projects were added, with people, suppliers, emails and shop-floor history.", { tone: "ok" }); };
+  const head = <PageHead eyebrow="Workspace" title="Projects" description="Every project with its stage. Open one to see all of its connected records, or continue it in the guided demo." actions={<>
+    {hydrated && !hasDemoProjects(state) && <button type="button" className="erp-btn" onClick={loadDemo}><Sparkles size={15} /> Add the 2 demo projects</button>}
+    <button type="button" className="erp-btn erp-btn-primary" onClick={() => { startAnotherProject(); router.push("/demo"); }}><Plus size={15} /> New project</button></>} />;
   if (!hydrated) return <>{head}<Loading /></>;
   if (!state.projects.length) return <>{head}<NoProjects what="projects" /></>;
-  const columns = "minmax(0,2fr) minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) 140px 250px";
+  const columns = "minmax(0,2fr) minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) 140px 290px";
   return <>{head}<section className="erp-card"><Rows columns={columns} head={["Project", "Customer", "Purchase order", "Delivery", "Status", ""]}>
     {[...state.projects].reverse().map((project) => {
       const customer = state.customers.find((item) => item.id === project.customerId);
       const po = state.purchaseOrders.find((item) => item.projectId === project.id);
       return <div key={project.id} role="row" className="erp-row" style={{ gridTemplateColumns: columns }}>
-        <span><Link href={`/demo/projects/${project.id}`}><strong>{project.name}</strong></Link><small>{project.code}{state.guide.projectId === project.id ? " · current" : ""}</small><CustomValuesView state={state} entity="project" custom={project.custom} /></span>
+        <span><Link href={`/demo/projects/${project.id}`}><strong>{project.name}</strong></Link><small>{project.code}{project.isSample ? " · demo project" : ""}{state.guide.projectId === project.id ? " · current" : ""}</small><CustomValuesView state={state} entity="project" custom={project.custom} /></span>
         <span>{customer?.name}</span><span>{po?.number}</span><span>{po ? formatDate(po.deliveryDate) : "—"}</span>
         <span><Badge>{projectStage(state, project.id)}</Badge></span>
         <span className="erp-head-actions">
           <button type="button" className="erp-btn erp-btn-sm" onClick={() => { commit((value) => focusProject(value, project.id)); router.push("/demo"); }}>Guided demo</button>
           <EditButton onClick={() => editor.open({ title: `Edit ${project.code}`, fields: [{ key: "name", label: "Project name", required: true }, { key: "description", label: "Description (optional)" }, ...customEditFields(state, "project")], initial: { name: project.name, description: project.description, ...customInitial(state, "project", project.custom) }, onSave: (v) => save((value) => setCustomValues(updateProject(value, project.id, { name: v.name, description: v.description }, nowIso()), "project", project.id, pickCustom(v))) })} />
+          <button type="button" className="erp-btn erp-btn-ghost erp-btn-sm" aria-label={`Delete ${project.code}`} onClick={() => setDeleting(project)}><Trash2 size={13} /></button>
         </span>
       </div>;
     })}
-  </Rows></section>{editor.dialog}</>;
+  </Rows></section>{editor.dialog}
+    {deleting && <Modal label="Delete project" onClose={() => setDeleting(null)}>
+      <h2>Delete {deleting.code}?</h2>
+      <p style={{ marginTop: 8 }}>This removes the project, its purchase order, line items, material requirements, production orders, inspection report, dispatch note and invoice from this browser. Customers, parts, shared documents and the shop-floor log stay. It cannot be undone.</p>
+      <div className="erp-head-actions" style={{ marginTop: 18, justifyContent: "flex-end" }}>
+        <button type="button" className="erp-btn erp-btn-ghost" onClick={() => setDeleting(null)}>Cancel</button>
+        <button type="button" className="erp-btn erp-btn-danger" onClick={() => { commit((value) => deleteProject(value, deleting.id, nowIso())); toast(`${deleting.code} deleted.`, { tone: "info" }); setDeleting(null); }}><Trash2 size={14} /> Delete project</button>
+      </div>
+    </Modal>}
+  </>;
 }
 
 /* ---------------- CRM ---------------- */
@@ -181,6 +203,8 @@ export function PartsModule() {
   const hydrated = useHydrated();
   const filter = useProjectFilter(state);
   const [open, setOpen] = useState<string | null>(null);
+  const [routing, setRouting] = useState<string | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<string | null>(null);
   const editor = useEditor();
   const head = <PageHead eyebrow="Engineering" title="Parts and revisions" description="Parts are created from project line items. Each revision is its own record, separate from the part identity." />;
   if (!hydrated) return <>{head}<Loading /></>;
@@ -206,14 +230,14 @@ export function PartsModule() {
           <span>{[...new Set(lines.map((line) => projectOf(state, line.projectId)?.code))].join(", ")}</span>
           <span>{statuses.map((status, index) => <Badge key={index} tone={status === "Complete" ? "ok" : status === "Ready" || status === "In production" ? "info" : "warn"}>{status}</Badge>)}</span>
         </button>
-        {isOpen && <div className="erp-detail"><div style={{ marginBottom: 10 }}><EditButton label="Edit part" onClick={() => editor.open({ title: `Edit ${part.number}`, fields: [{ key: "description", label: "Description", required: true }, ...customEditFields(state, "part")], initial: { description: part.description, ...customInitial(state, "part", part.custom) }, onSave: (v) => save((value) => setCustomValues(updatePart(value, part.id, { description: v.description }, nowIso()), "part", part.id, pickCustom(v))) })} /><CustomValuesView state={state} entity="part" custom={part.custom} /></div>{lines.map((line) => {
+        {isOpen && <div className="erp-detail"><div style={{ marginBottom: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}><button type="button" className="erp-btn erp-btn-sm" onClick={() => setRouting(part.id)}>Routing: {routingFor(state, part.id).length} operations</button><EditButton label="Edit part" onClick={() => editor.open({ title: `Edit ${part.number}`, fields: [{ key: "description", label: "Description", required: true }, ...customEditFields(state, "part")], initial: { description: part.description, ...customInitial(state, "part", part.custom) }, onSave: (v) => save((value) => setCustomValues(updatePart(value, part.id, { description: v.description }, nowIso()), "part", part.id, pickCustom(v))) })} /><CustomValuesView state={state} entity="part" custom={part.custom} /></div>{lines.map((line) => {
           const project = projectOf(state, line.projectId);
           const docs = state.documents.filter((doc) => doc.partId === part.id && doc.projectIds.includes(line.projectId));
           const checks = state.inspectionRequirements.filter((req) => req.projectId === line.projectId && (req.partId === part.id || req.partId === null));
           return <div key={line.id} style={{ marginBottom: 12 }}>
             <p className="erp-label">{project && <ProjectLink id={project.id} code={project.code} />} · rev {revisionLabel(state, line.revisionId)} · {line.quantity} {line.unit}</p>
             <div className="erp-kv" style={{ marginTop: 8 }}>
-              <div><small>Required documents</small><b>{docs.length ? docs.map((doc) => `${doc.number} (${doc.status})`).join(", ") : "No drawing yet"}</b></div>
+              <div><small>Documents</small><b>{docs.length ? docs.map((doc) => <button key={doc.id} type="button" className="erp-linkbtn erp-doclink" onClick={() => setPreviewDoc(doc.id)}><DocIcon doc={doc} size={13} /> {doc.number} ({doc.status})</button>) : "No drawing yet"}</b></div>
               <div><small>Inspection requirements</small><b>{checks.length ? checks.map((req) => req.name).join(", ") : "None"}</b></div>
               <div><small>Drawing approved</small><b>{lineEngineeringReady(state, line.projectId, line) ? "Yes" : "No"}</b></div>
               <div><small>Material received</small><b>{lineMaterialReady(state, line) ? "Yes" : "No"}</b></div>
@@ -222,69 +246,10 @@ export function PartsModule() {
         })}</div>}
       </div>;
     })}
-  </Rows></section>{editor.dialog}</>;
-}
-
-/* ---------------- Documents ---------------- */
-
-export function DocumentsModule() {
-  const state = useErp();
-  const hydrated = useHydrated();
-  const filter = useProjectFilter(state);
-  const [open, setOpen] = useState<string | null>(null);
-  const editor = useEditor();
-  const openAdd = () => {
-    const projectLabel = (id: string) => { const project = projectOf(state, id); return project ? `${project.code} · ${project.name}` : ""; };
-    const projects = [...state.projects].reverse();
-    editor.open({
-      title: "Add document",
-      fields: [
-        { key: "project", label: "Project", type: "select", options: projects.map((project) => projectLabel(project.id)) },
-        { key: "part", label: "Part (optional)", type: "select", options: ["Whole project", ...state.parts.map((part) => part.number)] },
-        { key: "type", label: "Document type", type: "select", options: docTypes(state), help: "Add your own types in Configuration." },
-        { key: "name", label: "Name", required: true }, { key: "number", label: "Document number", required: true }, { key: "revision", label: "Revision", required: true },
-        { key: "status", label: "Approval status", type: "select", options: [...DOC_STATUSES] },
-        { key: "file", label: "File (optional)", type: "file", help: "Up to 1 MB is kept in this browser." },
-      ],
-      initial: { project: projects[0] ? projectLabel(projects[0].id) : "", part: "Whole project", type: docTypes(state)[0], name: "", number: "", revision: "A", status: "In review", file: "" },
-      onSave: (v, file) => {
-        const project = projects.find((item) => projectLabel(item.id) === v.project);
-        if (!project) return "Choose a project.";
-        return save((value) => addDocumentToProject(value, project.id, { name: v.name, type: v.type, number: v.number, revision: v.revision, partId: value.parts.find((part) => part.number === v.part)?.id ?? null, status: v.status as DocStatus, file: file ?? undefined }, nowIso()));
-      },
-    });
-  };
-  const head = <PageHead eyebrow="Engineering" title="Documents" description="Drawings and other documents with revision and approval status. Approve them here, at any time. Uploaded files stay in this browser only." actions={state.projects.length ? <button type="button" className="erp-btn erp-btn-primary" onClick={openAdd}><Plus size={15} /> Add document</button> : undefined} />;
-  if (!hydrated) return <>{head}<Loading /></>;
-  if (!state.documents.length) return <>{head}<NoProjects what="documents" />{editor.dialog}</>;
-  const docs = filter ? state.documents.filter((doc) => doc.projectIds.includes(filter.id)) : state.documents;
-  const columns = "minmax(0,1.1fr) minmax(0,1.8fr) minmax(0,1fr) 60px minmax(0,1fr) 120px";
-  return <>{head}<FilterBar project={filter} base="/demo/documents" /><section className="erp-card"><Rows columns={columns} head={["Number", "Name", "Type", "Rev", "Linked to", "Approval"]}>
-    {docs.map((doc) => {
-      const isOpen = open === doc.id;
-      return <div key={doc.id}>
-        <button type="button" className={`erp-row erp-row-click${isOpen ? " erp-row-active" : ""}`} style={{ gridTemplateColumns: columns, width: "100%", background: "transparent", border: 0, textAlign: "left", color: "inherit" }} aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : doc.id)}>
-          <strong>{doc.number}</strong><span>{doc.name}</span><span className="erp-muted">{doc.type}</span><span>{doc.revision}</span>
-          <span>{doc.projectIds.map((id) => projectOf(state, id)?.code).join(", ")}{doc.file ? <small>📎 {doc.file.name}</small> : null}{doc.partId ? <small>{partNumber(state, doc.partId)}</small> : <small>Whole project</small>}</span>
-          <span><Badge>{doc.status}</Badge></span>
-        </button>
-        {isOpen && <div className="erp-detail">
-          <div className="erp-kv">
-            <div><small>File</small><b>{doc.file ? `${doc.file.name} · ${Math.round(doc.file.size / 1024)} KB${doc.file.data ? "" : " (name only)"}` : "No file · metadata only"}</b></div>
-            <div><small>Part</small><b>{doc.partId ? partNumber(state, doc.partId) : "Whole project"}</b></div>
-            <div><small>Projects</small><b>{doc.projectIds.map((id) => projectOf(state, id)?.code).join(", ")}</b></div>
-            <div><small>Last change</small><b>{formatDate(doc.updatedAt)}</b></div>
-          </div>
-          <div className="erp-inline" style={{ marginTop: 14, maxWidth: 520, alignItems: "flex-end", gap: 10 }}>
-            <Field id={`status-${doc.id}`} label="Approval status"><select className="erp-select" id={`status-${doc.id}`} value={doc.status} onChange={(event) => commit((current) => setDocumentStatus(current, doc.id, event.target.value as DocStatus, nowIso()))}>{DOC_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></Field>
-            {doc.file?.data && <a className="erp-btn erp-btn-sm" style={{ marginBottom: 4 }} href={doc.file.data} download={doc.file.name}><Download size={13} /> {doc.file.name}</a>}
-            <span style={{ marginBottom: 4 }}><EditButton onClick={() => editor.open({ title: `Edit ${doc.number}`, fields: [{ key: "name", label: "Name", required: true }, { key: "number", label: "Document number", required: true }, { key: "revision", label: "Revision", required: true }, { key: "file", label: "File", type: "file", help: "Up to 1 MB is kept in this browser. Changing the file, number or revision sends an approved document back to review." }], initial: { name: doc.name, number: doc.number, revision: doc.revision, file: doc.file?.name ?? "" }, onSave: (v, file) => save((value) => updateDocument(value, doc.id, { name: v.name, number: v.number, revision: v.revision, file }, nowIso())) })} /></span>
-          </div>
-          {doc.type === "Drawing" && <p className="erp-faint" style={{ marginTop: 10 }}>{RULES.engineering}</p>}
-        </div>}
-      </div>;
-    })}
-  </Rows></section>{editor.dialog}</>;
+  </Rows></section>{editor.dialog}
+    {routing && <RoutingDialog state={state} partId={routing} onClose={() => setRouting(null)} />}
+    {previewDoc && (() => { const doc = state.documents.find((item) => item.id === previewDoc); return doc ? <Modal label={`Preview ${doc.number}`} wide onClose={() => setPreviewDoc(null)}><div className="erp-card-pad"><DocPreview state={state} doc={doc} onClose={() => setPreviewDoc(null)} /></div></Modal> : null; })()}
+  </>;
 }
 
 /* ---------------- Materials & procurement ---------------- */
@@ -294,26 +259,45 @@ export function MaterialsModule() {
   const hydrated = useHydrated();
   const filter = useProjectFilter(state);
   const editor = useEditor();
-  const head = <PageHead eyebrow="Operations" title="Purchasing" description="Purchase recommendations come from the material of each part. Place orders and book goods receipt here, whenever it suits you." />;
+  const [ordering, setOrdering] = useState<OrderPrefill | null>(null);
+  const [billing, setBilling] = useState<Partial<BillInput> | null>(null);
+  const head = <PageHead eyebrow="Operations" title="Purchasing" description="What to buy, from whom, and where each order stands. Orders go to the supplier by email from here; confirmations, goods receipt and the bill follow." actions={<button type="button" className="erp-btn erp-btn-primary" onClick={() => setOrdering({})}><Mail size={15} /> Order by email</button>} />;
   if (!hydrated) return <>{head}<Loading /></>;
-  if (!state.materialRequirements.length) return <>{head}<NoProjects what="material requirements" /></>;
   const reqs = filter ? state.materialRequirements.filter((req) => req.projectId === filter.id) : state.materialRequirements;
-  const columns = "minmax(0,2fr) 100px minmax(0,1.2fr) minmax(0,1.3fr) minmax(0,1fr) 200px";
-  return <>{head}<FilterBar project={filter} base="/demo/materials" /><section className="erp-card"><Rows columns={columns} head={["Material", "Quantity", "For", "Supplier · PO", "Status", ""]}>
+  const columns = "minmax(0,2fr) 100px minmax(0,1.2fr) minmax(0,1.3fr) minmax(0,1fr) 230px";
+  const orderFor = (req: (typeof reqs)[number]) => {
+    const record = state.procurement.find((item) => item.requirementId === req.id);
+    const raw = rawMaterialFor(state, req.material);
+    const supplierName = record?.supplier || (raw?.supplierId ? state.suppliers.find((item) => item.id === raw.supplierId)?.name ?? "" : "");
+    const supplier = state.suppliers.find((item) => item.name.toLowerCase() === supplierName.toLowerCase());
+    setOrdering({ supplier: supplierName, email: supplier?.email ?? "", lines: [{ material: req.material, quantity: req.quantity, unit: req.unit, unitPrice: raw?.unitCost ?? null, requirementIds: [req.id] }] });
+  };
+  return <>{head}<FilterBar project={filter} base="/demo/materials" />
+    {!filter && <ReorderPanel onOrder={setOrdering} />}
+    {!filter && <SupplierOrdersSection onBill={setBilling} />}
+    <section className="erp-card"><div className="erp-card-head"><div><h2>Material per project</h2><p>Purchase recommendations from the material of every part.</p></div></div>
+    {reqs.length ? <Rows columns={columns} head={["Material", "Quantity", "For", "Supplier · purchase", "Status", ""]}>
     {reqs.map((req) => {
       const record = state.procurement.find((item) => item.requirementId === req.id);
       const project = projectOf(state, req.projectId);
       const line = req.lineItemId ? state.lineItems.find((item) => item.id === req.lineItemId) : null;
+      const order = state.supplierOrders.find((item) => item.status !== "Cancelled" && item.lines.some((orderLine) => orderLine.requirementIds.includes(req.id)));
       return <div key={req.id} role="row" className="erp-row" style={{ gridTemplateColumns: columns }}>
         <strong>{req.material}</strong><span className="erp-num" style={{ textAlign: "left" }}>{req.quantity} {req.unit}</span>
         <span>{project && <ProjectLink id={project.id} code={project.code} />}<small>{line ? `${partNumber(state, line.partId)} rev ${revisionLabel(state, line.revisionId)}` : "Whole project"}</small></span>
-        <span>{record?.supplier || "Not chosen"}<small>{record?.number}</small></span>
+        <span>{record?.supplier || "Not chosen"}<small>{order ? order.number : record?.number}</small></span>
         <span>{record && <Badge>{record.status}</Badge>}</span>
-        <span className="erp-head-actions">{record && record.status !== "Received" && <button type="button" className="erp-btn erp-btn-sm" onClick={() => commit((current) => advanceProcurement(current, record.id, nowIso()))}>{record.status === "Not ordered" ? "Place order" : "Mark received"}</button>}
+        <span className="erp-head-actions">
+          {record?.status === "Not ordered" && <button type="button" className="erp-btn erp-btn-primary erp-btn-sm" onClick={() => orderFor(req)}><Mail size={13} /> Order by email</button>}
+          {record?.status === "Ordered" && !order && <button type="button" className="erp-btn erp-btn-sm" onClick={() => commit((current) => advanceProcurement(current, record.id, nowIso()))}>Mark received</button>}
           <EditButton onClick={() => editor.open({ title: `Edit ${req.material}`, fields: [{ key: "material", label: "Material", required: true }, { key: "quantity", label: "Quantity", type: "number", required: true }, { key: "unit", label: "Unit", type: "select", options: [...UNITS] }, { key: "supplier", label: "Supplier (optional)" }], initial: { material: req.material, quantity: String(req.quantity), unit: req.unit, supplier: record?.supplier ?? "" }, onSave: (v) => save((value) => updateMaterial(value, req.id, { material: v.material, quantity: num(v.quantity), unit: v.unit, supplier: v.supplier }, nowIso())) })} /></span>
       </div>;
     })}
-  </Rows></section><div style={{ marginTop: 14 }}><Rule>{RULES.materials}</Rule></div>{editor.dialog}</>;
+  </Rows> : <EmptyState title="No material requirements" text="They come from the material of each part in a project." />}</section>
+    <div style={{ marginTop: 14 }}><Rule>{RULES.materials} Receiving a supplier order adds the delivered quantity to stock; starting production takes the material out again.</Rule></div>
+    {ordering && <SupplierOrderDialog prefill={ordering} onClose={() => setOrdering(null)} />}
+    {billing && <BillDialog prefill={billing} onClose={() => setBilling(null)} />}
+    {editor.dialog}</>;
 }
 
 /* ---------------- Production ---------------- */

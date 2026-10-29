@@ -2,33 +2,16 @@
 
 import { useState } from "react";
 import { Paperclip, Pencil } from "lucide-react";
-import { getState } from "@/components/erp/store";
+import { formatBytes, hasContent, storeUpload } from "@/components/erp/file-store";
 import { Field, Modal } from "@/components/erp/ui";
 import { PRODUCTION_STATUSES, customFieldsFor, isProductionComplete, type CustomEntity, type CustomValues, type ErpState, type StoredFile } from "@/lib/erp/model";
 
-/* ---------- Files kept in this browser ---------- */
+/* ---------- Files kept in this browser (IndexedDB, see file-store) ---------- */
 
-const FILE_DATA_LIMIT = 1024 * 1024;
-const TOTAL_FILE_DATA_LIMIT = 3 * 1024 * 1024;
+/** Kept for older imports: stores a picked file in this browser. */
+export const readStoredFile = storeUpload;
 
-function storedFileBytes(state: ErpState) {
-  return [...state.documents, ...(state.draft?.documents ?? [])].reduce((sum, doc) => sum + (doc.file?.data?.length ?? 0), 0);
-}
-
-/** Reads a file for local storage. Files over 1 MB (or when space runs low) keep only name and size. */
-export function readStoredFile(file: File): Promise<StoredFile> {
-  const meta: StoredFile = { name: file.name, size: file.size, type: file.type || "application/octet-stream" };
-  const fits = file.size <= FILE_DATA_LIMIT && storedFileBytes(getState()) + file.size * 1.4 <= TOTAL_FILE_DATA_LIMIT;
-  if (!fits) return Promise.resolve(meta);
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(typeof reader.result === "string" ? { ...meta, data: reader.result } : meta);
-    reader.onerror = () => resolve(meta);
-    reader.readAsDataURL(file);
-  });
-}
-
-export const DRAWING_ACCEPT = ".pdf,.png,.jpg,.jpeg,.svg,.dxf,.dwg,.step,.stp,.igs,.iges";
+export const DRAWING_ACCEPT = ".pdf,.png,.jpg,.jpeg,.gif,.webp,.svg,.dxf,.dwg,.step,.stp,.igs,.iges,.stl,.txt,.csv";
 
 /* ---------- Production status: presets or custom text ---------- */
 
@@ -53,7 +36,7 @@ export const statusTone = (status: string) => isProductionComplete(status) ? "ok
 
 /* ---------- Generic edit dialog ---------- */
 
-export type EditField = { key: string; label: string; type?: "text" | "number" | "date" | "select" | "file"; options?: string[]; help?: string; required?: boolean; list?: string[] };
+export type EditField = { key: string; label: string; type?: "text" | "number" | "date" | "select" | "file" | "textarea" | "email"; options?: string[]; help?: string; required?: boolean; list?: string[] };
 
 export function EditButton({ label = "Edit", onClick }: { label?: string; onClick: () => void }) {
   return <button type="button" className="erp-btn erp-btn-ghost erp-btn-sm" onClick={onClick}><Pencil size={13} /> {label}</button>;
@@ -64,7 +47,9 @@ export function EditDialog({ title, fields, initial, onSave, onClose }: { title:
   const [values, setValues] = useState(initial);
   const [file, setFile] = useState<StoredFile | null | undefined>(undefined);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const save = () => {
+    if (busy) return;
     const missing = fields.find((field) => field.required && field.type !== "file" && !values[field.key]?.trim());
     if (missing) { setError(`${missing.label} is required.`); return; }
     const result = onSave(values, file);
@@ -78,13 +63,14 @@ export function EditDialog({ title, fields, initial, onSave, onClose }: { title:
         const id = `edit-${field.key}`;
         if (field.type === "file") return <div key={field.key} className="erp-field">
           <label htmlFor={id}>{field.label}</label>
-          <label className="erp-upload"><Paperclip size={18} /><span>{file ? <><b>{file.name}</b> · {Math.round(file.size / 1024)} KB{file.data ? "" : " · name only"}</> : values[field.key] ? <>Current: <b>{values[field.key]}</b>. Choose a file to replace it.</> : "Choose a file"}</span>
-            <input id={id} type="file" accept={DRAWING_ACCEPT} onChange={async (event) => { const picked = event.target.files?.[0]; if (picked) setFile(await readStoredFile(picked)); }} /></label>
+          <label className="erp-upload"><Paperclip size={18} /><span>{busy ? "Saving the file in this browser…" : file ? <><b>{file.name}</b> · {formatBytes(file.size)}{hasContent(file) ? "" : " · too large, name only"}</> : values[field.key] ? <>Current: <b>{values[field.key]}</b>. Choose a file to replace it.</> : "Choose a file"}</span>
+            <input id={id} type="file" accept={DRAWING_ACCEPT} onChange={async (event) => { const picked = event.target.files?.[0]; if (picked) { setBusy(true); setFile(await storeUpload(picked)); setBusy(false); } }} /></label>
           {field.help && <span className="erp-help">{field.help}</span>}
         </div>;
         if (field.type === "select") return <Field key={field.key} id={id} label={field.label} help={field.help}><select className="erp-select" id={id} value={values[field.key] ?? ""} onChange={(event) => setValues({ ...values, [field.key]: event.target.value })}>{field.options?.map((option) => <option key={option}>{option}</option>)}</select></Field>;
+        if (field.type === "textarea") return <Field key={field.key} id={id} label={field.label} help={field.help}><textarea className="erp-textarea" id={id} rows={4} value={values[field.key] ?? ""} onChange={(event) => setValues({ ...values, [field.key]: event.target.value })} /></Field>;
         return <Field key={field.key} id={id} label={field.label} help={field.help}>
-          <input className="erp-input" id={id} type={field.type === "date" ? "date" : "text"} inputMode={field.type === "number" ? "decimal" : undefined} list={field.list ? `${id}-list` : undefined} value={values[field.key] ?? ""} onChange={(event) => setValues({ ...values, [field.key]: event.target.value })} />
+          <input className="erp-input" id={id} type={field.type === "date" ? "date" : field.type === "email" ? "email" : "text"} inputMode={field.type === "number" ? "decimal" : undefined} list={field.list ? `${id}-list` : undefined} value={values[field.key] ?? ""} onChange={(event) => setValues({ ...values, [field.key]: event.target.value })} />
           {field.list && <datalist id={`${id}-list`}>{field.list.map((option) => <option key={option} value={option} />)}</datalist>}
         </Field>;
       })}

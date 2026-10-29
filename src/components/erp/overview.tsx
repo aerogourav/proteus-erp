@@ -13,14 +13,16 @@ import { useRouter } from "next/navigation";
 import { guideSteps, workStepCount } from "@/components/erp/guide-steps";
 import { useErp, useHydrated } from "@/components/erp/store";
 import { Badge, EmptyState, PageHead } from "@/components/erp/ui";
-import { STAGE_ORDER, financeSummary, isProductionComplete, rawMaterialRows, rawMaterialStats, type WidgetKey, formatDate, formatMoney, partNumber, projectRecords, projectStage, revisionLabel } from "@/lib/erp/model";
+import { alerts } from "@/lib/erp/alerts";
+import { kpiSummary } from "@/lib/erp/shopfloor";
+import { STAGE_ORDER, addDays, financeSummary, isProductionComplete, rawMaterialRows, rawMaterialStats, type WidgetKey, formatDate, formatMoney, partNumber, projectRecords, projectStage, revisionLabel } from "@/lib/erp/model";
 
 /** Overview: what the visitor's project looks like across every department. Read-only. */
 export function Overview() {
   const state = useErp();
   const hydrated = useHydrated();
   const router = useRouter();
-  const head = <PageHead eyebrow="Workspace" title="Overview" description="Everything your project has touched, across every department. Changes are made in the guided demo." />;
+  const head = <PageHead eyebrow="Workspace" title="Overview" description="What needs attention today, the selected project across every department, and the figures behind it." />;
   if (!hydrated) return <>{head}<p className="erp-muted" role="status">Loading…</p></>;
 
   const projectId = state.guide.projectId && state.projects.some((item) => item.id === state.guide.projectId) ? state.guide.projectId : state.projects.at(-1)?.id ?? null;
@@ -90,7 +92,18 @@ export function Overview() {
   const materials = rawMaterialRows(state).map((m) => ({ m, ...rawMaterialStats(state, m) }));
   const money = (value: number) => formatMoney(value, state.settings.defaultCurrency);
 
+  const todayKey = today;
+  const alertList = alerts(state, todayKey);
+  const kpi = kpiSummary(state, { from: addDays(todayKey, -6) }, todayKey);
   const widgets: Record<WidgetKey, ReactNode> = {
+    alerts: <section className="erp-card" aria-labelledby="ov-alerts">
+      <div className="erp-card-head"><div><h2 id="ov-alerts">Needs attention</h2><p>{alertList.length ? `${alertList.length} item${alertList.length === 1 ? "" : "s"} across departments, most urgent first.` : "Nothing urgent across the departments."}</p></div></div>
+      {alertList.length ? <ul className="erp-alerts">{alertList.slice(0, 8).map((item) => <li key={item.id} className={`is-${item.tone}`}><span className="erp-alert-area">{item.area}</span><span>{item.text}</span><Link className="erp-btn erp-btn-sm" href={item.href}>{item.action}</Link></li>)}</ul> : <p className="erp-card-pad erp-ok-text">All clear.</p>}
+    </section>,
+    shopFloor: <section className="erp-card erp-card-pad erp-stack" aria-labelledby="ov-sf"><h2 id="ov-sf" className="erp-chart-title">Shop floor, last 7 days</h2>
+      <div className="erp-mini-stats"><span><small>Operations</small><b>{kpi.operations}</b></span><span><small>Efficiency</small><b>{kpi.efficiency === null ? "—" : `${Math.round(kpi.efficiency)}%`}</b></span><span><small>Scrap</small><b>{kpi.scrapRate === null ? "—" : `${kpi.scrapRate}%`}</b></span><span><small>Running now</small><b>{state.activeOps.length}</b></span></div>
+      {state.activeOps.length ? <ul className="erp-reasons">{state.activeOps.map((op) => { const order = state.productionOrders.find((item) => item.id === op.orderId); const who = state.employees.find((item) => item.id === op.employeeId); return <li key={op.id}><span><b style={{ color: "var(--e-text)" }}>{order?.number} · Op {op.seq}</b> · {order ? partNumber(state, order.partId) : ""} · {who?.name} since {new Date(op.start).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span></li>; })}</ul> : <p className="erp-faint">No operation running.</p>}
+      <Link className="erp-link" href="/demo/shop-floor">Open the shop floor</Link></section>,
     project: <section className="erp-card erp-project-head" aria-labelledby="ov-project">
       <div className="erp-head" style={{ margin: 0 }}>
         <div><span className="erp-eyebrow">{project.code} · {r.customer?.name}</span><h2 id="ov-project" style={{ fontSize: 26 }}>{project.name}</h2><CustomValuesView state={state} entity="project" custom={project.custom} /></div>
@@ -137,7 +150,7 @@ export function Overview() {
       <ol className="erp-activity">{state.activity.filter((event) => event.projectId === projectId).slice(0, 8).map((event) => <li key={event.id}><time dateTime={event.at}>{formatDate(event.at)}</time><span>{event.text}</span></li>)}</ol>
     </section>,
   };
-  const CHARTS: WidgetKey[] = ["pipeline", "orderValue", "production", "finance", "stock"];
+  const CHARTS: WidgetKey[] = ["pipeline", "orderValue", "production", "shopFloor", "finance", "stock"];
   const visible = state.settings.widgets.filter((widget) => widget.visible).map((widget) => widget.key);
   // Consecutive chart widgets share a two-column grid.
   const blocks: WidgetKey[][] = [];

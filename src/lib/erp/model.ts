@@ -16,14 +16,18 @@ export type DocType = string;
 export type DocStatus = "Draft" | "In review" | "Approved";
 export type DocSource = "sample" | "metadata" | "upload";
 /** A file kept in this browser only. `data` (a data URL) is omitted for large files. */
-export type StoredFile = { name: string; size: number; type: string; data?: string };
+/**
+ * A file attached to a record. Small legacy files keep `data` (a data URL); new uploads live in this
+ * browser's IndexedDB under `key`; bundled sample files are served from `url`.
+ */
+export type StoredFile = { name: string; size: number; type: string; data?: string; key?: string; url?: string };
 export type ProcurementStatus = "Not ordered" | "Ordered" | "Received";
 /** Preset statuses; any custom text is allowed too. "Completed" (or the older "Complete") counts as finished. */
 export type ProductionStatus = string;
 export const PRODUCTION_STATUSES = ["Planned", "Running", "In process", "Completed"] as const;
 export const isProductionComplete = (status: string) => status === "Completed" || status === "Complete";
 
-export const DOC_TYPES: DocType[] = ["Drawing", "Specification", "Bill of materials", "Inspection plan"];
+export const DOC_TYPES: DocType[] = ["Drawing", "3D model", "Specification", "Bill of materials", "Inspection plan", "Material certificate"];
 export const DOC_STATUSES: DocStatus[] = ["Draft", "In review", "Approved"];
 export const PROCUREMENT_STATUSES: ProcurementStatus[] = ["Not ordered", "Ordered", "Received"];
 export const CURRENCIES: Currency[] = ["EUR", "USD", "GBP"];
@@ -38,9 +42,9 @@ export const CUSTOM_ENTITIES: { key: CustomEntity; label: string }[] = [
 export type CustomFieldType = "text" | "number" | "date" | "select";
 export type CustomField = { id: string; entity: CustomEntity; label: string; type: CustomFieldType; options: string[] };
 
-export type TabKey = "overview" | "guided" | "projects" | "crm" | "sales" | "parts" | "documents" | "rawMaterials" | "purchasing" | "suppliers" | "production" | "quality" | "dispatch" | "finance" | "configuration";
+export type TabKey = "overview" | "guided" | "inbox" | "projects" | "crm" | "quotations" | "sales" | "parts" | "documents" | "rawMaterials" | "purchasing" | "suppliers" | "production" | "shopFloor" | "quality" | "dispatch" | "finance" | "people" | "configuration";
 export type TabConfig = { key: TabKey; label: string; visible: boolean };
-export type WidgetKey = "project" | "kpis" | "pipeline" | "orderValue" | "production" | "finance" | "stock" | "departments" | "activity";
+export type WidgetKey = "alerts" | "project" | "kpis" | "pipeline" | "orderValue" | "production" | "shopFloor" | "finance" | "stock" | "departments" | "activity";
 export type WidgetConfig = { key: WidgetKey; visible: boolean };
 export type UiSettings = {
   accent: "coral" | "plum" | "green" | "blue" | "orange";
@@ -52,22 +56,32 @@ export type UiSettings = {
 };
 
 export const DEFAULT_TABS: TabConfig[] = [
-  { key: "overview", label: "Overview", visible: true }, { key: "guided", label: "Guided demo", visible: true }, { key: "projects", label: "Projects", visible: true },
-  { key: "crm", label: "CRM", visible: true }, { key: "sales", label: "Sales orders", visible: true }, { key: "parts", label: "Parts", visible: true },
-  { key: "documents", label: "Documents", visible: true }, { key: "rawMaterials", label: "Raw materials", visible: true }, { key: "purchasing", label: "Purchasing", visible: true },
-  { key: "suppliers", label: "Suppliers", visible: true }, { key: "production", label: "Production", visible: true }, { key: "quality", label: "Quality", visible: true },
-  { key: "dispatch", label: "Dispatch", visible: true }, { key: "finance", label: "Finance", visible: true }, { key: "configuration", label: "Configuration", visible: true },
+  { key: "overview", label: "Overview", visible: true }, { key: "guided", label: "Guided demo", visible: true }, { key: "inbox", label: "Inbox", visible: true },
+  { key: "projects", label: "Projects", visible: true }, { key: "crm", label: "CRM", visible: true }, { key: "quotations", label: "Quotations", visible: true },
+  { key: "sales", label: "Sales orders", visible: true }, { key: "parts", label: "Parts", visible: true }, { key: "documents", label: "Documents", visible: true },
+  { key: "rawMaterials", label: "Raw materials", visible: true }, { key: "purchasing", label: "Purchasing", visible: true }, { key: "suppliers", label: "Suppliers", visible: true },
+  { key: "production", label: "Production", visible: true }, { key: "shopFloor", label: "Shop floor KPI", visible: true }, { key: "quality", label: "Quality", visible: true },
+  { key: "dispatch", label: "Dispatch", visible: true }, { key: "finance", label: "Finance", visible: true }, { key: "people", label: "People", visible: true },
+  { key: "configuration", label: "Configuration", visible: true },
 ];
 export const WIDGET_LABELS: Record<WidgetKey, string> = {
-  project: "Current project", kpis: "Key figures", pipeline: "Project pipeline", orderValue: "Order value by project", production: "Production status",
+  alerts: "Alerts and to-dos", shopFloor: "Shop floor KPIs", project: "Current project", kpis: "Key figures", pipeline: "Project pipeline", orderValue: "Order value by project", production: "Production status",
   finance: "Revenue and receivables", stock: "Raw material stock", departments: "Departments", activity: "Recent activity",
 };
-export const DEFAULT_WIDGETS: WidgetConfig[] = (["project", "kpis", "pipeline", "orderValue", "production", "finance", "stock", "departments", "activity"] as WidgetKey[]).map((key) => ({ key, visible: true }));
+export const DEFAULT_WIDGETS: WidgetConfig[] = (["alerts", "project", "kpis", "pipeline", "orderValue", "production", "shopFloor", "finance", "stock", "departments", "activity"] as WidgetKey[]).map((key) => ({ key, visible: true }));
 export const DEFAULT_UI: UiSettings = { accent: "coral", density: "comfortable", corners: "rounded", sidebar: "dark", nav: "left", font: "brand" };
+
+/** Value of one unit of each currency in EUR. Used to add up amounts in different currencies. */
+export type FxRates = Record<Currency, number>;
+export const DEFAULT_FX: FxRates = { EUR: 1, USD: 0.92, GBP: 1.17 };
+/** Illustrative payroll percentages. Real payroll needs a certified payroll system. */
+export type PayrollSettings = { incomeTaxPct: number; socialPct: number; employerPct: number };
+export const DEFAULT_PAYROLL: PayrollSettings = { incomeTaxPct: 16, socialPct: 20, employerPct: 21 };
 
 export type Settings = {
   taxRate: number; defaultCurrency: Currency; paymentTermsDays: number;
   ui: UiSettings; tabs: TabConfig[]; widgets: WidgetConfig[]; customFields: CustomField[]; docTypes: string[];
+  fx: FxRates; payroll: PayrollSettings; companyName: string; overheadPerHour: number;
 };
 export type Supplier = { id: string; name: string; contact: string; email: string; leadTimeDays: number | null; createdAt: string; custom?: CustomValues };
 export type RawMaterial = { id: string; name: string; unit: string; stock: number; reorderLevel: number; unitCost: number | null; supplierId: string | null; custom?: CustomValues };
@@ -77,19 +91,62 @@ export type Project = { id: string; code: string; name: string; description: str
 export type LineItem = { id: string; projectId: string; purchaseOrderId: string; partId: string; revisionId: string; quantity: number; unit: string; unitPrice: number | null };
 export type Part = { id: string; number: string; description: string; custom?: CustomValues };
 export type PartRevision = { id: string; partId: string; revision: string; createdAt: string };
-export type DocumentRecord = { id: string; number: string; name: string; type: DocType; revision: string; status: DocStatus; source: DocSource; projectIds: string[]; partId: string | null; updatedAt: string; file?: StoredFile };
+export type DocumentRecord = { id: string; number: string; name: string; type: DocType; revision: string; status: DocStatus; source: DocSource; projectIds: string[]; partId: string | null; updatedAt: string; file?: StoredFile; approvedBy?: string; approvedAt?: string };
 export type InspectionRequirement = { id: string; projectId: string; partId: string | null; name: string; spec: string; unit: string; acceptance: string };
 export type MaterialRequirement = { id: string; projectId: string; lineItemId: string | null; material: string; quantity: number; unit: string };
 export type ProcurementRecord = { id: string; number: string; requirementId: string; supplier: string; status: ProcurementStatus; updatedAt: string };
-export type ProductionOrder = { id: string; number: string; projectId: string; lineItemId: string; partId: string; revisionId: string; quantity: number; status: ProductionStatus; createdAt: string; startDate?: string; notes?: string; custom?: CustomValues };
+export type ProductionOrder = { id: string; number: string; projectId: string; lineItemId: string; partId: string; revisionId: string; quantity: number; status: ProductionStatus; createdAt: string; startDate?: string; notes?: string; custom?: CustomValues; routing?: OperationDef[]; materialIssuedAt?: string };
 export type InspectionResult = { requirementId: string; observed: string; pass: boolean };
 export type InspectionReport = { id: string; number: string; projectId: string; productionOrderIds: string[]; results: InspectionResult[]; passed: boolean; createdAt: string };
 export type DispatchRecord = { id: string; number: string; projectId: string; purchaseOrderId: string; dispatchedAt: string };
 export type InvoiceLine = { description: string; quantity: number; unit: string; unitPrice: number; amount: number };
 export type Invoice = { id: string; number: string; projectId: string; purchaseOrderId: string; customerId: string; currency: Currency; lines: InvoiceLine[]; subtotal: number; taxRate: number; tax: number; total: number; issuedAt: string; dueAt: string; paidAt?: string };
-export type ActivityEvent = { id: string; at: string; projectId: string | null; module: ModuleKey; text: string };
+export type ActivityEvent = { id: string; at: string; projectId: string | null; module: ModuleKey; text: string; user?: string };
 
-export type ModuleKey = "projects" | "crm" | "sales" | "parts" | "documents" | "materials" | "procurement" | "production" | "quality" | "dispatch" | "finance" | "suppliers" | "settings";
+export type ModuleKey = "projects" | "crm" | "sales" | "parts" | "documents" | "materials" | "procurement" | "production" | "quality" | "dispatch" | "finance" | "suppliers" | "settings" | "inbox" | "shopfloor" | "people";
+
+/* ---------- People, shop floor, email, quotations, purchasing and finance records ---------- */
+
+export type Employee = { id: string; code: string; name: string; role: string; department: string; email: string; hourlyRate: number; monthlySalary: number; pay: "salary" | "hourly"; active: boolean; joinedAt: string };
+/** One step of a part's routing. Times are planned minutes. */
+export type OperationDef = { seq: number; name: string; workCenter: string; setupMin: number; runMinPerPc: number };
+export type Routing = { partId: string; operations: OperationDef[] };
+/** One finished operation on the shop floor: who, what, when, how many. */
+export type OpLog = {
+  id: string; orderId: string; orderNumber: string; projectId: string; partId: string; partNumber: string; revision: string; partDescription: string;
+  seq: number; operation: string; workCenter: string; employeeId: string; employeeCode: string; employeeName: string;
+  start: string; end: string; minutes: number; plannedMinutes: number; qtyGood: number; qtyScrap: number; notes: string;
+};
+/** An operation that has been started and not yet ended. */
+export type ActiveOp = { id: string; orderId: string; seq: number; employeeId: string; start: string };
+export type EmailFolder = "inbox" | "sent";
+export type EmailRecord = {
+  id: string; folder: EmailFolder; from: string; fromName: string; to: string; subject: string; date: string; body: string; read: boolean;
+  source: "demo" | "gmail" | "erp"; externalId?: string; links?: { kind: string; id: string; label: string }[]; dismissed?: boolean;
+};
+export type MailSettings = { provider: "demo" | "gmail"; address: string; lastSync: string; autoSync: boolean };
+export type QuoteStatus = "Draft" | "Sent" | "Accepted" | "Rejected";
+export type QuoteLine = { partNumber: string; description: string; quantity: number; unit: string; unitPrice: number; revision: string };
+export type Quotation = {
+  id: string; number: string; customerName: string; contact: string; date: string; validUntil: string; currency: Currency; lines: QuoteLine[];
+  status: QuoteStatus; notes: string; leadTimeWeeks: number; projectId?: string; emailId?: string;
+};
+export type SupplierOrderStatus = "Draft" | "Sent" | "Confirmed" | "Received" | "Cancelled";
+export type SupplierOrderLine = { material: string; quantity: number; unit: string; unitPrice: number | null; requirementIds: string[] };
+export type SupplierOrder = {
+  id: string; number: string; supplier: string; email: string; currency: Currency; lines: SupplierOrderLine[]; status: SupplierOrderStatus;
+  createdAt: string; sentAt?: string; confirmedAt?: string; receivedAt?: string; expectedAt: string; notes: string; emailIds: string[];
+};
+export type BillCategory = "Raw material" | "Subcontracting" | "Tooling and consumables" | "Rent and utilities" | "Services" | "Other";
+export const BILL_CATEGORIES: BillCategory[] = ["Raw material", "Subcontracting", "Tooling and consumables", "Rent and utilities", "Services", "Other"];
+export type Bill = {
+  id: string; number: string; supplier: string; category: BillCategory; date: string; dueDate: string; currency: Currency; net: number; taxRate: number; tax: number; total: number;
+  paidAt?: string; supplierOrderId?: string; projectId?: string; description: string; file?: StoredFile; emailId?: string;
+};
+export type Payslip = {
+  id: string; number: string; employeeId: string; period: string; hours: number; gross: number; incomeTax: number; social: number; net: number; employerCost: number;
+  issuedAt: string; paidAt?: string;
+};
 
 export type DraftLine = { key: string; partNumber: string; description: string; quantity: string; unit: string; unitPrice: string; revision: string };
 export type DraftDocument = { key: string; name: string; type: DocType; number: string; revision: string; partKey: string; status: DocStatus; source: DocSource; file?: StoredFile };
@@ -123,6 +180,18 @@ export type ErpState = {
   dispatches: DispatchRecord[];
   invoices: Invoice[];
   activity: ActivityEvent[];
+  employees: Employee[];
+  /** Who is using the demo right now. Used for the activity log and the shop floor. */
+  currentUserId: string | null;
+  routings: Routing[];
+  opLogs: OpLog[];
+  activeOps: ActiveOp[];
+  emails: EmailRecord[];
+  mail: MailSettings;
+  quotations: Quotation[];
+  supplierOrders: SupplierOrder[];
+  bills: Bill[];
+  payslips: Payslip[];
   draft: ProjectDraft | null;
   /** Guided demo position: the visitor's single project moves through every step. */
   guide: { step: number; projectId: string | null; furthest?: number; v?: number };
@@ -134,32 +203,43 @@ export const WIZARD_STEPS = ["Project", "Customer & order", "Line items", "Docum
 
 export function createInitialState(): ErpState {
   return {
-    version: 2, seq: 1, settings: { taxRate: 19, defaultCurrency: "EUR", paymentTermsDays: 30, ui: { ...DEFAULT_UI }, tabs: DEFAULT_TABS.map((tab) => ({ ...tab })), widgets: DEFAULT_WIDGETS.map((widget) => ({ ...widget })), customFields: [], docTypes: [] },
+    version: 2, seq: 1, settings: { taxRate: 19, defaultCurrency: "EUR", paymentTermsDays: 30, ui: { ...DEFAULT_UI }, tabs: DEFAULT_TABS.map((tab) => ({ ...tab })), widgets: DEFAULT_WIDGETS.map((widget) => ({ ...widget })), customFields: [], docTypes: [], fx: { ...DEFAULT_FX }, payroll: { ...DEFAULT_PAYROLL }, companyName: "Your company (demo)", overheadPerHour: 0 },
     suppliers: [], rawMaterials: [],
     customers: [], purchaseOrders: [], projects: [], lineItems: [], parts: [], revisions: [], documents: [], inspectionRequirements: [],
     materialRequirements: [], procurement: [], productionOrders: [], inspectionReports: [], dispatches: [], invoices: [], activity: [], draft: null,
+    employees: [], currentUserId: null, routings: [], opLogs: [], activeOps: [], emails: [], mail: { provider: "demo", address: "", lastSync: "", autoSync: true },
+    quotations: [], supplierOrders: [], bills: [], payslips: [],
     guide: { step: 0, projectId: null, v: 2 },
   };
 }
 
-const norm = (value: string) => value.trim().replace(/\s+/g, " ").toLowerCase();
-const normCode = (value: string) => value.trim().toUpperCase();
-const round2 = (value: number) => Math.round(value * 100) / 100;
+export const norm = (value: string) => value.trim().replace(/\s+/g, " ").toLowerCase();
+export const normCode = (value: string) => value.trim().toUpperCase();
+export const round2 = (value: number) => Math.round(value * 100) / 100;
 
-function nextId(state: ErpState, prefix: string): [string, ErpState] {
+export function nextId(state: ErpState, prefix: string): [string, ErpState] {
   return [`${prefix}-${state.seq}`, { ...state, seq: state.seq + 1 }];
 }
 
-function numberFor(prefix: string, existing: string[], start = 1, width = 4) {
+export function numberFor(prefix: string, existing: string[], start = 1, width = 4) {
   let n = start;
   const used = new Set(existing.map(normCode));
   while (used.has(normCode(`${prefix}${String(n).padStart(width, "0")}`))) n += 1;
   return `${prefix}${String(n).padStart(width, "0")}`;
 }
 
-function log(state: ErpState, at: string, module: ModuleKey, text: string, projectId: string | null): ErpState {
+export const ACTIVITY_LIMIT = 600;
+
+/** Name of the person currently using the demo, for the audit trail. */
+export function currentUserName(state: ErpState) {
+  const employee = state.currentUserId ? (state.employees ?? []).find((item) => item.id === state.currentUserId) : null;
+  return employee ? `${employee.name} (${employee.code})` : undefined;
+}
+
+export function log(state: ErpState, at: string, module: ModuleKey, text: string, projectId: string | null): ErpState {
   const [id, next] = nextId(state, "evt");
-  return { ...next, activity: [{ id, at, projectId, module, text }, ...next.activity].slice(0, 200) };
+  const user = currentUserName(state);
+  return { ...next, activity: [{ id, at, projectId, module, text, ...(user ? { user } : {}) }, ...next.activity].slice(0, ACTIVITY_LIMIT) };
 }
 
 export function parseAmount(value: string): number | null {
@@ -580,6 +660,12 @@ export function readiness(state: ErpState, projectId: string): ProjectReadiness 
   else {
     const reasons: Reason[] = [];
     if (!productionDone) reasons.push({ text: "Production is not complete." });
+    const short = lineItems.map((line) => {
+      const order = records.productionOrders.find((item) => item.lineItemId === line.id);
+      const produced = order ? producedQuantity(state, order) : line.quantity;
+      return order && produced < line.quantity ? `${partNumber(state, line.partId)} ${produced} of ${line.quantity}` : "";
+    }).filter(Boolean);
+    if (short.length) reasons.push({ text: `Short quantity: ${short.join(", ")} produced. Produce the rest or change the ordered quantity first.` });
     if (quality.state !== "complete") reasons.push({ text: "The inspection report has not passed yet." });
     dispatch = reasons.length ? { state: "blocked", summary: "Not ready to dispatch", reasons } : { state: "incomplete", summary: "Ready to dispatch", reasons: [{ text: "All checks passed. The order can be dispatched.", action: { kind: "dispatch", label: "Dispatch order" } }] };
   }
@@ -632,21 +718,23 @@ export function orderOperationalState(state: ErpState, order: PurchaseOrder) {
 
 /* ============================== Actions ============================== */
 
-function touch<T extends { id: string }>(list: T[], id: string, change: (item: T) => T) {
+export function touch<T extends { id: string }>(list: T[], id: string, change: (item: T) => T) {
   return list.map((item) => item.id === id ? change(item) : item);
 }
 
 export function approveDocument(state: ErpState, documentId: string, now: string): ErpState {
   const doc = state.documents.find((item) => item.id === documentId);
   if (!doc || doc.status === "Approved") return state;
-  const next = { ...state, documents: touch(state.documents, documentId, (item) => ({ ...item, status: "Approved" as DocStatus, updatedAt: now })) };
+  const approvedBy = currentUserName(state);
+  const next = { ...state, documents: touch(state.documents, documentId, (item) => ({ ...item, status: "Approved" as DocStatus, updatedAt: now, approvedAt: now, ...(approvedBy ? { approvedBy } : {}) })) };
   return log(next, now, "documents", `${doc.type} ${doc.number} rev ${doc.revision} approved`, doc.projectIds[0] ?? null);
 }
 
 export function setDocumentStatus(state: ErpState, documentId: string, status: DocStatus, now: string): ErpState {
   const doc = state.documents.find((item) => item.id === documentId);
   if (!doc || doc.status === status) return state;
-  const next = { ...state, documents: touch(state.documents, documentId, (item) => ({ ...item, status, updatedAt: now })) };
+  if (status === "Approved") return approveDocument(state, documentId, now);
+  const next = { ...state, documents: touch(state.documents, documentId, (item) => ({ ...item, status, updatedAt: now, approvedBy: undefined, approvedAt: undefined })) };
   return log(next, now, "documents", `${doc.number} rev ${doc.revision} set to ${status.toLowerCase()}`, doc.projectIds[0] ?? null);
 }
 
@@ -740,7 +828,36 @@ export function advanceProduction(state: ErpState, productionOrderId: string, no
   if (!order || isProductionComplete(order.status)) return state;
   const status: ProductionStatus = order.status === "Planned" ? "Running" : "Completed";
   const next = { ...state, productionOrders: touch(state.productionOrders, productionOrderId, (item) => ({ ...item, status })) };
-  return log(next, now, "production", `${order.number} ${isProductionComplete(status) ? "completed" : "started"}`, order.projectId);
+  return issueMaterial(log(next, now, "production", `${order.number} ${isProductionComplete(status) ? "completed" : "started"}`, order.projectId), productionOrderId, now);
+}
+
+/** Good quantity at the last operation when the shop floor recorded it, otherwise the order quantity. */
+export function producedQuantity(state: ErpState, order: ProductionOrder) {
+  const routing = order.routing ?? [];
+  if (!routing.length) return order.quantity;
+  const last = Math.max(...routing.map((op) => op.seq));
+  const logs = (state.opLogs ?? []).filter((entry) => entry.orderId === order.id && entry.seq === last);
+  return logs.length ? logs.reduce((sum, entry) => sum + entry.qtyGood, 0) : order.quantity;
+}
+
+/**
+ * Takes the order's material out of raw material stock once, when production starts.
+ * Shortages are logged instead of driving stock below zero.
+ */
+export function issueMaterial(state: ErpState, orderId: string, now: string): ErpState {
+  const order = state.productionOrders.find((item) => item.id === orderId);
+  if (!order || order.materialIssuedAt || order.status === "Planned") return state;
+  const reqs = state.materialRequirements.filter((req) => req.lineItemId === order.lineItemId);
+  let next: ErpState = { ...state, productionOrders: touch(state.productionOrders, orderId, (item) => ({ ...item, materialIssuedAt: now })) };
+  if (!reqs.length) return next;
+  const notes: string[] = [];
+  for (const req of reqs) {
+    const raw = rawMaterialFor(next, req.material);
+    const take = raw ? Math.min(raw.stock, req.quantity) : 0;
+    if (raw && take > 0) next = { ...next, rawMaterials: touch(next.rawMaterials, raw.id, (item) => ({ ...item, stock: round2(item.stock - take) })) };
+    if (take < req.quantity) notes.push(`${req.material} ${round2(req.quantity - take)} ${req.unit} short`);
+  }
+  return log(next, now, "materials", `Material issued to ${order.number}${notes.length ? ` · ${notes.join("; ")}` : ""}`, order.projectId);
 }
 
 export function generateInspectionReport(state: ErpState, projectId: string, now: string, measured: Record<string, { observed: string; pass: boolean }> = {}): ErpState {
@@ -843,14 +960,14 @@ export function setProductionStatus(state: ErpState, orderId: string, status: st
   const value = clean(status).slice(0, 40);
   if (!order || !value || order.status === value) return state;
   const next = { ...state, productionOrders: touch(state.productionOrders, orderId, (item) => ({ ...item, status: value })) };
-  return log(next, now, "production", `${order.number} status: ${value}`, order.projectId);
+  return issueMaterial(log(next, now, "production", `${order.number} status: ${value}`, order.projectId), orderId, now);
 }
 
 export function updateProductionOrder(state: ErpState, orderId: string, input: { quantity: number; startDate: string; notes: string; status: string }, now: string): ErpState {
   const order = state.productionOrders.find((item) => item.id === orderId);
   if (!order || !Number.isInteger(input.quantity) || input.quantity <= 0 || !clean(input.status)) return state;
   const next = { ...state, productionOrders: touch(state.productionOrders, orderId, (item) => ({ ...item, quantity: input.quantity, startDate: input.startDate || undefined, notes: clean(input.notes) || undefined, status: clean(input.status).slice(0, 40) })) };
-  return log(next, now, "production", `${order.number} updated`, order.projectId);
+  return issueMaterial(log(next, now, "production", `${order.number} updated`, order.projectId), orderId, now);
 }
 
 export function updateCustomer(state: ErpState, customerId: string, input: { name: string; contact: string }, now: string): ErpState {
@@ -1097,11 +1214,41 @@ export function rawMaterialRows(state: ErpState): RawMaterial[] {
   return rows;
 }
 
-export function upsertSupplier(state: ErpState, name: string): ErpState {
+export function upsertSupplier(state: ErpState, name: string, now = new Date().toISOString(), email = ""): ErpState {
   const clean = name.trim().replace(/\s+/g, " ");
   if (!clean || state.suppliers.some((item) => norm(item.name) === norm(clean))) return state;
   const [id, next] = nextId(state, "sup");
-  return { ...next, suppliers: [...next.suppliers, { id, name: clean, contact: "", email: "", leadTimeDays: null, createdAt: new Date(0).toISOString() }] };
+  return { ...next, suppliers: [...next.suppliers, { id, name: clean, contact: "", email: email.trim(), leadTimeDays: null, createdAt: now }] };
+}
+
+/** Removes a project and everything that only belongs to it. Customers, parts and shared documents stay. */
+export function deleteProject(state: ErpState, projectId: string, now: string): ErpState {
+  const project = state.projects.find((item) => item.id === projectId);
+  if (!project) return state;
+  const reqIds = new Set(state.materialRequirements.filter((req) => req.projectId === projectId).map((req) => req.id));
+  const orderIds = new Set(state.productionOrders.filter((order) => order.projectId === projectId).map((order) => order.id));
+  const documents = state.documents
+    .map((doc) => doc.projectIds.includes(projectId) ? { ...doc, projectIds: doc.projectIds.filter((id) => id !== projectId) } : doc)
+    .filter((doc) => doc.projectIds.length > 0 || !state.documents.find((item) => item.id === doc.id)?.projectIds.includes(projectId));
+  const next: ErpState = {
+    ...state,
+    projects: state.projects.filter((item) => item.id !== projectId),
+    purchaseOrders: state.purchaseOrders.filter((item) => item.projectId !== projectId),
+    lineItems: state.lineItems.filter((item) => item.projectId !== projectId),
+    documents,
+    inspectionRequirements: state.inspectionRequirements.filter((item) => item.projectId !== projectId),
+    materialRequirements: state.materialRequirements.filter((item) => item.projectId !== projectId),
+    procurement: state.procurement.filter((item) => !reqIds.has(item.requirementId)),
+    productionOrders: state.productionOrders.filter((item) => item.projectId !== projectId),
+    activeOps: (state.activeOps ?? []).filter((item) => !orderIds.has(item.orderId)),
+    inspectionReports: state.inspectionReports.filter((item) => item.projectId !== projectId),
+    dispatches: state.dispatches.filter((item) => item.projectId !== projectId),
+    invoices: state.invoices.filter((item) => item.projectId !== projectId),
+    quotations: (state.quotations ?? []).map((quote) => quote.projectId === projectId ? { ...quote, projectId: undefined } : quote),
+    supplierOrders: (state.supplierOrders ?? []).map((order) => ({ ...order, lines: order.lines.map((line) => ({ ...line, requirementIds: line.requirementIds.filter((id) => !reqIds.has(id)) })) })),
+    guide: state.guide.projectId === projectId ? { step: 0, projectId: null, furthest: 0, v: 2 } : state.guide,
+  };
+  return log(next, now, "projects", `Project ${project.code} deleted`, null);
 }
 
 export function upsertRawMaterial(state: ErpState, name: string, defaults: Partial<RawMaterial> = {}): ErpState {

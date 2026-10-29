@@ -11,8 +11,12 @@ export function InspectionForm({ projectId, onSaved }: { projectId: string; onSa
   const r = projectRecords(state, projectId);
   const ready = readiness(state, projectId);
   const productionDone = ready.production.state === "complete";
+  const [error, setError] = useState("");
   const save = () => {
-    commit((value) => generateInspectionReport(value, projectId, nowIso(), Object.fromEntries(r.inspectionRequirements.map((req) => [req.id, results[req.id] ?? { observed: "", pass: true }]))));
+    const missing = r.inspectionRequirements.filter((req) => !results[req.id]?.observed.trim());
+    if (missing.length) { setError(`Enter a measured value for ${missing.map((req) => req.name).join(", ")}. An inspection without a measurement cannot pass.`); return; }
+    setError("");
+    commit((value) => generateInspectionReport(value, projectId, nowIso(), Object.fromEntries(r.inspectionRequirements.map((req) => [req.id, results[req.id]!]))));
     setResults({});
     onSaved?.();
   };
@@ -32,7 +36,8 @@ export function InspectionForm({ projectId, onSaved }: { projectId: string; onSa
       </div>;
     })}
     {!productionDone && <p className="erp-faint">Set every production order to “Completed” first.</p>}
+    {error && <p className="erp-error" role="alert">{error}</p>}
     <div><button type="button" className="erp-btn erp-btn-dark" disabled={!productionDone || !r.inspectionRequirements.length} onClick={save}>Save inspection result</button></div>
-    <p className="erp-faint">Use fictional measurements. Leave a value empty to record “within specification”.</p>
+    <p className="erp-faint">Use fictional measurements. Every parameter needs a measured value; the inspector is recorded from “Signed in as”.</p>
   </div>;
 }

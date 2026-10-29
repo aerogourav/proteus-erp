@@ -2,21 +2,19 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import {
-  ArrowLeft, ArrowRight, Boxes, CheckCircle2, CircleDashed, Factory, FileText, Minus, PackageCheck, Paperclip, Plus, Receipt, RotateCcw,
-  ShieldCheck, ShoppingCart, Sparkles, Trash2, Truck, Users,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Boxes, CheckCircle2, CircleDashed, Factory, FileText, Minus, PackageCheck, Paperclip, Plus, Receipt, RotateCcw, ShieldCheck, ShoppingCart, Sparkles, Trash2, Truck, Users } from "lucide-react";
 import { BohMark } from "@/components/brand/boh-logo";
 import { commit, getState, nowIso, resetDemo, todayIso, useErp, useHydrated } from "@/components/erp/store";
 import { Badge, Field } from "@/components/erp/ui";
-import { StatusSelect } from "@/components/erp/edit";
+import { DRAWING_ACCEPT, StatusSelect } from "@/components/erp/edit";
+import { formatBytes, hasContent, storeUpload } from "@/components/erp/file-store";
 import { InspectionForm } from "@/components/erp/inspection-form";
 import { MAX_PARTS, guideSteps, workStepCount, type GuideStep, type StepKind } from "@/components/erp/guide-steps";
 import {
   UNITS, advanceProcurement, createProductionOrder, createProjectFromDraft, dispatchProject, firstInvalidStep, formatDate,
-  formatMoney, generateInspectionReport, generateInvoice, isProductionComplete, lineEngineeringReady, setProductionStatus, lineMaterialReady, newDraft, parseAmount, partNumber,
+  formatMoney, generateInvoice, isProductionComplete, lineEngineeringReady, setProductionStatus, lineMaterialReady, newDraft, parseAmount, partNumber,
   projectRecords, readiness, reuseCatalog, revisionLabel, validateStep,
-  type DraftLine, type ErpState, type ProjectDraft, type StoredFile,
+  type DraftLine, type ErpState, type ProjectDraft,
 } from "@/lib/erp/model";
 
 type Dept = "crm" | "sales" | "project" | "parts" | "engineering" | "quality" | "purchasing" | "production" | "dispatch" | "finance";
@@ -34,8 +32,6 @@ const DEPT_LABEL: Record<Dept, { label: string; icon: typeof Users }> = {
   finance: { label: "Finance", icon: Receipt },
 };
 
-const FILE_DATA_LIMIT = 1024 * 1024;
-const TOTAL_FILE_DATA_LIMIT = 3 * 1024 * 1024;
 
 function setStep(step: number) {
   commit((state) => ({ ...state, guide: { ...state.guide, step, furthest: Math.max(step, state.guide.furthest ?? 0) } }));
@@ -71,10 +67,6 @@ function resizeParts(draft: ProjectDraft, count: number): ProjectDraft {
   };
 }
 
-function storedFileBytes(state: ErpState) {
-  const docs = [...state.documents, ...(state.draft?.documents ?? [])];
-  return docs.reduce((sum, doc) => sum + (doc.file?.data?.length ?? 0), 0);
-}
 
 /* ============================== Main ============================== */
 
@@ -397,16 +389,12 @@ function DraftStep({ current, step, state }: { current: GuideStep; step: number;
       const updated = { ...base, ...patch };
       return { ...d, documents: existing ? d.documents.map((item) => item.key === key ? updated : item) : [...d.documents, updated] };
     });
-    const onFile = (file: File | undefined) => {
+    const onFile = async (file: File | undefined) => {
       if (!file) return;
-      const meta: StoredFile = { name: file.name, size: file.size, type: file.type || "application/octet-stream" };
-      const fits = file.size <= FILE_DATA_LIMIT && storedFileBytes(getState()) + file.size * 1.4 <= TOTAL_FILE_DATA_LIMIT;
-      const apply = (data?: string) => { setDoc({ file: data ? { ...meta, data } : meta, source: "upload", ...(doc?.number.trim() ? {} : { number: `DRW-${line.partNumber.trim().toUpperCase()}` }) }); setNote(data ? `${file.name} attached. It is kept in this browser only.` : `${file.name} noted (${Math.round(file.size / 1024)} KB). Large files keep only the name and size in this demo.`); };
-      if (!fits) { apply(); return; }
-      const reader = new FileReader();
-      reader.onload = () => apply(typeof reader.result === "string" ? reader.result : undefined);
-      reader.onerror = () => apply();
-      reader.readAsDataURL(file);
+      setNote(`Saving ${file.name} in this browser…`);
+      const stored = await storeUpload(file);
+      setDoc({ file: stored, source: "upload", ...(doc?.number.trim() ? {} : { number: `DRW-${line.partNumber.trim().toUpperCase()}` }) });
+      setNote(hasContent(stored) ? `${file.name} attached. It is kept in this browser only and can be previewed in Documents.` : `${file.name} noted (${formatBytes(file.size)}). Files over 50 MB keep only the name and size.`);
     };
     const reusable = catalog.drawings.filter((item) => !(doc && item.number === doc.number.trim().toUpperCase() && item.revision === doc.revision.trim().toUpperCase()));
     body = <>
@@ -418,10 +406,10 @@ function DraftStep({ current, step, state }: { current: GuideStep; step: number;
         <label htmlFor="g-file">Upload drawing (optional)</label>
         <label className="erp-upload">
           <Paperclip size={18} />
-          <span>{doc?.file ? <><b>{doc.file.name}</b> · {Math.round(doc.file.size / 1024)} KB{doc.file.data ? "" : " · name only"}</> : <>Choose a PDF, image, DXF or STEP file</>}</span>
-          <input id="g-file" type="file" accept=".pdf,.png,.jpg,.jpeg,.svg,.dxf,.dwg,.step,.stp,.igs,.iges" onChange={(event) => onFile(event.target.files?.[0])} />
+          <span>{doc?.file ? <><b>{doc.file.name}</b> · {formatBytes(doc.file.size)}{hasContent(doc.file) ? "" : " · name only"}</> : <>Choose a PDF, image, DXF or STEP file</>}</span>
+          <input id="g-file" type="file" accept={DRAWING_ACCEPT} onChange={(event) => onFile(event.target.files?.[0])} />
         </label>
-        <span className="erp-help">Files up to 1 MB are kept in this browser so you can open them later. Please use fictional drawings.</span>
+        <span className="erp-help">Files up to 50 MB are kept in this browser, and you can preview them in Documents (STEP files in 3D). Please use fictional drawings.</span>
       </div>
       {note && <p className="erp-faint" role="status">{note}</p>}
       <div className="erp-form-grid">

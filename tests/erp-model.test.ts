@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   createInitialState, newDraft, validateStep, firstInvalidStep, createProjectFromDraft, draftFlow, readiness, projectStage, isActiveOrder,
   loadSample, resolve, approveDocument, advanceProcurement, createProductionOrder, advanceProduction, generateInspectionReport, dispatchProject,
-  generateInvoice, addDrawingForLine, setLineItemQuantity, setLineItemPrice, reuseCatalog, setProductionStatus, isProductionComplete, updateCustomer, updatePurchaseOrder, updateDocument, updateMaterial, updateProductionOrder, updateInspectionRequirement, removeInspectionRequirement, saveRawMaterial, saveSupplier, rawMaterialRows, rawMaterialStats, supplierRows, supplierStats, financeSummary, markInvoicePaid, addCustomField, setCustomValues, addDocType, removeDocType, docTypes, updateTab, moveTab, updateWidget, moveWidget, updateUi, upsertSupplier, addDocumentToProject, addInspectionRequirement, addMaterialRequirement, suggestProjectCode, parseStoredState, projectRecords, SAMPLE_PROJECT_CODE, type ErpState, type ProjectDraft,
+  generateInvoice, addDrawingForLine, setLineItemQuantity, setLineItemPrice, reuseCatalog, setProductionStatus, isProductionComplete, updateCustomer, updatePurchaseOrder, updateDocument, updateMaterial, updateProductionOrder, updateInspectionRequirement, removeInspectionRequirement, saveRawMaterial, saveSupplier, rawMaterialRows, rawMaterialStats, supplierRows, supplierStats, financeSummary, markInvoicePaid, addCustomField, setCustomValues, addDocType, removeDocType, docTypes, updateTab, moveTab, updateWidget, moveWidget, updateUi, upsertSupplier, addDocumentToProject, addInspectionRequirement, addMaterialRequirement, suggestProjectCode, parseStoredState, projectRecords, SAMPLE_PROJECT_CODE, DEFAULT_WIDGETS, type ErpState, type ProjectDraft,
 } from "../src/lib/erp/model.ts";
 
 const NOW = "2026-10-26T10:00:00.000Z";
@@ -357,11 +357,11 @@ test("configuration: custom fields, document types, tabs and dashboard", () => {
   state = setCustomValues(created.state, "project", created.projectId, { [state.settings.customFields[1].id]: "High", other: " " });
   assert.deepEqual(state.projects[0].custom, { [state.settings.customFields[1].id]: "High" });
 
-  state = addDocType(state, "Material certificate");
-  assert.ok(docTypes(state).includes("Material certificate"));
+  state = addDocType(state, "Heat treatment certificate");
+  assert.ok(docTypes(state).includes("Heat treatment certificate"));
   assert.equal(addDocType(state, "drawing"), state, "built-in types are not duplicated");
-  state = removeDocType(state, "Material certificate");
-  assert.ok(!docTypes(state).includes("Material certificate"));
+  state = removeDocType(state, "Heat treatment certificate");
+  assert.ok(!docTypes(state).includes("Heat treatment certificate"));
 
   state = updateTab(state, "crm", { label: "Customers", visible: false });
   assert.equal(state.settings.tabs.find((tab) => tab.key === "crm")?.label, "Customers");
@@ -379,6 +379,6 @@ test("configuration: custom fields, document types, tabs and dashboard", () => {
   delete stored.settings.widgets;
   const restored = parseStoredState(JSON.stringify(stored));
   assert.equal(restored.settings.ui.accent, "green");
-  assert.equal(restored.settings.widgets.length, 9);
+  assert.equal(restored.settings.widgets.length, DEFAULT_WIDGETS.length);
   assert.equal(restored.settings.customFields.length, 2);
 });

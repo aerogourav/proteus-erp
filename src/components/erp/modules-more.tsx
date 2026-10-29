@@ -1,18 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, Eye, EyeOff, Plus, Printer, RotateCcw, Trash2, X } from "lucide-react";
-import { BarList, CHART_COLORS, CHART_NEUTRAL, Columns, StackedBar, Stat } from "@/components/erp/charts";
+import { ArrowDown, ArrowUp, Download, Eye, EyeOff, Mail, Plus, Printer, RotateCcw, Trash2, Upload, X } from "lucide-react";
+import { SupplierOrderDialog, type OrderPrefill } from "@/components/erp/purchasing-ui";
+import { BarList, CHART_COLORS, Columns, StackedBar, Stat } from "@/components/erp/charts";
 import { CustomValuesView, EditButton, customEditFields, customInitial, pickCustom, useEditor } from "@/components/erp/edit";
 import { FilterBar, Loading, NoProjects, OutputState, Rows, num, projectOf, save, useProjectFilter } from "@/components/erp/modules";
 import { OutputDialog } from "@/components/erp/outputs";
-import { commit, nowIso, resetDemo, todayIso, useErp, useHydrated } from "@/components/erp/store";
+import { BillsSection, CostingSection, FinanceOverview, PayrollSection } from "@/components/erp/finance-ui";
+import { commit, nowIso, replaceState, resetDemo, todayIso, useErp, useHydrated } from "@/components/erp/store";
+import { clearStoredFiles, downloadBlob } from "@/components/erp/file-store";
 import { Badge, EmptyState, Field, PageHead, ProjectLink, Rule } from "@/components/erp/ui";
 import {
   CURRENCIES, CUSTOM_ENTITIES, DOC_TYPES, RULES, UNITS, WIDGET_LABELS, addCustomField, addDocType, customFieldsFor, docTypes, financeSummary, formatDate,
-  formatMoney, generateInvoice, markInvoicePaid, moveTab, moveWidget, rawMaterialRows, rawMaterialStats, readiness, removeCustomField, removeDocType,
+  formatMoney, generateInvoice, markInvoicePaid, moveTab, moveWidget, parseStoredState, rawMaterialRows, rawMaterialStats, readiness, removeCustomField, removeDocType,
   resetLayout, saveRawMaterial, saveSupplier, supplierRows, supplierStats, updateSettings, updateTab, updateUi, updateWidget, upsertSupplier,
   type Currency, type CustomEntity, type CustomFieldType, type ErpState, type RawMaterial, type Supplier, type UiSettings,
 } from "@/lib/erp/model";
@@ -25,6 +28,7 @@ export function RawMaterialsModule() {
   const state = useErp();
   const hydrated = useHydrated();
   const editor = useEditor();
+  const [ordering, setOrdering] = useState<OrderPrefill | null>(null);
   const add = <button type="button" className="erp-btn erp-btn-primary" onClick={() => openMaterial(state, editor.open, null)}><Plus size={15} /> Add raw material</button>;
   const head = <PageHead eyebrow="Operations" title="Raw materials" description="Stock, reorder levels, unit costs and preferred suppliers. Demand comes from the material of every part; received purchases add to stock." actions={add} />;
   if (!hydrated) return <>{head}<Loading /></>;
@@ -33,7 +37,7 @@ export function RawMaterialsModule() {
   const stats = rows.map((material) => ({ material, ...rawMaterialStats(state, material) }));
   const low = stats.filter((item) => item.lowStock).length;
   const stockValue = stats.reduce((sum, item) => sum + (item.value ?? 0), 0);
-  const columns = "minmax(0,1.6fr) minmax(0,1fr) minmax(0,.9fr) minmax(0,1.1fr) minmax(0,1.6fr) 90px";
+  const columns = "minmax(0,1.6fr) minmax(0,1fr) minmax(0,.9fr) minmax(0,1.1fr) minmax(0,1.6fr) 170px";
   return <>{head}
     <section className="erp-kpis" aria-label="Raw material figures">
       <Stat label="Materials" value={rows.length} note={`${state.rawMaterials.length} with saved details`} />
@@ -54,10 +58,11 @@ export function RawMaterialsModule() {
         <span>{material.unitCost !== null ? `${money(state, material.unitCost)} / ${material.unit}` : <small>Not set</small>}</span>
         <span>{supplier ?? <small>Not set</small>}</span>
         <span><small>To buy {toBuy} · On order {onOrder} · Received {received}</small></span>
-        <span><EditButton onClick={() => openMaterial(state, editor.open, material)} /></span>
+        <span className="erp-head-actions">{(lowStock || toBuy > 0) && <button type="button" className="erp-btn erp-btn-primary erp-btn-sm" onClick={() => { const supplierRecord = material.supplierId ? state.suppliers.find((item) => item.id === material.supplierId) : null; const reqs = state.materialRequirements.filter((req) => req.material.toLowerCase() === material.name.toLowerCase() && state.procurement.find((record) => record.requirementId === req.id)?.status === "Not ordered"); setOrdering({ supplier: supplierRecord?.name ?? supplier ?? "", email: supplierRecord?.email ?? "", lines: [{ material: material.name, quantity: Math.max(toBuy + (lowStock ? Math.max(0, material.reorderLevel * 2 - material.stock - onOrder) : 0), 1), unit: material.unit, unitPrice: material.unitCost, requirementIds: reqs.map((req) => req.id) }] }); }}><Mail size={13} /> Order</button>}<EditButton onClick={() => openMaterial(state, editor.open, material)} /></span>
       </div>)}
     </Rows></section>
-    <div style={{ marginTop: 14 }}><Rule>Unit costs feed the material cost and margin in Finance. Place and receive purchases in the Purchasing tab.</Rule></div>
+    <div style={{ marginTop: 14 }}><Rule>Unit costs feed the material cost and margin in Finance. Receiving a supplier order adds stock; starting production issues the material and lowers stock.</Rule></div>
+    {ordering && <SupplierOrderDialog prefill={ordering} onClose={() => setOrdering(null)} />}
     {editor.dialog}
   </>;
 }
@@ -89,13 +94,14 @@ export function SuppliersModule() {
   const state = useErp();
   const hydrated = useHydrated();
   const editor = useEditor();
+  const [ordering, setOrdering] = useState<OrderPrefill | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const head = <PageHead eyebrow="Operations" title="Suppliers" description="Who supplies which material, lead times, purchases and spend. Suppliers named on purchases appear here automatically." actions={<button type="button" className="erp-btn erp-btn-primary" onClick={() => openSupplier(state, editor.open, null)}><Plus size={15} /> Add supplier</button>} />;
   if (!hydrated) return <>{head}<Loading /></>;
   const rows = supplierRows(state).map((supplier) => ({ supplier, ...supplierStats(state, supplier) }));
   if (!rows.length) return <>{head}<div className="erp-card"><EmptyState title="No suppliers yet" text="Name a supplier for a material in the guided demo or the Purchasing tab, or add one here." /></div>{editor.dialog}</>;
   const totalSpend = rows.reduce((sum, row) => sum + row.spend, 0);
-  const columns = "minmax(0,1.5fr) 90px minmax(0,1.4fr) 110px minmax(0,1fr) 90px";
+  const columns = "minmax(0,1.5fr) 90px minmax(0,1.4fr) 110px minmax(0,1fr) 130px";
   return <>{head}
     <section className="erp-kpis" aria-label="Supplier figures">
       <Stat label="Suppliers" value={rows.length} />
@@ -115,12 +121,13 @@ export function SuppliersModule() {
             <span>{materials.join(", ") || "—"}</span>
             <span>{purchases.length}{openCount ? <small>{openCount} open</small> : null}</span>
             <span className="erp-num" style={{ textAlign: "left" }}>{money(state, spend)}<small>{projects.length} project{projects.length === 1 ? "" : "s"}</small></span>
-            <span><EditButton onClick={() => openSupplier(state, editor.open, supplier)} /></span>
+            <span className="erp-head-actions"><button type="button" className="erp-btn erp-btn-sm" aria-label={`Order from ${supplier.name}`} onClick={() => setOrdering({ supplier: supplier.name, email: supplier.email, lines: materials.length ? materials.slice(0, 1).map((name) => { const raw = state.rawMaterials.find((item) => item.name === name); return { material: name, quantity: 0, unit: raw?.unit ?? "kg", unitPrice: raw?.unitCost ?? null }; }) : undefined })}><Mail size={13} /></button><EditButton onClick={() => openSupplier(state, editor.open, supplier)} /></span>
           </div>
           {isOpen && <div className="erp-detail">{purchases.length ? <ul className="erp-reasons">{purchases.map(({ record, req }) => { const project = projectOf(state, req.projectId); return <li key={record.id}><span><b style={{ color: "var(--e-text)" }}>{record.number}</b> · {req.quantity} {req.unit} {req.material} · {project ? <ProjectLink id={project.id} code={project.code} /> : null} · <Badge>{record.status}</Badge></span></li>; })}</ul> : <p className="erp-faint">No purchases yet.</p>}</div>}
         </div>;
       })}
     </Rows></section>
+    {ordering && <SupplierOrderDialog prefill={ordering} onClose={() => setOrdering(null)} />}
     {editor.dialog}
   </>;
 }
@@ -136,14 +143,24 @@ function openSupplier(state: ErpState, open: ReturnType<typeof useEditor>["open"
 
 /* ============================== Finance ============================== */
 
+type FinanceView = "overview" | "invoices" | "bills" | "payroll" | "costing";
+const FINANCE_VIEWS: [FinanceView, string][] = [["overview", "Overview"], ["invoices", "Customer invoices"], ["bills", "Supplier bills"], ["payroll", "Payroll"], ["costing", "Project costing"]];
+
 export function FinanceModule() {
   const state = useErp();
   const hydrated = useHydrated();
   const filter = useProjectFilter(state);
+  const params = useSearchParams();
+  const [view, setView] = useState<FinanceView>(() => (FINANCE_VIEWS.some(([key]) => key === params.get("view")) ? params.get("view") as FinanceView : filter ? "invoices" : "overview"));
   const [output, setOutput] = useState<OutputState>(null);
-  const head = <PageHead eyebrow="Finance" title="Finance" description="Order book, invoices, payments, material cost and margin, all calculated from the same project records. Illustrative, not an accounting system." />;
+  const head = <PageHead eyebrow="Finance" title="Finance" description="Quotations to cash: customer invoices, supplier and raw material bills, payroll with salary slips, project costing and the company overview, all from the same records. Management figures, not bookkeeping." />;
   if (!hydrated) return <>{head}<Loading /></>;
-  if (!state.projects.length) return <>{head}<NoProjects what="financial records" /></>;
+  const tabs = <div className="erp-tabs" role="group" aria-label="Finance view" style={{ marginBottom: 16 }}>{FINANCE_VIEWS.map(([key, label]) => <button key={key} type="button" aria-pressed={view === key} onClick={() => setView(key)}>{label}</button>)}</div>;
+  if (view === "overview") return <>{head}{tabs}<FinanceOverview state={state} /></>;
+  if (view === "bills") return <>{head}{tabs}<BillsSection state={state} /></>;
+  if (view === "payroll") return <>{head}{tabs}<PayrollSection state={state} /></>;
+  if (view === "costing") return <>{head}{tabs}<CostingSection state={state} /></>;
+  if (!state.projects.length) return <>{head}{tabs}<NoProjects what="financial records" /></>;
   const today = todayIso();
   const summary = financeSummary(state, today);
   const rows = summary.projects.filter((row) => !filter || row.project.id === filter.id);
@@ -152,14 +169,14 @@ export function FinanceModule() {
   const customers = state.customers.map((customer) => ({ customer, value: summary.projects.filter((row) => row.customerId === customer.id).reduce((sum, row) => sum + row.orderValue, 0) })).filter((item) => item.value > 0).sort((a, b) => b.value - a.value);
   const anyMissingCost = summary.projects.some((row) => !row.costKnown);
   const columns = "minmax(0,1.2fr) minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 130px";
-  return <>{head}<FilterBar project={filter} base="/demo/finance" />
+  return <>{head}{tabs}<FilterBar project={filter} base="/demo/finance" />
     <section className="erp-kpis erp-kpis-6" aria-label="Finance figures">
       <Stat label="Order book" value={money(state, summary.orderBook)} note="Not yet invoiced" />
       <Stat label="Invoiced" value={money(state, summary.invoiced)} note={`${state.invoices.length} invoice${state.invoices.length === 1 ? "" : "s"}, incl. tax`} />
       <Stat label="Paid" value={money(state, summary.paid)} />
       <Stat label="Receivable" value={money(state, summary.receivable)} note={overdue.length ? `${money(state, summary.overdue)} overdue` : "Nothing overdue"} tone={overdue.length ? "bad" : undefined} />
       <Stat label="Material cost" value={money(state, summary.materialCost)} note={anyMissingCost ? "Some unit costs missing" : "From raw material costs"} />
-      <Stat label="Estimated margin" value={money(state, summary.projects.reduce((sum, row) => sum + row.margin, 0))} note="Order value − material cost" />
+      <Stat label="Material margin" value={money(state, summary.projects.reduce((sum, row) => sum + row.margin, 0))} note="Order value − material cost. Full costing in Project costing." />
     </section>
     <div className="erp-grid-2" style={{ marginTop: 16 }}>
       <section className="erp-card erp-card-pad erp-stack"><h2 className="erp-chart-title">Order value and material cost by project</h2>
@@ -194,7 +211,7 @@ export function FinanceModule() {
         })}
       </Rows> : <EmptyState title="Nothing here" text="No project matches the filter." />}
     </section>
-    <section className="erp-card" style={{ marginTop: 16 }}><div className="erp-card-head"><div><h2>Project margin</h2><p>Order value minus material cost. Labour and overheads are not modelled in this demo.</p></div></div>
+    <section className="erp-card" style={{ marginTop: 16 }}><div className="erp-card-head"><div><h2>Material margin</h2><p>Order value minus material cost. Labour from the shop floor and external bills are in Project costing.</p></div></div>
       <Rows columns="minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.2fr)" head={["Project", "Order value", "Material cost", "Margin", "Cost basis"]}>
         {rows.map((row) => <div key={row.project.id} role="row" className="erp-row" style={{ gridTemplateColumns: "minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.2fr)" }}>
           <span><ProjectLink id={row.project.id} code={row.project.code} /><small>{row.project.name}</small></span>
@@ -241,6 +258,7 @@ export function ConfigurationModule() {
   const [field, setField] = useState<{ entity: CustomEntity; label: string; type: CustomFieldType; options: string }>({ entity: "project", label: "", type: "text", options: "" });
   const [fieldError, setFieldError] = useState("");
   const [docType, setDocType] = useState("");
+  const [importMessage, setImportMessage] = useState("");
   const head = <PageHead eyebrow="Settings" title="Configuration" description="Shape the demo ERP around how you work: look and layout, tabs, dashboard, custom fields, document types and business settings. Changes apply immediately and stay in this browser." />;
   if (!hydrated) return <>{head}<Loading /></>;
   const ui = state.settings.ui;
@@ -311,14 +329,48 @@ export function ConfigurationModule() {
       <Field id="cfg-cur" label="Currency for new projects"><select className="erp-select" id="cfg-cur" value={state.settings.defaultCurrency} onChange={(event) => setNumber({ defaultCurrency: event.target.value as Currency })}>{CURRENCIES.map((currency) => <option key={currency}>{currency}</option>)}</select></Field>
     </ConfigSection>
 
+    <ConfigSection id="cfg-company" title="Company, currencies and payroll" text="Used on documents, emails, finance totals and salary slips.">
+      <Field id="cfg-company-name" label="Company name"><input className="erp-input" id="cfg-company-name" defaultValue={state.settings.companyName} onBlur={(event) => { const name = event.target.value.trim(); if (name && name !== state.settings.companyName) setNumber({ companyName: name.slice(0, 80) }); }} /></Field>
+      <div className="erp-form-grid">
+        {CURRENCIES.filter((currency) => currency !== state.settings.defaultCurrency).map((currency) => <Field key={currency} id={`cfg-fx-${currency}`} label={`1 ${currency} in EUR`} help="For totals across currencies."><input className="erp-input" id={`cfg-fx-${currency}`} type="number" min={0.01} step={0.01} value={state.settings.fx[currency]} onChange={(event) => { const rate = Number(event.target.value); if (rate > 0) setNumber({ fx: { ...state.settings.fx, [currency]: rate } }); }} /></Field>)}
+        <Field id="cfg-overhead" label={`Overhead per labour hour (${state.settings.defaultCurrency})`} help="Added to each person’s cost rate in project costing."><input className="erp-input" id="cfg-overhead" type="number" min={0} step={1} value={state.settings.overheadPerHour} onChange={(event) => setNumber({ overheadPerHour: Math.max(0, Number(event.target.value) || 0) })} /></Field>
+      </div>
+      <div className="erp-form-grid">
+        <Field id="cfg-pay-tax" label="Income tax (%)" help="Illustrative flat rate."><input className="erp-input" id="cfg-pay-tax" type="number" min={0} max={60} value={state.settings.payroll.incomeTaxPct} onChange={(event) => setNumber({ payroll: { ...state.settings.payroll, incomeTaxPct: Math.min(60, Math.max(0, Number(event.target.value) || 0)) } })} /></Field>
+        <Field id="cfg-pay-social" label="Social insurance, employee (%)"><input className="erp-input" id="cfg-pay-social" type="number" min={0} max={40} value={state.settings.payroll.socialPct} onChange={(event) => setNumber({ payroll: { ...state.settings.payroll, socialPct: Math.min(40, Math.max(0, Number(event.target.value) || 0)) } })} /></Field>
+        <Field id="cfg-pay-employer" label="Employer on-cost (%)"><input className="erp-input" id="cfg-pay-employer" type="number" min={0} max={60} value={state.settings.payroll.employerPct} onChange={(event) => setNumber({ payroll: { ...state.settings.payroll, employerPct: Math.min(60, Math.max(0, Number(event.target.value) || 0)) } })} /></Field>
+      </div>
+    </ConfigSection>
+
+    <ConfigSection id="cfg-data" title="Backup and data" text="Everything lives in this browser. Export a backup file before clearing site data or switching computers.">
+      <div className="erp-head-actions">
+        <button type="button" className="erp-btn" onClick={() => downloadBlob(JSON.stringify({ app: "boh-erp-demo", exportedAt: nowIso(), state }, null, 1), `boh-erp-backup-${todayIso()}.json`, "application/json")}><Download size={14} /> Export backup (JSON)</button>
+        <label className="erp-btn"><Upload size={14} /> Import backup<input type="file" accept="application/json,.json" hidden onChange={async (event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (!file) return;
+          try {
+            const parsed = JSON.parse(await file.text());
+            const restored = parseStoredState(JSON.stringify(parsed?.state ?? parsed));
+            if (!restored.projects.length && !restored.employees.length && !restored.emails.length) { setImportMessage("That file has no BOH ERP data."); return; }
+            replaceState(restored);
+            setImportMessage(`Backup restored: ${restored.projects.length} projects, ${restored.opLogs.length} log entries, ${restored.emails.length} emails.`);
+          } catch { setImportMessage("That file could not be read as a BOH ERP backup."); }
+        }} /></label>
+      </div>
+      {importMessage && <p className="erp-faint" role="status">{importMessage}</p>}
+      <p className="erp-faint">Files you attached (drawings, STEP models) stay in this browser’s file store and are not part of the backup file. Storage used: about {Math.round(JSON.stringify(state).length / 1024)} KB of records.</p>
+    </ConfigSection>
+
     <ConfigSection id="cfg-rules" title="Workflow rules" text="Every status in the demo comes from these.">
       <ul className="erp-reasons">{Object.entries(RULES).map(([key, text]) => <li key={key}><span><b style={{ color: "var(--e-text)", textTransform: "capitalize", minWidth: 96 }}>{key}</b> {text}</span></li>)}</ul>
     </ConfigSection>
 
-    <ConfigSection id="cfg-reset" title="Reset" text="Demo data and settings are stored only in this browser.">
+    <ConfigSection id="cfg-reset" title="Reset" text="Restore the demo projects, or start with an empty ERP to enter your own (fictional) data.">
       <div className="erp-head-actions">
         <button type="button" className="erp-btn" onClick={() => commit(resetLayout)}><RotateCcw size={14} /> Reset style, tabs and dashboard</button>
-        <button type="button" className="erp-btn erp-btn-danger" onClick={() => { resetDemo(); router.push("/demo"); }}><Trash2 size={14} /> Clear all demo data</button>
+        <button type="button" className="erp-btn" onClick={() => { resetDemo("demo"); router.push("/demo/overview"); }}><RotateCcw size={14} /> Restore the 2 demo projects</button>
+        <button type="button" className="erp-btn erp-btn-danger" onClick={() => { void clearStoredFiles(); resetDemo("empty"); router.push("/demo"); }}><Trash2 size={14} /> Start empty</button>
       </div>
     </ConfigSection>
   </div></>;
