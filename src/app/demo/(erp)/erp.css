@@ -792,3 +792,28 @@
 @media print {
   .erp-toasts, .erp-commandbar { display: none !important; }
 }
+
+/* ============ Order board (e-commerce fulfilment) and industry cards ============ */
+.erp-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.erp-board-col { display: grid; gap: 10px; padding: 12px; background: rgba(255, 255, 255, .45); border: 1px solid var(--e-border); border-radius: var(--e-radius); }
+.erp-board-col > header { display: flex; align-items: center; gap: 8px; padding: 2px 4px; }
+.erp-board-col > header b { font-size: 14px; }
+.erp-board-col > header em { padding: 1px 8px; color: var(--e-text-2); background: #FFFFFF; border-radius: 999px; font-size: 12px; font-style: normal; font-weight: 700; }
+.erp-board-dot { width: 10px; height: 10px; background: var(--e-accent); border-radius: 50%; }
+.erp-board-card { display: grid; gap: 6px; padding: 14px; background: #FFFFFF; border: 1px solid var(--e-border); border-radius: 16px; box-shadow: 0 6px 16px -10px rgba(31, 14, 24, .25); font-size: 13.5px; }
+.erp-board-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.erp-board-card > span { color: var(--e-text-2); }
+.erp-board-card ul { display: grid; gap: 2px; margin: 2px 0; padding: 0; color: var(--e-text-2); font-size: 12.5px; list-style: none; }
+.erp-board-card-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.erp-board-card-foot small { color: var(--e-text-3); font-size: 12px; }
+.erp-industries { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.erp-industry { display: grid; align-content: start; gap: 8px; padding: 20px; color: var(--e-text); text-align: left; background: #FFFFFF; border: 1px solid var(--e-border-2); border-radius: var(--e-radius); cursor: pointer; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
+.erp-industry:hover, .erp-industry.is-highlight { border-color: var(--e-accent); transform: translateY(-2px); box-shadow: 0 14px 30px -18px rgba(31, 14, 24, .35); }
+.erp-industry[aria-current="true"] { border-width: 2px; border-color: var(--e-accent); }
+.erp-industry b { font-family: var(--b-display), sans-serif; font-size: 18px; }
+.erp-industry > span:not(.erp-industry-icon) { color: var(--e-text-2); font-size: 14px; line-height: 1.5; }
+.erp-industry small { margin-top: 4px; color: var(--e-accent-ink); font-size: 13px; font-weight: 700; }
+.erp-industry-icon { display: grid; width: 46px; height: 46px; place-items: center; color: #FFFFFF; background: var(--e-accent); border-radius: 14px; }
+@media (max-width: 960px) {
+  .erp-board, .erp-industries { grid-template-columns: 1fr; }
+}

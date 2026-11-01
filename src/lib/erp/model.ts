@@ -42,7 +42,11 @@ export const CUSTOM_ENTITIES: { key: CustomEntity; label: string }[] = [
 export type CustomFieldType = "text" | "number" | "date" | "select";
 export type CustomField = { id: string; entity: CustomEntity; label: string; type: CustomFieldType; options: string[] };
 
-export type TabKey = "overview" | "guided" | "inbox" | "projects" | "crm" | "quotations" | "sales" | "parts" | "documents" | "rawMaterials" | "purchasing" | "suppliers" | "production" | "shopFloor" | "quality" | "dispatch" | "finance" | "people" | "configuration";
+export type TabKey = "overview" | "guided" | "inbox" | "projects" | "crm" | "quotations" | "sales" | "parts" | "documents" | "rawMaterials" | "purchasing" | "suppliers" | "production" | "shopFloor" | "quality" | "dispatch" | "finance" | "people" | "configuration"
+  | "products" | "fulfilment" | "subscriptions" | "support";
+/** Which industry pack the demo company runs. Decides the tabs, their default names and the sample data. */
+export type Industry = "manufacturing" | "commerce" | "saas";
+export const INDUSTRY_KEYS: Industry[] = ["manufacturing", "commerce", "saas"];
 export type TabConfig = { key: TabKey; label: string; visible: boolean };
 export type WidgetKey = "alerts" | "project" | "kpis" | "pipeline" | "orderValue" | "production" | "shopFloor" | "finance" | "stock" | "departments" | "activity";
 export type WidgetConfig = { key: WidgetKey; visible: boolean };
@@ -59,13 +63,26 @@ export type UiSettings = {
 
 export const DEFAULT_TABS: TabConfig[] = [
   { key: "overview", label: "Overview", visible: true }, { key: "guided", label: "Guided demo", visible: true }, { key: "inbox", label: "Inbox", visible: true },
-  { key: "projects", label: "Projects", visible: true }, { key: "crm", label: "CRM", visible: true }, { key: "quotations", label: "Quotations", visible: true },
+  { key: "fulfilment", label: "Orders & shipping", visible: true }, { key: "products", label: "Products & stock", visible: true }, { key: "subscriptions", label: "Subscriptions", visible: true },
+  { key: "projects", label: "Projects", visible: true }, { key: "crm", label: "CRM", visible: true }, { key: "support", label: "Support", visible: true }, { key: "quotations", label: "Quotations", visible: true },
   { key: "sales", label: "Sales orders", visible: true }, { key: "parts", label: "Parts", visible: true }, { key: "documents", label: "Documents", visible: true },
   { key: "rawMaterials", label: "Raw materials", visible: true }, { key: "purchasing", label: "Purchasing", visible: true }, { key: "suppliers", label: "Suppliers", visible: true },
   { key: "production", label: "Production", visible: true }, { key: "shopFloor", label: "Shop floor KPI", visible: true }, { key: "quality", label: "Quality", visible: true },
   { key: "dispatch", label: "Dispatch", visible: true }, { key: "finance", label: "Finance", visible: true }, { key: "people", label: "People", visible: true },
   { key: "configuration", label: "Configuration", visible: true },
 ];
+
+/** Saved tabs plus any tabs added since, each inserted after its default predecessor (not dumped at the end). */
+function mergeTabs(saved: TabConfig[]): TabConfig[] {
+  const merged = [...saved];
+  DEFAULT_TABS.forEach((tab, index) => {
+    if (merged.some((item) => item.key === tab.key)) return;
+    const before = DEFAULT_TABS.slice(0, index).reverse().find((item) => merged.some((entry) => entry.key === item.key));
+    const at = before ? merged.findIndex((item) => item.key === before.key) + 1 : 0;
+    merged.splice(at, 0, { ...tab });
+  });
+  return merged;
+}
 export const WIDGET_LABELS: Record<WidgetKey, string> = {
   alerts: "Alerts and to-dos", shopFloor: "Shop floor KPIs", project: "Current project", kpis: "Key figures", pipeline: "Project pipeline", orderValue: "Order value by project", production: "Production status",
   finance: "Revenue and receivables", stock: "Raw material stock", departments: "Departments", activity: "Recent activity",
@@ -91,6 +108,7 @@ export type PayrollSettings = { incomeTaxPct: number; socialPct: number; employe
 export const DEFAULT_PAYROLL: PayrollSettings = { incomeTaxPct: 16, socialPct: 20, employerPct: 21 };
 
 export type Settings = {
+  industry: Industry;
   taxRate: number; defaultCurrency: Currency; paymentTermsDays: number;
   ui: UiSettings; tabs: TabConfig[]; widgets: WidgetConfig[]; customFields: CustomField[]; docTypes: string[];
   fx: FxRates; payroll: PayrollSettings; companyName: string; overheadPerHour: number;
@@ -115,7 +133,46 @@ export type InvoiceLine = { description: string; quantity: number; unit: string;
 export type Invoice = { id: string; number: string; projectId: string; purchaseOrderId: string; customerId: string; currency: Currency; lines: InvoiceLine[]; subtotal: number; taxRate: number; tax: number; total: number; issuedAt: string; dueAt: string; paidAt?: string };
 export type ActivityEvent = { id: string; at: string; projectId: string | null; module: ModuleKey; text: string; user?: string };
 
-export type ModuleKey = "projects" | "crm" | "sales" | "parts" | "documents" | "materials" | "procurement" | "production" | "quality" | "dispatch" | "finance" | "suppliers" | "settings" | "inbox" | "shopfloor" | "people";
+export type ModuleKey = "projects" | "crm" | "sales" | "parts" | "documents" | "materials" | "procurement" | "production" | "quality" | "dispatch" | "finance" | "suppliers" | "settings" | "inbox" | "shopfloor" | "people"
+  | "products" | "fulfilment" | "subscriptions" | "support";
+
+/* ---------- E-commerce / wholesale pack ---------- */
+
+export type Warehouse = { id: string; code: string; name: string };
+export type SalesChannel = "Webshop" | "Marketplace" | "Wholesale" | "Retail store";
+export const SALES_CHANNELS: SalesChannel[] = ["Webshop", "Marketplace", "Wholesale", "Retail store"];
+/** A sellable product or one variant of it (e.g. "Linen shirt · Sand · M"). Stock is kept per warehouse. */
+export type Product = {
+  id: string; sku: string; name: string; variant: string; category: string; price: number; cost: number;
+  stock: Record<string, number>; reorderLevel: number; supplierId: string | null; active: boolean;
+};
+export type ShopOrderStatus = "New" | "Picked" | "Packed" | "Shipped" | "Delivered" | "Returned" | "Cancelled";
+export const SHOP_FLOW: ShopOrderStatus[] = ["New", "Picked", "Packed", "Shipped", "Delivered"];
+export type ShopOrderLine = { productId: string; quantity: number; unitPrice: number };
+export type ShopOrder = {
+  id: string; number: string; channel: SalesChannel; customerId: string; country: string; warehouseId: string; lines: ShopOrderLine[];
+  shipping: number; status: ShopOrderStatus; createdAt: string; pickedAt?: string; packedAt?: string; shippedAt?: string; deliveredAt?: string;
+  carrier?: string; tracking?: string; returnedAt?: string; returnReason?: string; restocked?: boolean; invoiceId?: string;
+};
+
+/* ---------- Software / SaaS pack ---------- */
+
+export type Plan = { id: string; name: string; pricePerSeat: number; interval: "month" | "year"; description: string };
+export type SubscriptionStatus = "Trial" | "Active" | "Past due" | "Cancelled";
+/** One change in monthly recurring revenue, kept so MRR history and movements can be shown honestly. */
+export type MrrChange = { at: string; mrr: number; kind: "new" | "expansion" | "contraction" | "churn" | "reactivation"; note: string };
+export type Subscription = {
+  id: string; customerId: string; planId: string; seats: number; discountPct: number; status: SubscriptionStatus;
+  startedAt: string; trialEndsAt?: string; renewsAt: string; cancelledAt?: string; history: MrrChange[];
+  /** Billing periods (YYYY-MM) already invoiced, so a billing run never invoices twice. */
+  billed: string[];
+};
+export type TicketPriority = "Low" | "Normal" | "High" | "Urgent";
+export type TicketStatus = "Open" | "Waiting on customer" | "Solved";
+export type Ticket = {
+  id: string; number: string; customerId: string; subject: string; priority: TicketPriority; status: TicketStatus;
+  createdAt: string; firstResponseAt?: string; solvedAt?: string; assigneeId: string | null;
+};
 
 /* ---------- People, shop floor, email, quotations, purchasing and finance records ---------- */
 
@@ -149,8 +206,8 @@ export type SupplierOrder = {
   id: string; number: string; supplier: string; email: string; currency: Currency; lines: SupplierOrderLine[]; status: SupplierOrderStatus;
   createdAt: string; sentAt?: string; confirmedAt?: string; receivedAt?: string; expectedAt: string; notes: string; emailIds: string[];
 };
-export type BillCategory = "Raw material" | "Subcontracting" | "Tooling and consumables" | "Rent and utilities" | "Services" | "Other";
-export const BILL_CATEGORIES: BillCategory[] = ["Raw material", "Subcontracting", "Tooling and consumables", "Rent and utilities", "Services", "Other"];
+export type BillCategory = "Raw material" | "Subcontracting" | "Tooling and consumables" | "Stock purchases" | "Shipping and fulfilment" | "Software and hosting" | "Marketing" | "Rent and utilities" | "Services" | "Other";
+export const BILL_CATEGORIES: BillCategory[] = ["Raw material", "Subcontracting", "Tooling and consumables", "Stock purchases", "Shipping and fulfilment", "Software and hosting", "Marketing", "Rent and utilities", "Services", "Other"];
 export type Bill = {
   id: string; number: string; supplier: string; category: BillCategory; date: string; dueDate: string; currency: Currency; net: number; taxRate: number; tax: number; total: number;
   paidAt?: string; supplierOrderId?: string; projectId?: string; description: string; file?: StoredFile; emailId?: string;
@@ -204,6 +261,12 @@ export type ErpState = {
   supplierOrders: SupplierOrder[];
   bills: Bill[];
   payslips: Payslip[];
+  warehouses: Warehouse[];
+  products: Product[];
+  shopOrders: ShopOrder[];
+  plans: Plan[];
+  subscriptions: Subscription[];
+  tickets: Ticket[];
   draft: ProjectDraft | null;
   /** Guided demo position: the visitor's single project moves through every step. */
   guide: { step: number; projectId: string | null; furthest?: number; v?: number };
@@ -215,12 +278,13 @@ export const WIZARD_STEPS = ["Project", "Customer & order", "Line items", "Docum
 
 export function createInitialState(): ErpState {
   return {
-    version: 2, seq: 1, settings: { taxRate: 19, defaultCurrency: "EUR", paymentTermsDays: 30, ui: { ...DEFAULT_UI }, tabs: DEFAULT_TABS.map((tab) => ({ ...tab })), widgets: DEFAULT_WIDGETS.map((widget) => ({ ...widget })), customFields: [], docTypes: [], fx: { ...DEFAULT_FX }, payroll: { ...DEFAULT_PAYROLL }, companyName: "Your company (demo)", overheadPerHour: 0 },
+    version: 2, seq: 1, settings: { industry: "manufacturing", taxRate: 19, defaultCurrency: "EUR", paymentTermsDays: 30, ui: { ...DEFAULT_UI }, tabs: DEFAULT_TABS.map((tab) => ({ ...tab })), widgets: DEFAULT_WIDGETS.map((widget) => ({ ...widget })), customFields: [], docTypes: [], fx: { ...DEFAULT_FX }, payroll: { ...DEFAULT_PAYROLL }, companyName: "Your company (demo)", overheadPerHour: 0 },
     suppliers: [], rawMaterials: [],
     customers: [], purchaseOrders: [], projects: [], lineItems: [], parts: [], revisions: [], documents: [], inspectionRequirements: [],
     materialRequirements: [], procurement: [], productionOrders: [], inspectionReports: [], dispatches: [], invoices: [], activity: [], draft: null,
     employees: [], currentUserId: null, routings: [], opLogs: [], activeOps: [], emails: [], mail: { provider: "demo", address: "", lastSync: "", autoSync: true },
     quotations: [], supplierOrders: [], bills: [], payslips: [],
+    warehouses: [], products: [], shopOrders: [], plans: [], subscriptions: [], tickets: [],
     guide: { step: 0, projectId: null, v: 2 },
   };
 }
@@ -1195,7 +1259,8 @@ export function parseStoredState(raw: string | null): ErpState {
       const settings: Settings = {
         ...base.settings, ...stored,
         ui: migrateUi(stored.ui),
-        tabs: [...tabs, ...DEFAULT_TABS.filter((item) => !tabs.some((tab) => tab.key === item.key)).map((tab) => ({ ...tab }))],
+        industry: INDUSTRY_KEYS.includes(stored.industry as Industry) ? stored.industry as Industry : "manufacturing",
+        tabs: mergeTabs(tabs),
         widgets: [...widgets, ...DEFAULT_WIDGETS.filter((item) => !widgets.some((widget) => widget.key === item.key)).map((widget) => ({ ...widget }))],
         customFields: Array.isArray(stored.customFields) ? stored.customFields : [],
         docTypes: Array.isArray(stored.docTypes) ? stored.docTypes : [],

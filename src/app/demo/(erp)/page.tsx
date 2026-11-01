@@ -1,5 +1,5 @@
-import { GuidedDemo } from "@/components/erp/guided";
+import { GuidedOrPack } from "@/components/erp/industry-start";
 
 export default function DemoPage() {
-  return <GuidedDemo />;
+  return <GuidedOrPack />;
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { createInitialState, parseStoredState, STORAGE_KEY, type ErpState } from "@/lib/erp/model";
+import { createInitialState, parseStoredState, STORAGE_KEY, type ErpState, type Industry } from "@/lib/erp/model";
 import { createDemoState } from "@/lib/erp/seed";
+import { createIndustryDemoState } from "@/lib/erp/demo-companies";
 import { guideSteps, stepIndex } from "@/components/erp/guide-steps";
 
 /** Browser-local store shared by every demo screen. Not a database: data stays in this browser only. */
@@ -54,11 +55,18 @@ export function commit(update: (state: ErpState) => ErpState) {
 
 export function getState() { return read(); }
 
-/** "demo" restores the two demo projects; "empty" starts with nothing. */
-export function resetDemo(mode: "demo" | "empty" = "demo") {
-  cache = mode === "demo" ? createDemoState(new Date().toISOString()) : createInitialState();
+/** "demo" restores the sample company of the current (or given) industry; "empty" starts with nothing in that industry. */
+export function resetDemo(mode: "demo" | "empty" = "demo", industry: Industry = read().settings.industry ?? "manufacturing") {
+  const now = new Date().toISOString();
+  if (mode === "demo") cache = createIndustryDemoState(industry, now);
+  else { const empty = createInitialState(); cache = { ...empty, settings: { ...empty.settings, industry } }; }
   try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cache)); } catch { /* ignore */ }
   notify();
+}
+
+/** Opens the sample company of another industry. Replaces the data in this browser. */
+export function switchIndustry(industry: Industry) {
+  resetDemo("demo", industry);
 }
 
 /** Replaces all data, for example from an imported backup. */

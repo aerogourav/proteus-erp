@@ -1,5 +1,7 @@
 "use client";
 
+import { PackOverview } from "@/components/erp/overview-packs";
+import { industryOf } from "@/lib/erp/packs";
 import type { ReactNode } from "react";
 import { BarList, CHART_COLORS, CHART_NEUTRAL, StackedBar } from "@/components/erp/charts";
 import { CustomValuesView } from "@/components/erp/edit";
@@ -24,6 +26,7 @@ export function Overview() {
   const router = useRouter();
   const head = <PageHead eyebrow="Workspace" title="Overview" description="What needs attention today, the selected project across every department, and the figures behind it." />;
   if (!hydrated) return <>{head}<p className="erp-muted" role="status">Loading…</p></>;
+  if (industryOf(state) !== "manufacturing") return <PackOverview state={state} />;
 
   const projectId = state.guide.projectId && state.projects.some((item) => item.id === state.guide.projectId) ? state.guide.projectId : state.projects.at(-1)?.id ?? null;
   if (!projectId) return <>{head}<div className="erp-card"><EmptyState title="No project yet" text="Create your project in the guided demo. Every department on the left fills up from that one record.">

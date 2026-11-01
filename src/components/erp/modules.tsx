@@ -1,5 +1,7 @@
 "use client";
 
+import { PackCustomers } from "@/components/erp/pack-customers";
+import { industryOf } from "@/lib/erp/packs";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -122,9 +124,11 @@ export function CrmModule() {
   const filter = useProjectFilter(state);
   const [selected, setSelected] = useState<string | null>(null);
   const editor = useEditor();
-  const head = <PageHead eyebrow="Commercial" title="Customers" description="Customer records come from the projects you create. An existing customer is linked, never duplicated." />;
+  const industry = hydrated ? industryOf(state) : "manufacturing";
+  const head = <PageHead eyebrow="Commercial" title="Customers" description={industry === "manufacturing" ? "Customer records come from the projects you create. An existing customer is linked, never duplicated." : industry === "commerce" ? "Every customer from the webshop, marketplace, wholesale and the store, entered once and reused by orders and invoices." : "Every customer with their subscription, MRR and support tickets, entered once and reused everywhere."} />;
   if (!hydrated) return <>{head}<Loading /></>;
   if (!state.customers.length) return <>{head}<NoProjects what="customers" /></>;
+  if (industry !== "manufacturing") return <>{head}<PackCustomers state={state} /></>;
   const customers = filter ? state.customers.filter((customer) => customer.id === filter.customerId) : state.customers;
   const active = selected ?? (filter ? filter.customerId : null);
   const columns = "minmax(0,2fr) minmax(0,1.5fr) 110px 130px";

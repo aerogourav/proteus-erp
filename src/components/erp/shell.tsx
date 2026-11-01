@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeft, Boxes, Check, Plus, Factory, FileText, FolderKanban, LayoutDashboard, Menu, PackageCheck, Receipt, RotateCcw, Settings2, ShieldCheck, ShoppingCart, Sparkles, Truck, Users, X, Layers, Building2, Inbox, FileCheck2, Gauge, BriefcaseBusiness, Bell } from "lucide-react";
+import { ArrowLeft, Boxes, Check, Plus, Factory, FileText, FolderKanban, LayoutDashboard, Menu, PackageCheck, Receipt, RotateCcw, Settings2, ShieldCheck, ShoppingCart, Sparkles, Truck, Users, X, Layers, Building2, Inbox, FileCheck2, Gauge, BriefcaseBusiness, Bell, Package, Repeat, LifeBuoy, Send } from "lucide-react";
 import { GlobalSearch } from "@/components/erp/search";
 import { Toasts, toast } from "@/components/erp/toast";
 import { hasToken } from "@/components/erp/gmail";
@@ -16,7 +16,8 @@ import { BohMark } from "@/components/brand/boh-logo";
 import { Modal } from "@/components/erp/ui";
 import { commit, resetDemo, useErp, useHydrated } from "@/components/erp/store";
 import { startAnotherProject } from "@/components/erp/guided";
-import { DEFAULT_TABS, DEFAULT_UI, type TabKey } from "@/lib/erp/model";
+import { DEFAULT_TABS, DEFAULT_UI, type Industry, type TabKey } from "@/lib/erp/model";
+import { PACKS, industryOf, tabsFor } from "@/lib/erp/packs";
 import { PHASES, firstStepOfPhase, guideSteps, phaseIndex, workStepCount } from "@/components/erp/guide-steps";
 
 const TAB_META: Record<TabKey, { href: string; icon: typeof Boxes }> = {
@@ -26,10 +27,22 @@ const TAB_META: Record<TabKey, { href: string; icon: typeof Boxes }> = {
   documents: { href: "/demo/documents", icon: FileText }, rawMaterials: { href: "/demo/raw-materials", icon: Layers }, purchasing: { href: "/demo/materials", icon: PackageCheck },
   suppliers: { href: "/demo/suppliers", icon: Building2 }, production: { href: "/demo/production", icon: Factory }, quality: { href: "/demo/quality", icon: ShieldCheck },
   dispatch: { href: "/demo/dispatch", icon: Truck }, finance: { href: "/demo/finance", icon: Receipt }, configuration: { href: "/demo/configuration", icon: Settings2 },
+  products: { href: "/demo/products", icon: Package }, fulfilment: { href: "/demo/fulfilment", icon: Send },
+  subscriptions: { href: "/demo/subscriptions", icon: Repeat }, support: { href: "/demo/support", icon: LifeBuoy },
 };
 
-/** Quick-switch dock (Studio theme): the most used places, if their tabs are shown. */
-const DOCK: TabKey[] = ["overview", "projects", "production", "inbox", "finance"];
+/** Quick-switch dock (Studio theme): the most used places per industry, if their tabs are shown. */
+const DOCK: Record<Industry, TabKey[]> = {
+  manufacturing: ["overview", "projects", "production", "inbox", "finance"],
+  commerce: ["overview", "fulfilment", "products", "inbox", "finance"],
+  saas: ["overview", "subscriptions", "support", "inbox", "finance"],
+};
+/** Where the dock's "+" goes: the main record of each industry. */
+const NEW_RECORD: Record<Industry, { label: string; href: string | null }> = {
+  manufacturing: { label: "New project", href: null },
+  commerce: { label: "New order", href: "/demo/fulfilment?new=1" },
+  saas: { label: "New subscription", href: "/demo/subscriptions?new=1" },
+};
 
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]!.toUpperCase()).join("") || "?";
@@ -53,19 +66,21 @@ export function ErpShell({ children }: { children: ReactNode }) {
   const furthest = Math.max(step, state.guide.furthest ?? 0);
   const onGuide = pathname === "/demo";
   const ui = hydrated ? state.settings.ui : DEFAULT_UI;
-  const tabs = hydrated ? state.settings.tabs : DEFAULT_TABS;
+  const industry: Industry = hydrated ? industryOf(state) : "manufacturing";
+  const tabs = hydrated ? tabsFor(state) : DEFAULT_TABS.filter((tab) => PACKS.manufacturing.tabs.includes(tab.key));
   const current = phaseIndex(steps, step);
 
   const goTo = (target: number) => {
     commit((value) => ({ ...value, guide: { ...value.guide, step: target } }));
     setMenuOpen(false);
   };
-  const doReset = (mode: "demo" | "empty") => { if (mode === "empty") void clearStoredFiles(); resetDemo(mode); setConfirmReset(false); setMenuOpen(false); router.push(mode === "demo" ? "/demo/overview" : "/demo"); };
+  const doReset = (mode: "demo" | "empty") => { if (mode === "empty") void clearStoredFiles(); resetDemo(mode); setConfirmReset(false); setMenuOpen(false); router.push(mode === "demo" || industry !== "manufacturing" ? "/demo/overview" : "/demo"); };
   const unread = hydrated ? unreadCount(state) : 0;
   const alertCount = hydrated ? alerts(state, new Date().toISOString().slice(0, 10)).filter((item) => item.tone !== "info").length : 0;
   const gmailLive = hydrated && state.mail.provider === "gmail";
   const me = hydrated && state.currentUserId ? state.employees.find((item) => item.id === state.currentUserId) ?? null : null;
   const newProject = () => { setMenuOpen(false); if (state.projects.length > 0) startAnotherProject(); router.push("/demo"); };
+  const newRecord = () => { const target = NEW_RECORD[industry].href; if (target) { setMenuOpen(false); router.push(target); } else newProject(); };
 
   // Gmail: check for new mail every minute while the ERP is open and signed in.
   useEffect(() => {
@@ -122,7 +137,7 @@ export function ErpShell({ children }: { children: ReactNode }) {
             <select value={state.currentUserId ?? ""} onChange={(event) => commit((value) => setCurrentUser(value, event.target.value || null))} aria-label="Signed in as">
               <option value="">Nobody (anonymous)</option>{state.employees.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.code}</option>)}
             </select></label>}
-          {hydrated && state.projects.length > 0 && <button type="button" onClick={newProject}><Plus size={15} /> New project</button>}
+          {hydrated && industry === "manufacturing" && state.projects.length > 0 && <button type="button" onClick={newProject}><Plus size={15} /> New project</button>}
           <button type="button" onClick={() => setConfirmReset(true)}><RotateCcw size={15} /> Reset demo data</button>
           <Link href="/"><ArrowLeft size={15} /> Back to website</Link>
           <p className="erp-side-note">Fictional data, stored only in this browser. Please don’t enter confidential information.</p>
@@ -143,14 +158,14 @@ export function ErpShell({ children }: { children: ReactNode }) {
         <main className="erp-content">{children}</main>
       </div>
       <nav className="erp-dock" aria-label="Quick switch">
-        {tabs.filter((tab) => tab.visible && DOCK.includes(tab.key)).map((tab) => {
+        {tabs.filter((tab) => tab.visible && DOCK[industry].includes(tab.key)).map((tab) => {
           const { href, icon: Icon } = TAB_META[tab.key];
           return <Link key={tab.key} href={href} aria-current={isActive(pathname, href) ? "page" : undefined}>
             <Icon size={16} aria-hidden="true" /><span>{tab.label}</span>
             {tab.key === "inbox" && unread > 0 && <em aria-label={`${unread} unread`}>{unread}</em>}
           </Link>;
         })}
-        <button type="button" className="erp-dock-add" aria-label="New project" onClick={newProject}><Plus size={18} /></button>
+        <button type="button" className="erp-dock-add" aria-label={NEW_RECORD[industry].label} title={NEW_RECORD[industry].label} onClick={newRecord}><Plus size={18} /></button>
       </nav>
     </div>
     {confirmReset && <Modal label="Reset demo" onClose={() => setConfirmReset(false)}>
@@ -159,7 +174,7 @@ export function ErpShell({ children }: { children: ReactNode }) {
       <div className="erp-head-actions" style={{ marginTop: 20, justifyContent: "flex-end" }}>
         <button type="button" className="erp-btn erp-btn-ghost" onClick={() => setConfirmReset(false)}>Cancel</button>
         <button type="button" className="erp-btn" onClick={() => doReset("empty")}>Start empty</button>
-        <button type="button" className="erp-btn erp-btn-danger" onClick={() => doReset("demo")}><RotateCcw size={15} /> Restore the 2 demo projects</button>
+        <button type="button" className="erp-btn erp-btn-danger" onClick={() => doReset("demo")}><RotateCcw size={15} /> Restore the {PACKS[industry].label.toLowerCase()} demo</button>
       </div>
     </Modal>}
     <Toasts />

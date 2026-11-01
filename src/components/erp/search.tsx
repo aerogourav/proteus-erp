@@ -1,5 +1,6 @@
 "use client";
 
+import { customerName } from "@/lib/erp/pack-records";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
@@ -23,6 +24,10 @@ export function searchAll(state: ErpState, query: string): Hit[] {
   for (const order of state.supplierOrders) if (has(order.number, order.supplier)) hits.push({ kind: "Supplier order", label: order.number, detail: `${order.supplier} · ${order.status}`, href: "/demo/materials" });
   for (const supplier of state.suppliers) if (has(supplier.name, supplier.email)) hits.push({ kind: "Supplier", label: supplier.name, detail: supplier.email, href: "/demo/suppliers" });
   for (const material of state.rawMaterials) if (has(material.name)) hits.push({ kind: "Raw material", label: material.name, detail: `${material.stock} ${material.unit} in stock`, href: "/demo/raw-materials" });
+  for (const product of state.products ?? []) if (has(product.sku, product.name, product.variant)) hits.push({ kind: "Product", label: `${product.name}${product.variant ? ` · ${product.variant}` : ""}`, detail: product.sku, href: "/demo/products" });
+  for (const order of state.shopOrders ?? []) if (has(order.number, customerName(state, order.customerId))) hits.push({ kind: "Order", label: order.number, detail: `${customerName(state, order.customerId)} · ${order.status}`, href: "/demo/fulfilment" });
+  for (const sub of state.subscriptions ?? []) if (has(customerName(state, sub.customerId))) hits.push({ kind: "Subscription", label: customerName(state, sub.customerId), detail: `${state.plans.find((plan) => plan.id === sub.planId)?.name ?? ""} × ${sub.seats} · ${sub.status}`, href: "/demo/subscriptions" });
+  for (const ticket of state.tickets ?? []) if (has(ticket.number, ticket.subject)) hits.push({ kind: "Ticket", label: `${ticket.number} · ${ticket.subject}`, detail: `${customerName(state, ticket.customerId)} · ${ticket.status}`, href: "/demo/support" });
   for (const quote of state.quotations) if (has(quote.number, quote.customerName)) hits.push({ kind: "Quotation", label: quote.number, detail: `${quote.customerName} · ${quote.status}`, href: `/demo/quotations?id=${quote.id}` });
   for (const invoice of state.invoices) if (has(invoice.number)) hits.push({ kind: "Invoice", label: invoice.number, detail: invoice.paidAt ? "Paid" : "Open", href: "/demo/finance?view=invoices" });
   for (const bill of state.bills) if (has(bill.number, bill.supplier)) hits.push({ kind: "Bill", label: `${bill.supplier} ${bill.number}`, detail: bill.paidAt ? "Paid" : "Open", href: "/demo/finance?view=bills" });

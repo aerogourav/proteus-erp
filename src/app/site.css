@@ -327,6 +327,12 @@
 .b-site .b-status-col.planned { background: rgba(255, 255, 255, .45); border-color: rgba(98, 76, 196, .35); }
 .b-site .b-chips li.first { color: #FFFFFF; background: #6D55E8; border-color: #6D55E8; }
 .b-site .b-faq-list details { border-color: rgba(98, 76, 196, .18); }
+.b-site .b-industry { display: grid; align-content: start; color: inherit; text-decoration: none; }
+.b-site .b-industries .b-industry:nth-child(2) .b-pillar-icon { background: linear-gradient(145deg, #F79A8A, #E2654A); box-shadow: 0 8px 16px -6px rgba(226, 101, 74, .5); }
+.b-site .b-industries .b-industry:nth-child(3) .b-pillar-icon { background: linear-gradient(145deg, #6FD3A2, #23935F); box-shadow: 0 8px 16px -6px rgba(35, 147, 95, .5); }
+.b-site .b-industry h3 { font-size: 22px; letter-spacing: -.01em; }
+.b-site .b-industry-cta { display: inline-flex; align-items: center; gap: 6px; margin-top: 18px; color: var(--b-accent-ink); font-weight: 800; }
+.b-site .b-industry:hover .b-industry-cta { text-decoration: underline; text-underline-offset: 3px; }
 .b-site .b-cta-copy svg { border-radius: 22%; box-shadow: 0 0 0 4px rgba(255, 255, 255, .55); }
 
 /* Forms */

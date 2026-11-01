@@ -205,7 +205,8 @@
   .erp[data-theme="studio"] .erp-topbar { background: rgba(255, 250, 252, .88); border-color: var(--e-border); }
   .erp[data-theme="studio"] .erp-topbar button { background: #FFFFFF; border-color: rgba(98, 76, 196, .2); }
   .erp[data-theme="studio"] .erp-dock { right: 10px; bottom: 10px; left: 10px; justify-content: space-between; transform: none; }
-  .erp-dock a { flex-direction: column; gap: 2px; min-height: 48px; padding: 4px 6px; font-size: 10.5px; flex: 1; justify-content: center; }
+  .erp-dock a { flex-direction: column; gap: 2px; min-width: 0; min-height: 48px; padding: 4px 4px; font-size: 10.5px; flex: 1; justify-content: center; }
+  .erp-dock a span { max-width: 100%; line-height: 1.15; text-align: center; white-space: normal; overflow-wrap: anywhere; }
   .erp-dock a em { position: absolute; top: 2px; right: 6px; }
   .erp-dock-add { flex: 0 0 auto; width: 44px; height: 44px; }
 }
@@ -219,3 +220,17 @@
 @media print {
   .erp-dock { display: none !important; }
 }
+
+/* ---------- Order board and industry cards in Studio ---------- */
+.erp[data-theme="studio"] .erp-board-col { border: 0; border-radius: 22px; }
+.erp[data-theme="studio"] .erp-board-col.is-new { background: #F1EDFC; }
+.erp[data-theme="studio"] .erp-board-col.is-new .erp-board-dot { background: #7B66DC; }
+.erp[data-theme="studio"] .erp-board-col.is-picked { background: #FDF0E8; }
+.erp[data-theme="studio"] .erp-board-col.is-picked .erp-board-dot { background: #E2654A; }
+.erp[data-theme="studio"] .erp-board-col.is-packed { background: #EAF0FD; }
+.erp[data-theme="studio"] .erp-board-col.is-packed .erp-board-dot { background: #4F78E3; }
+.erp[data-theme="studio"] .erp-board-card { border: 0; border-radius: 18px; box-shadow: 0 6px 16px -8px rgba(88, 64, 180, .22); }
+.erp[data-theme="studio"] .erp-industry { border-color: rgba(98, 76, 196, .14); border-radius: 24px; box-shadow: var(--e-shadow); }
+.erp[data-theme="studio"] .erp-industry-icon { border-radius: 16px; background: linear-gradient(145deg, #A796F0, #7660D8); box-shadow: 0 8px 16px -6px rgba(118, 96, 216, .5); }
+.erp[data-theme="studio"] .erp-industry.is-commerce .erp-industry-icon { background: linear-gradient(145deg, #F79A8A, #E2654A); box-shadow: 0 8px 16px -6px rgba(226, 101, 74, .5); }
+.erp[data-theme="studio"] .erp-industry.is-saas .erp-industry-icon { background: linear-gradient(145deg, #6FD3A2, #23935F); box-shadow: 0 8px 16px -6px rgba(35, 147, 95, .5); }

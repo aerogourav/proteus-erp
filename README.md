@@ -93,6 +93,11 @@ The demo shows one principle: **enter information once, connect it across the bu
 - **Quotations** (`/demo/quotations`), **People** (`/demo/people`, employee IDs, "sign in as" for the audit trail), **Finance** (`/demo/finance`: overview/P&L, customer invoices, supplier bills, payroll with salary slips, project costing; logic in `src/lib/erp/finance.ts`).
 - **Overview**: alerts (late deliveries, approvals, low stock, overdue invoices and bills, unread mail, idle orders), shop-floor widget, configurable dashboard. Global search (Ctrl K) across all records.
 - Rules added in this version: production start issues material from stock; dispatch is blocked when fewer good parts were produced than ordered; approvals and activity record the signed-in person; projects can be deleted; JSON backup export/import.
+- **Industry demos** (`/demo/start`, or Configuration → Industry): the same core set up for three kinds of business, each with its own tabs and sample company built through the real rules (`src/lib/erp/packs.ts`, `seed-commerce.ts`, `seed-saas.ts`):
+  - *Manufacturing*: Harmonie Präzisionstechnik (everything above).
+  - *E-commerce & wholesale*: Fjord & Fern Home Goods. Products and variants with stock per warehouse, orders from webshop, marketplace, wholesale (trade price) and store; pick → pack → ship (stock out, invoice issued), returns with restock, monthly restock bills (`commerce.ts`).
+  - *Software & SaaS*: Northwind Analytics. Plans and seats, trials, MRR with full change history (new, expansion, contraction, churn), NRR, annual renewals, monthly billing runs, support tickets with first-response time (`saas.ts`).
+  Switching industry replaces the demo data in the browser. Finance, alerts, search and Customers adapt to the industry.
 - Module views accept `?project=<id>` to filter to one project. The earlier workspace remains at `/demo/classic`.
 - Data model and rules: `src/lib/erp/*.ts` (no React; unit-tested in `tests/`). UI: `src/components/erp/`; styles: `src/app/demo/(erp)/erp.css`.
 

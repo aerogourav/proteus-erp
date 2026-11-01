@@ -8,7 +8,7 @@ import { LanguageSwitcher } from "@/components/language-provider";
 
 const links = [
   { label: "How it works", href: "/#how-it-works" },
-  { label: "Demo", href: "/demo" },
+  { label: "Demo", href: "/demo/start" },
   { label: "Contact", href: "/contact" },
 ];
 

@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, Check, CircleDashed, Cog, Layers3, PlayCircle, Workflow } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, CircleDashed, Cog, Factory, Layers3, PlayCircle, Repeat, ShoppingBag, Workflow } from "lucide-react";
 import Link from "next/link";
 import { BohMark } from "@/components/brand/boh-logo";
 import { SiteFooter } from "@/components/marketing/site-footer";
@@ -32,8 +32,16 @@ const story = [
   ["Generate the outputs", "Purchase order summary, production order, inspection report, dispatch note and invoice, all from the same data."],
 ] as const;
 
+const industries = [
+  { key: "manufacturing", icon: Factory, title: "Manufacturing", company: "Harmonie Präzisionstechnik", body: "Customer orders, drawings and revisions, purchasing, production, shop-floor times, inspection, dispatch and invoicing." },
+  { key: "commerce", icon: ShoppingBag, title: "E-commerce & wholesale", company: "Fjord & Fern Home Goods", body: "Products and variants, stock per warehouse, orders from every channel, pick, pack and ship, returns and invoices." },
+  { key: "saas", icon: Repeat, title: "Software & SaaS", company: "Northwind Analytics", body: "Plans and seats, subscriptions, monthly recurring revenue, renewals and churn, recurring invoices and support tickets." },
+] as const;
+
 const today = [
-  "Interactive demo with a fictional precision-manufacturing company",
+  "Interactive demos for manufacturing, e-commerce & wholesale, and software & SaaS, each with a fictional company and months of data",
+  "Order fulfilment with stock per warehouse, returns and automatic invoices",
+  "Subscriptions with MRR, churn, renewals and monthly billing, plus support tickets",
   "Guided project setup with a live view of where every value goes",
   "Simulated order journey from enquiry to dispatch and invoice",
   "Linked orders, parts, revisions and engineering documents",
@@ -52,7 +60,7 @@ const planned = [
 
 const faqs = [
   ["Is BOH ERP ready to use today?", "Not yet as a production system. Today there is an interactive demo with synthetic data. We are looking for first pilot customers to shape the production version with us."],
-  ["Who is it for?", "Startups and small businesses that have outgrown spreadsheets. Our first focus is manufacturing and precision engineering, but the platform is built to support other industries."],
+  ["Who is it for?", "Startups and small businesses that have outgrown spreadsheets. The demos cover manufacturing, e-commerce & wholesale, and software & SaaS: one shared core, set up differently for each industry."],
   ["What does it cost?", "A one-time implementation fee plus a monthly subscription. Both depend on the scope of your workflows, so we agree them after the first conversation, before any work starts."],
   ["Does it use AI?", "Not yet. The current checks are clear, rule-based logic. AI-assisted configuration is on our roadmap, and any change it proposes will always need human approval."],
 ] as const;
@@ -69,7 +77,7 @@ export default function Home() {
             <p className="b-lead">BOH ERP is business software we set up around how your company already works, so orders, parts, documents and approvals stay connected.</p>
             <div className="b-hero-actions">
               <Link className="b-btn b-btn-primary" href="/contact">Book a workflow call <ArrowRight size={18} /></Link>
-              <Link className="b-btn b-btn-ghost" href="/demo"><PlayCircle size={18} /> See Demo</Link>
+              <Link className="b-btn b-btn-ghost" href="/demo/start"><PlayCircle size={18} /> See Demo</Link>
             </div>
             <span className="b-tagline" data-no-translate>BUILD. OPERATE. HARMONISE.</span>
           </div>
@@ -126,7 +134,7 @@ export default function Home() {
             <h2 className="b-h2" id="demo-title">One project. One source of truth.</h2>
             <p className="b-lead">Create a project once and see how BOH ERP connects its information across sales, engineering, procurement, production, quality and dispatch.</p>
             <ol className="b-story" style={{ marginTop: 28 }}>{story.map(([title, body], index) => <li key={title} className="b-reveal"><span className="b-story-num">{index + 1}</span><div><strong>{title}</strong><span>{body}</span></div></li>)}</ol>
-            <div className="b-hero-actions"><Link className="b-btn b-btn-dark" href="/demo">See Demo <ArrowRight size={18} /></Link><Link className="b-btn b-btn-ghost" href="/demo/classic/journey">Watch an order journey</Link></div>
+            <div className="b-hero-actions"><Link className="b-btn b-btn-dark" href="/demo">Try the guided demo <ArrowRight size={18} /></Link><Link className="b-btn b-btn-ghost" href="/demo/classic/journey">Watch an order journey</Link></div>
           </div>
           <div className="b-window b-reveal" role="img" aria-label="Preview of the BOH ERP demo workspace with production orders and their document checks">
             <div className="b-window-bar" aria-hidden="true"><i /><i /><i /><span>BOH ERP · Demo workspace</span></div>
@@ -145,6 +153,21 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="b-section" style={{ paddingTop: 0 }} aria-labelledby="industries-title">
+        <div className="b-wrap">
+          <span className="b-kicker">Your industry</span>
+          <h2 className="b-h2" id="industries-title">One platform, set up for how you work.</h2>
+          <p className="b-lead">Open the demo for your kind of business. Each one is a fictional company with months of realistic data you can work with.</p>
+          <div className="b-pillars b-industries">{industries.map(({ key, icon: Icon, title, company, body }) => <Link key={key} href={`/demo/start?industry=${key}`} className="b-pillar b-industry b-reveal">
+            <span className="b-pillar-icon"><Icon size={22} /></span>
+            <h3>{title}</h3>
+            <span className="b-pillar-sub">{company}</span>
+            <p>{body}</p>
+            <span className="b-industry-cta">Open this demo <ArrowRight size={16} /></span>
+          </Link>)}</div>
+        </div>
+      </section>
+
       <section className="b-section" style={{ paddingTop: 0 }} aria-labelledby="status-title">
         <div className="b-wrap">
           <span className="b-kicker">Honest status</span>
@@ -155,10 +178,10 @@ export default function Home() {
             <div className="b-status-col planned"><h3><CircleDashed size={20} /> Planned</h3><ul>{planned.map((item) => <li key={item}><CircleDashed size={17} /><span>{item}</span></li>)}</ul></div>
           </div>
           <ul className="b-chips" aria-label="Industries">
-            <li className="first">Manufacturing &amp; engineering · first focus</li>
-            <li>Trading &amp; distribution</li>
-            <li>Professional &amp; field services</li>
-            <li>Growing startups</li>
+            <li className="first">Manufacturing &amp; engineering</li>
+            <li>E-commerce &amp; wholesale</li>
+            <li>Software &amp; SaaS</li>
+            <li>Next: services and trades</li>
           </ul>
         </div>
       </section>

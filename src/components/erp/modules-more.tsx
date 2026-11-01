@@ -1,5 +1,8 @@
 "use client";
 
+import { IndustryCards } from "@/components/erp/industry-switch";
+import { InvoiceList } from "@/components/erp/invoice-list";
+import { industryOf } from "@/lib/erp/packs";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -155,11 +158,14 @@ export function FinanceModule() {
   const [output, setOutput] = useState<OutputState>(null);
   const head = <PageHead eyebrow="Finance" title="Finance" description="Quotations to cash: customer invoices, supplier and raw material bills, payroll with salary slips, project costing and the company overview, all from the same records. Management figures, not bookkeeping." />;
   if (!hydrated) return <>{head}<Loading /></>;
-  const tabs = <div className="erp-tabs" role="group" aria-label="Finance view" style={{ marginBottom: 16 }}>{FINANCE_VIEWS.map(([key, label]) => <button key={key} type="button" aria-pressed={view === key} onClick={() => setView(key)}>{label}</button>)}</div>;
+  const manufacturing = industryOf(state) === "manufacturing";
+  const views = FINANCE_VIEWS.filter(([key]) => manufacturing || key !== "costing");
+  const tabs = <div className="erp-tabs" role="group" aria-label="Finance view" style={{ marginBottom: 16 }}>{views.map(([key, label]) => <button key={key} type="button" aria-pressed={view === key} onClick={() => setView(key)}>{label}</button>)}</div>;
   if (view === "overview") return <>{head}{tabs}<FinanceOverview state={state} /></>;
   if (view === "bills") return <>{head}{tabs}<BillsSection state={state} /></>;
   if (view === "payroll") return <>{head}{tabs}<PayrollSection state={state} /></>;
-  if (view === "costing") return <>{head}{tabs}<CostingSection state={state} /></>;
+  if (view === "costing" && manufacturing) return <>{head}{tabs}<CostingSection state={state} /></>;
+  if (!manufacturing) return <>{head}{tabs}<InvoiceList state={state} /></>;
   if (!state.projects.length) return <>{head}{tabs}<NoProjects what="financial records" /></>;
   const today = todayIso();
   const summary = financeSummary(state, today);
@@ -270,6 +276,9 @@ export function ConfigurationModule() {
     setField({ ...field, label: "", options: "" }); setFieldError("");
   };
   return <>{head}<div className="erp-config">
+    <div className="erp-span-2" style={{ gridColumn: "1 / -1" }}><ConfigSection id="cfg-industry" title="Industry" text="Which kind of business the demo runs. Each industry has its own tabs and sample company; switching replaces the demo data in this browser.">
+      <IndustryCards />
+    </ConfigSection></div>
     <ConfigSection id="cfg-style" title="Style" text="Colours, spacing and shapes of the demo workspace.">
       <div className="erp-field"><span className="erp-label">Theme</span><Choice name="Theme" value={ui.theme} onChange={(theme) => setUi(theme === "classic" ? { theme, accent: "coral", sidebar: "dark" } : { theme, accent: "lavender", sidebar: "lavender" })} options={[{ key: "studio", label: "Studio", hint: "Soft lavender, pastel cards" }, { key: "classic", label: "Classic", hint: "Plum and coral" }]} /></div>
       <div className="erp-field"><span className="erp-label">Accent colour</span>

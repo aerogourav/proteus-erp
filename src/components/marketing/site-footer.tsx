@@ -11,7 +11,7 @@ export function SiteFooter() {
         </div>
         <nav className="b-footer-links" aria-label="Footer navigation">
           <Link href="/#how-it-works">How it works</Link>
-          <Link href="/demo">Demo</Link>
+          <Link href="/demo/start">Demo</Link>
           <Link href="/contact">Contact</Link>
           <Link href="/privacy">Privacy</Link>
           <Link href="/impressum">Impressum</Link>

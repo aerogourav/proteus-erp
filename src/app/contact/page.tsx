@@ -30,7 +30,7 @@ export default function ContactPage() {
       {mode ? <ContactForm mode={mode} contactEmail={siteConfig.contactEmail} /> : <div className="b-form" role="status">
         <h2 style={{ margin: 0, fontFamily: "var(--b-display)" }}>The contact form is being set up.</h2>
         <p className="b-form-note">Message delivery is not connected yet, so this page does not collect any details. In the meantime you can explore the guided demo.</p>
-        <div><Link className="b-btn b-btn-dark" href="/demo">Open the demo</Link></div>
+        <div><Link className="b-btn b-btn-dark" href="/demo/start">Open the demo</Link></div>
       </div>}
     </div>
   </div></main><SiteFooter /></div>;
