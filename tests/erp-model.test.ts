@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   createInitialState, newDraft, validateStep, firstInvalidStep, createProjectFromDraft, draftFlow, readiness, projectStage, isActiveOrder,
   loadSample, resolve, approveDocument, advanceProcurement, createProductionOrder, advanceProduction, generateInspectionReport, dispatchProject,
-  generateInvoice, addDrawingForLine, setLineItemQuantity, setLineItemPrice, reuseCatalog, setProductionStatus, isProductionComplete, updateCustomer, updatePurchaseOrder, updateDocument, updateMaterial, updateProductionOrder, updateInspectionRequirement, removeInspectionRequirement, saveRawMaterial, saveSupplier, rawMaterialRows, rawMaterialStats, supplierRows, supplierStats, financeSummary, markInvoicePaid, addCustomField, setCustomValues, addDocType, removeDocType, docTypes, updateTab, moveTab, updateWidget, moveWidget, updateUi, upsertSupplier, addDocumentToProject, addInspectionRequirement, addMaterialRequirement, suggestProjectCode, parseStoredState, projectRecords, SAMPLE_PROJECT_CODE, DEFAULT_WIDGETS, type ErpState, type ProjectDraft,
+  generateInvoice, addDrawingForLine, setLineItemQuantity, setLineItemPrice, reuseCatalog, setProductionStatus, isProductionComplete, updateCustomer, updatePurchaseOrder, updateDocument, updateMaterial, updateProductionOrder, updateInspectionRequirement, removeInspectionRequirement, saveRawMaterial, saveSupplier, rawMaterialRows, rawMaterialStats, supplierRows, supplierStats, financeSummary, markInvoicePaid, addCustomField, setCustomValues, addDocType, removeDocType, docTypes, updateTab, moveTab, updateWidget, moveWidget, updateUi, upsertSupplier, addDocumentToProject, addInspectionRequirement, addMaterialRequirement, suggestProjectCode, parseStoredState, projectRecords, parseAmount, recentActivity, log, SAMPLE_PROJECT_CODE, DEFAULT_WIDGETS, type ErpState, type ProjectDraft,
 } from "../src/lib/erp/model.ts";
 
 const NOW = "2026-10-26T10:00:00.000Z";
@@ -381,4 +381,25 @@ test("configuration: custom fields, document types, tabs and dashboard", () => {
   assert.equal(restored.settings.ui.accent, "green");
   assert.equal(restored.settings.widgets.length, DEFAULT_WIDGETS.length);
   assert.equal(restored.settings.customFields.length, 2);
+});
+
+test("amounts typed in English or German format", () => {
+  assert.equal(parseAmount("12.50"), 12.5);
+  assert.equal(parseAmount("12,50"), 12.5);
+  assert.equal(parseAmount("1,234.50"), 1234.5);
+  assert.equal(parseAmount("1.234,50"), 1234.5);
+  assert.equal(parseAmount("1,234"), 1234);
+  assert.equal(parseAmount("0.125"), 0.125);
+  assert.equal(parseAmount(" "), null);
+  assert.ok(Number.isNaN(parseAmount("abc")));
+});
+
+test("recent activity is newest first even when events were stored out of order", () => {
+  let state = createInitialState();
+  state = log(state, "2026-10-20T10:00:00.000Z", "projects", "older", "p1");
+  state = log(state, "2026-11-01T10:00:00.000Z", "projects", "newest", "p1");
+  state = log(state, "2026-10-25T10:00:00.000Z", "projects", "middle", "p1");
+  state = log(state, "2026-10-30T10:00:00.000Z", "projects", "other project", "p2");
+  assert.deepEqual(recentActivity(state, "p1").map((event) => event.text), ["newest", "middle", "older"]);
+  assert.equal(recentActivity(state, null, 2)[1].text, "other project");
 });

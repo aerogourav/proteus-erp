@@ -15,6 +15,7 @@ import { orderOperations } from "@/lib/erp/shopfloor";
 import {
   RULES, STAGE_ORDER, documentCompleteness, formatDate, formatMoney, projectRecords, projectStage, readiness, resolve,
   type Readiness, type ResolveAction,
+  recentActivity,
 } from "@/lib/erp/model";
 
 type Dialog = { kind: "output"; output: OutputKind } | { kind: "doc"; id: string } | null;
@@ -130,7 +131,7 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
         </section>
         <section className="erp-card" aria-labelledby="activity-title">
           <div className="erp-card-head"><div><h2 id="activity-title">Activity</h2><p>What changed, in order.</p></div></div>
-          <ol className="erp-activity">{state.activity.filter((event) => event.projectId === projectId).slice(0, 8).map((event) => <li key={event.id}><time dateTime={event.at}>{formatDate(event.at)}</time><span>{event.text}{event.user ? <small> · {event.user}</small> : null}</span></li>)}</ol>
+          <ol className="erp-activity">{recentActivity(state, projectId).map((event) => <li key={event.id}><time dateTime={event.at}>{formatDate(event.at)}</time><span>{event.text}{event.user ? <small> · {event.user}</small> : null}</span></li>)}</ol>
         </section>
       </div>
     </div>

@@ -15,7 +15,7 @@ import { useErp, useHydrated } from "@/components/erp/store";
 import { Badge, EmptyState, PageHead } from "@/components/erp/ui";
 import { alerts } from "@/lib/erp/alerts";
 import { kpiSummary } from "@/lib/erp/shopfloor";
-import { STAGE_ORDER, addDays, financeSummary, isProductionComplete, rawMaterialRows, rawMaterialStats, type WidgetKey, formatDate, formatMoney, partNumber, projectRecords, projectStage, revisionLabel } from "@/lib/erp/model";
+import { STAGE_ORDER, recentActivity, addDays, financeSummary, isProductionComplete, rawMaterialRows, rawMaterialStats, type WidgetKey, formatDate, formatMoney, partNumber, projectRecords, projectStage, revisionLabel } from "@/lib/erp/model";
 
 /** Overview: what the visitor's project looks like across every department. Read-only. */
 export function Overview() {
@@ -147,7 +147,7 @@ export function Overview() {
     </section>,
     activity: <section className="erp-card" aria-labelledby="ov-activity">
       <div className="erp-card-head"><div><h2 id="ov-activity">Recent activity</h2><p>Every change, in order, across departments.</p></div></div>
-      <ol className="erp-activity">{state.activity.filter((event) => event.projectId === projectId).slice(0, 8).map((event) => <li key={event.id}><time dateTime={event.at}>{formatDate(event.at)}</time><span>{event.text}</span></li>)}</ol>
+      <ol className="erp-activity">{recentActivity(state, projectId).map((event) => <li key={event.id}><time dateTime={event.at}>{formatDate(event.at)}</time><span>{event.text}</span></li>)}</ol>
     </section>,
   };
   const CHARTS: WidgetKey[] = ["pipeline", "orderValue", "production", "shopFloor", "finance", "stock"];

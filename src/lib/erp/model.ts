@@ -242,11 +242,19 @@ export function log(state: ErpState, at: string, module: ModuleKey, text: string
   return { ...next, activity: [{ id, at, projectId, module, text, ...(user ? { user } : {}) }, ...next.activity].slice(0, ACTIVITY_LIMIT) };
 }
 
+/** Accepts "1,234.50" and German "1.234,50" or "12,5"; "1,234" stays one thousand two hundred thirty-four. */
 export function parseAmount(value: string): number | null {
-  const trimmed = value.trim().replace(/,/g, "");
+  let trimmed = value.trim().replace(/\s/g, "");
   if (!trimmed) return null;
+  if (/^-?[1-9]\d{0,2}(\.\d{3})+(,\d+)?$/.test(trimmed) || /^-?\d+,\d{1,2}$/.test(trimmed)) trimmed = trimmed.replace(/\./g, "").replace(",", ".");
+  else trimmed = trimmed.replace(/,/g, "");
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+/** Activity for one project (or all), newest first. Seeded and imported events are not stored in time order. */
+export function recentActivity(state: ErpState, projectId: string | null = null, limit = 8) {
+  return state.activity.filter((event) => projectId === null || event.projectId === projectId).sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit);
 }
 
 export function formatMoney(value: number, currency: Currency) {
