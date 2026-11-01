@@ -243,3 +243,115 @@
 @media (prefers-reduced-transparency: reduce) {
   .b-pillar, .b-problem, .b-story li, .b-status-col, .b-form, .b-window, .b-glass, .b-chips li { background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
+
+/* ======================================================================
+   Studio look (Nov 2026): the website matches the ERP demo's default theme.
+   Scoped to .b-site so the classic ERP theme, which shares --b-display/--b-body, is unaffected.
+   ====================================================================== */
+.b-site {
+  --b-ink: #26214A;
+  --b-ink-2: #2F2766;
+  --b-ink-3: #3E3380;
+  --b-paper: #F7F4FE;
+  --b-line: #E6E1F5;
+  --b-muted: #5C5680;
+  --b-muted-dark: #E4DEFF;
+  --b-soft-dark: #F1EDFF;
+  --b-accent: #7B66DC;
+  --b-accent-ink: #5A43C9;
+  --b-peach: #F7826B;
+  --b-green: #23935F;
+  --b-ok: #1D6B45;
+  --b-ok-soft: #DFF5EA;
+  --b-display: var(--font-studio), "Nunito", system-ui, sans-serif;
+  --b-body: var(--font-studio), "Nunito", system-ui, sans-serif;
+  --b-glass: #FFFFFF;
+  --b-glass-edge: rgba(98, 76, 196, .10);
+  --b-glass-dark: rgba(255, 255, 255, .10);
+  --b-glass-dark-edge: rgba(255, 255, 255, .22);
+  --b-shadow: 0 1px 2px rgba(88, 64, 180, .06), 0 16px 36px -18px rgba(88, 64, 180, .32);
+  background: linear-gradient(160deg, #DCD3F8 0%, #EEE8FB 35%, #F8EEF4 70%, #F3EEFC 100%);
+}
+.b-site ::selection { color: var(--b-ink); background: rgba(123, 102, 220, .28); }
+.b-site :is(h1, h2, h3, .b-h2) { font-weight: 800; letter-spacing: -.02em; }
+.b-site .b-kicker { color: var(--b-accent-ink); font-weight: 800; letter-spacing: .16em; }
+
+/* Bands: violet panels like the ERP menu. The hero stays light (below). */
+.b-site .b-dark { margin-inline: clamp(8px, 1.5vw, 18px); border-radius: 36px; color: #FFFFFF; background: radial-gradient(700px 420px at 90% 0%, rgba(255, 201, 188, .28), transparent 60%), radial-gradient(600px 420px at 0% 100%, rgba(194, 242, 218, .18), transparent 60%), linear-gradient(160deg, #6F5AD8 0%, #5A46C4 55%, #4B38B0 100%); box-shadow: 0 30px 70px -30px rgba(72, 50, 170, .55); }
+.b-site .b-dark .b-kicker { color: #FFE3A3; }
+.b-site .b-dark .b-lead, .b-site .b-dark .b-fineprint { color: #F1EDFF; }
+
+/* Hero: light lavender with a white product card. */
+.b-site .b-hero.b-dark { margin-inline: 0; border-radius: 0; color: var(--b-ink); background: radial-gradient(700px 420px at 88% 18%, rgba(255, 201, 188, .42), transparent 70%), radial-gradient(520px 380px at 4% 42%, rgba(194, 242, 218, .32), transparent 70%), transparent; box-shadow: none; }
+.b-site .b-hero h1 { font-size: clamp(40px, 5.8vw, 76px); }
+.b-site .b-hero.b-dark .b-kicker { color: var(--b-accent-ink); }
+.b-site .b-hero.b-dark .b-lead { color: var(--b-muted); }
+.b-site .b-hero h1 { color: #3E3380; }
+.b-site .b-hero h1 .b-accent-line { color: transparent; background: linear-gradient(100deg, #7B66DC 0%, #B05FCB 55%, #E2654A 100%); -webkit-background-clip: text; background-clip: text; }
+.b-site .b-hero .b-tagline { color: var(--b-muted); }
+.b-site .b-order-card { background: #FFFFFF; border-color: rgba(98, 76, 196, .12); box-shadow: 0 40px 80px -36px rgba(72, 50, 170, .5); }
+.b-site .b-checks li { background: #F7F5FE; }
+
+/* Header and footer */
+.b-site .b-header { background: rgba(247, 244, 254, .72); border-color: rgba(98, 76, 196, .10); }
+.b-site .b-nav a:hover { color: var(--b-accent-ink); }
+.b-site .b-menu-toggle { background: #FFFFFF; border-color: rgba(98, 76, 196, .2); }
+.b-site .b-footer { margin: clamp(32px, 6vw, 64px) clamp(8px, 1.5vw, 18px) clamp(8px, 1.5vw, 18px); border-radius: 36px; background: #2F2766; }
+.b-site .b-footer-top { border-color: rgba(255, 255, 255, .12); }
+.b-site .b-footer-links a:hover { color: #FFE3A3; }
+
+/* Buttons */
+.b-site .b-btn { font-weight: 800; }
+.b-site .b-btn-primary { color: #FFFFFF; background: linear-gradient(135deg, #9B88EE, #6D55E8); box-shadow: 0 12px 28px -12px rgba(109, 85, 232, .7); }
+.b-site .b-btn-primary:hover { background: linear-gradient(135deg, #A797F1, #7660EA); }
+.b-site .b-btn-dark { background: #3E3380; }
+.b-site .b-btn-dark:hover { background: #4B3F99; }
+.b-site .b-btn-ghost { background: rgba(255, 255, 255, .7); border-color: rgba(98, 76, 196, .25); }
+.b-site .b-dark:not(.b-hero) .b-btn-primary { color: #3F2D9C; background: #FFFFFF; box-shadow: 0 12px 28px -12px rgba(30, 16, 90, .6); }
+.b-site .b-dark:not(.b-hero) .b-btn-ghost { color: #FFFFFF; background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .4); }
+.b-site .b-btn:focus-visible, .b-site a:focus-visible, .b-site button:focus-visible, .b-site input:focus-visible, .b-site textarea:focus-visible { outline-color: var(--b-accent-ink); }
+.b-site .b-dark:not(.b-hero) :is(a, button):focus-visible { outline-color: #FFFFFF; }
+
+/* Cards: white with pastel icon chips in the dashboard's colours */
+.b-site :is(.b-pillar, .b-problem, .b-story li, .b-status-col, .b-form, .b-chips li) { backdrop-filter: none; -webkit-backdrop-filter: none; border-radius: 24px; }
+.b-site .b-chips li { border-radius: 999px; }
+.b-site .b-pillar:hover { box-shadow: 0 26px 50px -22px rgba(88, 64, 180, .4); }
+.b-site .b-pillar-icon { width: 50px; height: 50px; color: #FFFFFF; background: linear-gradient(145deg, #A796F0, #7660D8); border-radius: 16px; box-shadow: 0 8px 16px -6px rgba(118, 96, 216, .5); }
+.b-site .b-pillar:nth-child(2) .b-pillar-icon { background: linear-gradient(145deg, #F79A8A, #E2654A); box-shadow: 0 8px 16px -6px rgba(226, 101, 74, .5); }
+.b-site .b-pillar:nth-child(3) .b-pillar-icon { background: linear-gradient(145deg, #6FD3A2, #23935F); box-shadow: 0 8px 16px -6px rgba(35, 147, 95, .5); }
+.b-site .b-problem::before { width: 36px; height: 6px; background: linear-gradient(90deg, #F79A8A, #E2654A); }
+.b-site .b-problem:nth-child(2)::before { background: linear-gradient(90deg, #F7C75A, #E09A16); }
+.b-site .b-problem:nth-child(3)::before { background: linear-gradient(90deg, #A796F0, #7660D8); }
+.b-site .b-steps li::before { color: #FFE3A3; }
+.b-site .b-story-num { color: #FFFFFF; background: linear-gradient(145deg, #A796F0, #6D55E8); border-radius: 14px; }
+.b-site .b-status-col.planned { background: rgba(255, 255, 255, .45); border-color: rgba(98, 76, 196, .35); }
+.b-site .b-chips li.first { color: #FFFFFF; background: #6D55E8; border-color: #6D55E8; }
+.b-site .b-faq-list details { border-color: rgba(98, 76, 196, .18); }
+.b-site .b-cta-copy svg { border-radius: 22%; box-shadow: 0 0 0 4px rgba(255, 255, 255, .55); }
+
+/* Forms */
+.b-site .b-form input, .b-site .b-form textarea { background: #FFFFFF; border-color: rgba(98, 76, 196, .22); border-radius: 14px; }
+.b-site .b-form input:focus, .b-site .b-form textarea:focus { border-color: var(--b-accent); box-shadow: 0 0 0 4px rgba(123, 102, 220, .22); outline: none; }
+
+/* Product window illustration mirrors the Studio ERP */
+.b-site .b-window { background: rgba(255, 250, 252, .9); border-color: #FFFFFF; box-shadow: 0 40px 90px -40px rgba(72, 50, 170, .55); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.b-site .b-window-side { color: #FFFFFF; background: linear-gradient(180deg, #7C68DD, #5E4AC6); }
+.b-site .b-window-side span.on { color: #3F2D9C; background: #FFFFFF; }
+.b-site .b-window-kpis div { border: 0; }
+.b-site .b-window-kpis div:nth-child(1) { background: #ECE6FD; }
+.b-site .b-window-kpis div:nth-child(2) { background: #FFE6E1; }
+.b-site .b-window-kpis div:nth-child(3) { background: #FFF1D2; }
+.b-site .b-window-rows div { background: #FFFFFF; box-shadow: 0 4px 12px -8px rgba(88, 64, 180, .3); }
+
+.b-site .language-switcher { color: var(--b-muted); }
+.b-site .language-switcher button { border-radius: 8px; }
+.b-site .language-switcher button[aria-pressed="true"] { color: #3F2D9C; background: #ECE6FD; border-color: rgba(123, 102, 220, .35); }
+.b-site .language-switcher button:focus-visible { outline-color: var(--b-accent-ink); }
+
+@media (max-width: 640px) {
+  .b-site .b-dark { margin-inline: 8px; border-radius: 26px; }
+  .b-site .b-footer { border-radius: 26px; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .b-site .b-header { background: #F7F4FE; }
+}

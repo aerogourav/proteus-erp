@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2E1521"/><stop offset="1" stop-color="#1E0D16"/></linearGradient>
-    <linearGradient id="r" x1="0.2" y1="0.1" x2="0.8" y2="0.9"><stop offset="0" stop-color="#FF97A0"/><stop offset=".5" stop-color="#F45470"/><stop offset="1" stop-color="#C8183E"/></linearGradient>
-    <linearGradient id="p" x1="0.2" y1="0.1" x2="0.8" y2="0.9"><stop offset="0" stop-color="#FEE6C6"/><stop offset=".55" stop-color="#FFB27E"/><stop offset="1" stop-color="#FF7F55"/></linearGradient>
-    <linearGradient id="g" x1="0.2" y1="0.1" x2="0.8" y2="0.9"><stop offset="0" stop-color="#8EE59D"/><stop offset=".5" stop-color="#3DB873"/><stop offset="1" stop-color="#0B6038"/></linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9A87EE"/><stop offset="1" stop-color="#5E4AC6"/></linearGradient>
+    <linearGradient id="r" x1="0.2" y1="0.1" x2="0.8" y2="0.9"><stop offset="0" stop-color="#FFC9BC"/><stop offset=".5" stop-color="#F7826B"/><stop offset="1" stop-color="#D9472D"/></linearGradient>
+    <linearGradient id="p" x1="0.2" y1="0.1" x2="0.8" y2="0.9"><stop offset="0" stop-color="#FFF0C2"/><stop offset=".55" stop-color="#F7C75A"/><stop offset="1" stop-color="#DD920F"/></linearGradient>
+    <linearGradient id="g" x1="0.2" y1="0.1" x2="0.8" y2="0.9"><stop offset="0" stop-color="#C2F2DA"/><stop offset=".5" stop-color="#5DCB98"/><stop offset="1" stop-color="#1E8A57"/></linearGradient>
   </defs>
   <rect width="100" height="100" rx="24" fill="url(#bg)"/>
   <path d="M38 25C34 34 28 42 18 49C28 45 40 44 52 47Z" fill="url(#r)"/>
