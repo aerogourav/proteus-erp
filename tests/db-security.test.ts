@@ -1,0 +1,131 @@
+import { test, before } from "node:test";
+import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import { PGlite } from "@electric-sql/pglite";
+
+/**
+ * Runs the Supabase migrations in an in-memory Postgres (PGlite) and checks the security rules:
+ * company isolation, roles, numbering and the append-only activity log.
+ * The `auth` schema and `authenticated` role are minimal stand-ins for what Supabase provides.
+ */
+
+const SUPABASE_STANDIN = `
+  create schema auth;
+  create table auth.users (id uuid primary key);
+  create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+  create role authenticated nologin;
+`;
+const GRANTS = `
+  grant usage on schema public, auth to authenticated;
+  grant select, insert, update, delete on all tables in schema public to authenticated;
+  grant usage on all sequences in schema public to authenticated;
+`;
+
+const A = "00000000-0000-4000-8000-00000000000a";
+const B = "00000000-0000-4000-8000-00000000000b";
+const C = "00000000-0000-4000-8000-00000000000c";
+const db = new PGlite();
+
+async function as<T>(user: string, run: () => Promise<T>): Promise<T> {
+  await db.exec(`set role authenticated; select set_config('request.jwt.claim.sub', '${user}', false);`);
+  try { return await run(); } finally { await db.exec("reset role; select set_config('request.jwt.claim.sub', '', false);"); }
+}
+const one = async <T>(sql: string, params: unknown[] = []) => (await db.query<T>(sql, params)).rows[0];
+const count = async (sql: string, params: unknown[] = []) => (await db.query(sql, params)).rows.length;
+async function fails(sql: string, params: unknown[] = []) {
+  await assert.rejects(db.query(sql, params));
+}
+
+let companyA = "";
+let companyB = "";
+
+before(async () => {
+  await db.exec(SUPABASE_STANDIN);
+  const dir = new URL("../supabase/migrations/", import.meta.url);
+  for (const file of readdirSync(dir).filter((name) => name.endsWith(".sql")).sort()) await db.exec(readFileSync(new URL(file, dir), "utf8"));
+  await db.exec(GRANTS);
+  await db.query("insert into auth.users (id) values ($1), ($2), ($3)", [A, B, C]);
+  companyA = (await as(A, () => one<{ id: string }>("select public.create_company('Precision Works', 'manufacturing') as id")))!.id;
+  companyB = (await as(B, () => one<{ id: string }>("select public.create_company('Cloudly', 'saas') as id")))!.id;
+});
+
+test("a company's records are invisible and unwritable to other companies", async () => {
+  await as(A, () => db.query("insert into public.contacts (company_id, name, is_customer) values ($1, 'Apex Aerospace', true)", [companyA]));
+  await as(B, () => db.query("insert into public.contacts (company_id, name, is_customer) values ($1, 'Globex', true)", [companyB]));
+
+  assert.equal(await as(A, () => count("select * from public.contacts")), 1);
+  assert.equal(await as(B, () => count("select * from public.contacts where company_id = $1", [companyA])), 0);
+  assert.equal(await as(B, () => count("select * from public.companies")), 1);
+  await as(B, () => fails("insert into public.contacts (company_id, name) values ($1, 'Sneaky')", [companyA]));
+  const changed = await as(B, async () => (await db.query("update public.contacts set name = 'Hacked' where company_id = $1", [companyA])).affectedRows);
+  assert.equal(changed, 0);
+});
+
+test("a record cannot point at another company's record, even with a known id", async () => {
+  const globex = (await as(B, () => one<{ id: string }>("select id from public.contacts where name = 'Globex'")))!.id;
+  await as(A, () => fails("insert into public.sales_documents (company_id, kind, number, contact_id) values ($1, 'quote', 'Q-1', $2)", [companyA, globex]));
+});
+
+test("companies are only created through create_company, never by direct insert", async () => {
+  await as(A, () => fails("insert into public.companies (name, industry) values ('Shadow', 'saas')"));
+});
+
+test("viewers read but cannot write; admins cannot hand out the owner role", async () => {
+  await as(A, () => db.query("insert into public.memberships (company_id, user_id, role) values ($1, $2, 'viewer')", [companyA, C]));
+  assert.equal(await as(C, () => count("select * from public.contacts")), 1);
+  await as(C, () => fails("insert into public.contacts (company_id, name) values ($1, 'Viewer write')", [companyA]));
+  await as(A, () => fails("update public.memberships set role = 'owner' where user_id = $1", [C]));
+  await as(C, () => fails("insert into public.memberships (company_id, user_id, role) values ($1, $2, 'admin')", [companyA, B]));
+});
+
+test("pay data is visible to admins only", async () => {
+  const person = (await as(A, () => one<{ id: string }>("insert into public.people (company_id, code, name) values ($1, 'E-1001', 'Lena Hoffmann') returning id", [companyA])))!.id;
+  await as(A, () => db.query("insert into public.people_pay (person_id, company_id, pay_type, monthly_salary) values ($1, $2, 'salary', 4800)", [person, companyA]));
+  assert.equal(await as(A, () => count("select * from public.people_pay")), 1);
+  assert.equal(await as(C, () => count("select * from public.people")), 1);
+  assert.equal(await as(C, () => count("select * from public.people_pay")), 0);
+});
+
+test("document numbers are sequential per company and kind", async () => {
+  const year = new Date().getFullYear();
+  const first = await as(A, () => one<{ n: string }>("select public.next_number($1, 'quote', 'QT') as n", [companyA]));
+  const second = await as(A, () => one<{ n: string }>("select public.next_number($1, 'quote', 'QT') as n", [companyA]));
+  const otherCompany = await as(B, () => one<{ n: string }>("select public.next_number($1, 'quote', 'QT') as n", [companyB]));
+  assert.equal(first!.n, `QT-${year}-0001`);
+  assert.equal(second!.n, `QT-${year}-0002`);
+  assert.equal(otherCompany!.n, `QT-${year}-0001`);
+  await as(B, () => fails("select public.next_number($1, 'quote', 'QT')", [companyA]));
+});
+
+test("the activity log is append-only and always names the real user", async () => {
+  await as(A, () => db.query("insert into public.activity_log (company_id, module, action, summary, actor) values ($1, 'sales', 'create', 'Quote created', $2)", [companyA, B]));
+  const row = await as(A, () => one<{ actor: string }>("select actor from public.activity_log where company_id = $1", [companyA]));
+  assert.equal(row!.actor, A);
+  const edited = await as(A, async () => (await db.query("update public.activity_log set summary = 'rewritten'")).affectedRows);
+  const removed = await as(A, async () => (await db.query("delete from public.activity_log")).affectedRows);
+  assert.equal(edited, 0);
+  assert.equal(removed, 0);
+});
+
+test("stock is a ledger and stock levels respect company isolation", async () => {
+  await as(A, async () => {
+    const item = (await one<{ id: string }>("insert into public.items (company_id, kind, sku, name, unit, track_stock) values ($1, 'material', 'AL-7075-70', 'EN AW-7075 bar Ø70', 'm', true) returning id", [companyA]))!.id;
+    const wh = (await one<{ id: string }>("insert into public.warehouses (company_id, code, name) values ($1, 'MAIN', 'Main store') returning id", [companyA]))!.id;
+    await db.query("insert into public.stock_moves (company_id, item_id, warehouse_id, quantity, reason) values ($1, $2, $3, 12, 'receipt'), ($1, $2, $3, -4.5, 'issue')", [companyA, item, wh]);
+    const level = await one<{ on_hand: string }>("select on_hand from public.stock_levels where item_id = $1", [item]);
+    assert.equal(Number(level!.on_hand), 7.5);
+    assert.equal((await db.query("update public.stock_moves set quantity = 100")).affectedRows, 0);
+  });
+  assert.equal(await as(B, () => count("select * from public.stock_levels")), 0);
+});
+
+test("expired demo companies are purged with all their data; users cannot trigger the purge", async () => {
+  const demo = (await as(A, () => one<{ id: string }>("select public.create_company('Demo Shop', 'commerce', true) as id")))!.id;
+  await as(A, () => db.query("insert into public.contacts (company_id, name) values ($1, 'Demo customer')", [demo]));
+  await as(A, () => fails("select public.purge_expired_demos()"));
+  await db.query("update public.companies set expires_at = now() - interval '1 minute' where id = $1", [demo]);
+  const purged = await one<{ n: number }>("select public.purge_expired_demos() as n");
+  assert.equal(purged!.n, 1);
+  assert.equal(await count("select * from public.contacts where company_id = $1", [demo]), 0);
+  assert.equal(await count("select * from public.companies where id = $1", [companyA]), 1);
+});
