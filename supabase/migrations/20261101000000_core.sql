@@ -433,4 +433,16 @@ begin
   return removed;
 end;
 $$;
+-- Supabase grants anon and authenticated execute on new functions explicitly, so revoking from public is not enough.
 revoke execute on function public.purge_expired_demos() from public;
+do $$
+declare
+  r text;
+begin
+  foreach r in array array['anon', 'authenticated'] loop
+    if exists (select 1 from pg_roles where rolname = r) then
+      execute format('revoke execute on function public.purge_expired_demos() from %I', r);
+    end if;
+  end loop;
+end;
+$$;

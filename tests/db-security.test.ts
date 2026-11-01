@@ -14,11 +14,14 @@ const SUPABASE_STANDIN = `
   create table auth.users (id uuid primary key);
   create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
   create role authenticated nologin;
+  create role anon nologin;
+  -- Like Supabase: API roles get execute on every new function in public, granted explicitly.
+  alter default privileges in schema public grant execute on functions to anon, authenticated;
 `;
 const GRANTS = `
-  grant usage on schema public, auth to authenticated;
-  grant select, insert, update, delete on all tables in schema public to authenticated;
-  grant usage on all sequences in schema public to authenticated;
+  grant usage on schema public, auth to authenticated, anon;
+  grant select, insert, update, delete on all tables in schema public to authenticated, anon;
+  grant usage on all sequences in schema public to authenticated, anon;
 `;
 
 const A = "00000000-0000-4000-8000-00000000000a";
@@ -64,6 +67,16 @@ test("a company's records are invisible and unwritable to other companies", asyn
 test("a record cannot point at another company's record, even with a known id", async () => {
   const globex = (await as(B, () => one<{ id: string }>("select id from public.contacts where name = 'Globex'")))!.id;
   await as(A, () => fails("insert into public.sales_documents (company_id, kind, number, contact_id) values ($1, 'quote', 'Q-1', $2)", [companyA, globex]));
+});
+
+test("signed-out visitors (anon) see nothing and cannot create companies", async () => {
+  await db.exec("set role anon; select set_config('request.jwt.claim.sub', '', false);");
+  try {
+    assert.equal(await count("select * from public.companies"), 0);
+    assert.equal(await count("select * from public.contacts"), 0);
+    await fails("select public.create_company('Anon Ltd', 'saas')");
+    await fails("select public.purge_expired_demos()");
+  } finally { await db.exec("reset role;"); }
 });
 
 test("companies are only created through create_company, never by direct insert", async () => {
