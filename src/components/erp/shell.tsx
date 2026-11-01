@@ -28,6 +28,13 @@ const TAB_META: Record<TabKey, { href: string; icon: typeof Boxes }> = {
   dispatch: { href: "/demo/dispatch", icon: Truck }, finance: { href: "/demo/finance", icon: Receipt }, configuration: { href: "/demo/configuration", icon: Settings2 },
 };
 
+/** Quick-switch dock (Studio theme): the most used places, if their tabs are shown. */
+const DOCK: TabKey[] = ["overview", "projects", "production", "inbox", "finance"];
+
+function initials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]!.toUpperCase()).join("") || "?";
+}
+
 function isActive(pathname: string, href: string) {
   if (href === "/demo") return pathname === "/demo";
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -57,6 +64,8 @@ export function ErpShell({ children }: { children: ReactNode }) {
   const unread = hydrated ? unreadCount(state) : 0;
   const alertCount = hydrated ? alerts(state, new Date().toISOString().slice(0, 10)).filter((item) => item.tone !== "info").length : 0;
   const gmailLive = hydrated && state.mail.provider === "gmail";
+  const me = hydrated && state.currentUserId ? state.employees.find((item) => item.id === state.currentUserId) ?? null : null;
+  const newProject = () => { setMenuOpen(false); if (state.projects.length > 0) startAnotherProject(); router.push("/demo"); };
 
   // Gmail: check for new mail every minute while the ERP is open and signed in.
   useEffect(() => {
@@ -85,10 +94,15 @@ export function ErpShell({ children }: { children: ReactNode }) {
     })}
   </ol>;
 
-  return <div className="erp" data-no-translate data-accent={ui.accent} data-density={ui.density} data-corners={ui.corners} data-sidebar={ui.sidebar} data-nav={ui.nav} data-font={ui.font}>
+  return <div className="erp" data-no-translate data-theme={ui.theme} data-accent={ui.accent} data-density={ui.density} data-corners={ui.corners} data-sidebar={ui.sidebar} data-nav={ui.nav} data-font={ui.font}>
     <div className="erp-shell">
       <aside className={`erp-side${menuOpen ? " is-open" : ""}`} aria-label="Demo navigation">
         <Link className="erp-brand" href="/demo/overview" onClick={() => setMenuOpen(false)}><BohMark size={28} /><span><b>BOH</b> ERP</span><small>DEMO</small></Link>
+        <div className="erp-profile">
+          <span className={`erp-avatar${me ? " is-online" : ""}`} aria-hidden="true">{me ? initials(me.name) : <Users size={22} />}</span>
+          <b>{me ? `Hi, ${me.name.split(" ")[0]}` : "Hi there"}</b>
+          <small>{hydrated ? state.settings.companyName : ""}</small>
+        </div>
         <nav className="erp-nav" aria-label="Modules">
           {tabs.filter((tab) => tab.visible).map((tab) => {
             const { href, icon: Icon } = TAB_META[tab.key];
@@ -108,7 +122,7 @@ export function ErpShell({ children }: { children: ReactNode }) {
             <select value={state.currentUserId ?? ""} onChange={(event) => commit((value) => setCurrentUser(value, event.target.value || null))} aria-label="Signed in as">
               <option value="">Nobody (anonymous)</option>{state.employees.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.code}</option>)}
             </select></label>}
-          {hydrated && state.projects.length > 0 && <button type="button" onClick={() => { startAnotherProject(); setMenuOpen(false); router.push("/demo"); }}><Plus size={15} /> New project</button>}
+          {hydrated && state.projects.length > 0 && <button type="button" onClick={newProject}><Plus size={15} /> New project</button>}
           <button type="button" onClick={() => setConfirmReset(true)}><RotateCcw size={15} /> Reset demo data</button>
           <Link href="/"><ArrowLeft size={15} /> Back to website</Link>
           <p className="erp-side-note">Fictional data, stored only in this browser. Please don’t enter confidential information.</p>
@@ -128,6 +142,16 @@ export function ErpShell({ children }: { children: ReactNode }) {
         </div>
         <main className="erp-content">{children}</main>
       </div>
+      <nav className="erp-dock" aria-label="Quick switch">
+        {tabs.filter((tab) => tab.visible && DOCK.includes(tab.key)).map((tab) => {
+          const { href, icon: Icon } = TAB_META[tab.key];
+          return <Link key={tab.key} href={href} aria-current={isActive(pathname, href) ? "page" : undefined}>
+            <Icon size={16} aria-hidden="true" /><span>{tab.label}</span>
+            {tab.key === "inbox" && unread > 0 && <em aria-label={`${unread} unread`}>{unread}</em>}
+          </Link>;
+        })}
+        <button type="button" className="erp-dock-add" aria-label="New project" onClick={newProject}><Plus size={18} /></button>
+      </nav>
     </div>
     {confirmReset && <Modal label="Reset demo" onClose={() => setConfirmReset(false)}>
       <h2>Reset the demo?</h2>

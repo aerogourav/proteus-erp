@@ -239,7 +239,7 @@ export function FinanceModule() {
 /* ============================== Configuration ============================== */
 
 const ACCENTS: { key: UiSettings["accent"]; label: string; color: string }[] = [
-  { key: "coral", label: "Coral", color: "#F2566F" }, { key: "orange", label: "Peach", color: "#FFB27E" }, { key: "green", label: "Green", color: "#2E9E62" },
+  { key: "lavender", label: "Lavender", color: "#7B66DC" }, { key: "coral", label: "Coral", color: "#F2566F" }, { key: "orange", label: "Peach", color: "#FFB27E" }, { key: "green", label: "Green", color: "#2E9E62" },
   { key: "blue", label: "Blue", color: "#2F6FB0" }, { key: "plum", label: "Plum", color: "#6B3A5E" },
 ];
 
@@ -271,12 +271,13 @@ export function ConfigurationModule() {
   };
   return <>{head}<div className="erp-config">
     <ConfigSection id="cfg-style" title="Style" text="Colours, spacing and shapes of the demo workspace.">
+      <div className="erp-field"><span className="erp-label">Theme</span><Choice name="Theme" value={ui.theme} onChange={(theme) => setUi(theme === "classic" ? { theme, accent: "coral", sidebar: "dark" } : { theme, accent: "lavender", sidebar: "lavender" })} options={[{ key: "studio", label: "Studio", hint: "Soft lavender, pastel cards" }, { key: "classic", label: "Classic", hint: "Plum and coral" }]} /></div>
       <div className="erp-field"><span className="erp-label">Accent colour</span>
         <div className="erp-swatches" role="radiogroup" aria-label="Accent colour">{ACCENTS.map((accent) => <button key={accent.key} type="button" role="radio" aria-checked={ui.accent === accent.key} onClick={() => setUi({ accent: accent.key })}><i style={{ background: accent.color }} />{accent.label}</button>)}</div></div>
       <div className="erp-field"><span className="erp-label">Density</span><Choice name="Density" value={ui.density} onChange={(density) => setUi({ density })} options={[{ key: "comfortable", label: "Comfortable" }, { key: "compact", label: "Compact", hint: "More rows on screen" }]} /></div>
       <div className="erp-field"><span className="erp-label">Corners</span><Choice name="Corners" value={ui.corners} onChange={(corners) => setUi({ corners })} options={[{ key: "rounded", label: "Rounded" }, { key: "soft", label: "Soft" }, { key: "sharp", label: "Sharp" }]} /></div>
-      <div className="erp-field"><span className="erp-label">Menu colour</span><Choice name="Menu colour" value={ui.sidebar} onChange={(sidebar) => setUi({ sidebar })} options={[{ key: "dark", label: "Dark plum" }, { key: "light", label: "Light" }]} /></div>
-      <div className="erp-field"><span className="erp-label">Font</span><Choice name="Font" value={ui.font} onChange={(font) => setUi({ font })} options={[{ key: "brand", label: "Brand", hint: "Space Grotesk + Manrope" }, { key: "system", label: "System", hint: "Your device’s font" }]} /></div>
+      <div className="erp-field"><span className="erp-label">Menu colour</span><Choice name="Menu colour" value={ui.sidebar} onChange={(sidebar) => setUi({ sidebar })} options={[{ key: "lavender", label: "Lavender" }, { key: "dark", label: "Dark plum" }, { key: "light", label: "Light" }]} /></div>
+      <div className="erp-field"><span className="erp-label">Font</span><Choice name="Font" value={ui.font} onChange={(font) => setUi({ font })} options={[{ key: "brand", label: "Brand", hint: ui.theme === "studio" ? "Nunito" : "Space Grotesk + Manrope" }, { key: "system", label: "System", hint: "Your device’s font" }]} /></div>
     </ConfigSection>
 
     <ConfigSection id="cfg-layout" title="Orientation" text="Where the menu sits.">

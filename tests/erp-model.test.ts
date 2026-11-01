@@ -403,3 +403,21 @@ test("recent activity is newest first even when events were stored out of order"
   assert.deepEqual(recentActivity(state, "p1").map((event) => event.text), ["newest", "middle", "older"]);
   assert.equal(recentActivity(state, null, 2)[1].text, "other project");
 });
+
+test("saved settings from before the Studio theme move to it, but keep colours the visitor chose", () => {
+  const base = createInitialState();
+  const saved = (ui: Record<string, string>) => parseStoredState(JSON.stringify({ ...base, settings: { ...base.settings, ui } })).settings.ui;
+  const untouched = saved({ accent: "coral", density: "comfortable", corners: "rounded", sidebar: "dark", nav: "left", font: "brand" });
+  assert.equal(untouched.theme, "studio");
+  assert.equal(untouched.accent, "lavender");
+  assert.equal(untouched.sidebar, "lavender");
+  const customised = saved({ accent: "green", density: "compact", corners: "sharp", sidebar: "light", nav: "top", font: "system" });
+  assert.equal(customised.theme, "studio");
+  assert.equal(customised.accent, "green");
+  assert.equal(customised.sidebar, "light");
+  assert.equal(customised.density, "compact");
+  const classic = saved({ theme: "classic", accent: "coral", density: "comfortable", corners: "rounded", sidebar: "dark", nav: "left", font: "brand" });
+  assert.equal(classic.theme, "classic");
+  assert.equal(classic.accent, "coral");
+  assert.equal(createInitialState().settings.ui.theme, "studio");
+});

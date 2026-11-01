@@ -271,8 +271,8 @@
 .erp-activity time { color: var(--e-text-3); font-variant-numeric: tabular-nums; }
 
 /* ---------- Tabs / details ---------- */
-.erp-tabs { display: inline-flex; gap: 4px; padding: 4px; background: rgba(255, 255, 255, .6); border: 1px solid var(--e-edge); border-radius: 999px; }
-.erp-tabs button { min-height: 36px; padding: 0 16px; color: var(--e-text-2); background: transparent; border: 0; border-radius: 999px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.erp-tabs { display: inline-flex; max-width: 100%; overflow-x: auto; scrollbar-width: none; gap: 4px; padding: 4px; background: rgba(255, 255, 255, .6); border: 1px solid var(--e-edge); border-radius: 999px; }
+.erp-tabs button { flex: 0 0 auto; white-space: nowrap; min-height: 36px; padding: 0 16px; color: var(--e-text-2); background: transparent; border: 0; border-radius: 999px; font-size: 13px; font-weight: 700; cursor: pointer; }
 .erp-tabs button[aria-pressed="true"] { color: var(--e-on-accent); background: var(--e-accent); }
 .erp-detail { padding: 18px 20px; background: rgba(255, 255, 255, .45); border-top: 1px solid var(--e-border); animation: erp-in .2s ease; }
 .erp-kv { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }

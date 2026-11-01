@@ -47,10 +47,12 @@ export type TabConfig = { key: TabKey; label: string; visible: boolean };
 export type WidgetKey = "alerts" | "project" | "kpis" | "pipeline" | "orderValue" | "production" | "shopFloor" | "finance" | "stock" | "departments" | "activity";
 export type WidgetConfig = { key: WidgetKey; visible: boolean };
 export type UiSettings = {
-  accent: "coral" | "plum" | "green" | "blue" | "orange";
+  /** "studio": soft lavender (default since Nov 2026). "classic": the earlier plum and coral look. */
+  theme: "studio" | "classic";
+  accent: "lavender" | "coral" | "plum" | "green" | "blue" | "orange";
   density: "comfortable" | "compact";
   corners: "rounded" | "soft" | "sharp";
-  sidebar: "dark" | "light";
+  sidebar: "lavender" | "dark" | "light";
   nav: "left" | "right" | "top";
   font: "brand" | "system";
 };
@@ -69,7 +71,17 @@ export const WIDGET_LABELS: Record<WidgetKey, string> = {
   finance: "Revenue and receivables", stock: "Raw material stock", departments: "Departments", activity: "Recent activity",
 };
 export const DEFAULT_WIDGETS: WidgetConfig[] = (["alerts", "project", "kpis", "pipeline", "orderValue", "production", "shopFloor", "finance", "stock", "departments", "activity"] as WidgetKey[]).map((key) => ({ key, visible: true }));
-export const DEFAULT_UI: UiSettings = { accent: "coral", density: "comfortable", corners: "rounded", sidebar: "dark", nav: "left", font: "brand" };
+export const DEFAULT_UI: UiSettings = { theme: "studio", accent: "lavender", density: "comfortable", corners: "rounded", sidebar: "lavender", nav: "left", font: "brand" };
+
+/** Settings saved before the Studio theme existed: switch to it, unless the visitor had changed the old default colours. */
+function migrateUi(stored: Partial<UiSettings> | undefined): UiSettings {
+  if (!stored || stored.theme) return { ...DEFAULT_UI, ...(stored ?? {}) };
+  return {
+    ...DEFAULT_UI, ...stored, theme: "studio",
+    accent: !stored.accent || stored.accent === "coral" ? "lavender" : stored.accent,
+    sidebar: !stored.sidebar || stored.sidebar === "dark" ? "lavender" : stored.sidebar,
+  };
+}
 
 /** Value of one unit of each currency in EUR. Used to add up amounts in different currencies. */
 export type FxRates = Record<Currency, number>;
@@ -1182,7 +1194,7 @@ export function parseStoredState(raw: string | null): ErpState {
       const widgets = Array.isArray(stored.widgets) ? stored.widgets.filter((widget) => DEFAULT_WIDGETS.some((item) => item.key === widget.key)) : [];
       const settings: Settings = {
         ...base.settings, ...stored,
-        ui: { ...DEFAULT_UI, ...(stored.ui ?? {}) },
+        ui: migrateUi(stored.ui),
         tabs: [...tabs, ...DEFAULT_TABS.filter((item) => !tabs.some((tab) => tab.key === item.key)).map((tab) => ({ ...tab }))],
         widgets: [...widgets, ...DEFAULT_WIDGETS.filter((item) => !widgets.some((widget) => widget.key === item.key)).map((widget) => ({ ...widget }))],
         customFields: Array.isArray(stored.customFields) ? stored.customFields : [],
