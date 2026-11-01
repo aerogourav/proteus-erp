@@ -12,6 +12,9 @@ const empty: Inquiry = { name: "", email: "", company: "", role: "", message: ""
 export function ContactForm({ mode, contactEmail = "" }: { mode: Mode; contactEmail?: string }) {
   const [values, setValues] = useState<Inquiry>(empty);
   const [status, setStatus] = useState<Status>("idle");
+  const [limited, setLimited] = useState(false);
+  // When the form was shown: very fast submissions are treated as bots by the server.
+  const [startedAt] = useState(() => Date.now());
 
   function update(field: keyof Inquiry, value: string) {
     setValues((current) => ({ ...current, [field]: value }));
@@ -33,7 +36,8 @@ export function ContactForm({ mode, contactEmail = "" }: { mode: Mode; contactEm
     }
     setStatus("sending");
     try {
-      const response = await fetch("/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values) });
+      const response = await fetch("/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...values, startedAt }) });
+      setLimited(response.status === 429);
       if (!response.ok) throw new Error(String(response.status));
       setValues(empty);
       setStatus("sent");
@@ -56,6 +60,6 @@ export function ContactForm({ mode, contactEmail = "" }: { mode: Mode; contactEm
     <p className="b-form-note">{mode === "api" ? "We use your details only to reply to this inquiry. Please don’t include confidential drawings or data." : "Your email app will open with a prepared message for you to send. Please don’t include confidential drawings or data."} See our <a href="/privacy">privacy notice</a>.</p>
     <div><button className="b-btn b-btn-dark" type="submit" disabled={status === "sending"}>{status === "sending" ? "Sending…" : mode === "api" ? "Send message" : "Open email draft"} <ArrowRight size={18} /></button></div>
     {status === "sent" && <p role="status" className="b-form-status ok">{mode === "api" ? "Thank you. Your message has been sent and we’ll reply by email." : "Your email app should now be open. Please send the message from there."}</p>}
-    {status === "error" && <p role="alert" className="b-form-status err">Sorry, the message could not be sent. Please try again in a moment.</p>}
+    {status === "error" && <p role="alert" className="b-form-status err">{limited ? "We already received several messages from you. Please wait an hour or email us directly." : "Sorry, the message could not be sent. Please try again in a moment."}</p>}
   </form>;
 }

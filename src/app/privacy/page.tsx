@@ -19,7 +19,10 @@ export default function PrivacyPage() {
     <p>The website is hosted on Vercel. When you visit a page, the hosting provider processes technical data such as your IP address and browser information to deliver the page and keep it secure. We do not use analytics or advertising cookies.</p>
 
     <h2>Contact form</h2>
-    <p>If you send a message, we receive your name, email, company, optional role and your message, and use them only to reply and discuss your inquiry. Messages are delivered by email through the service Resend. If the form opens your own email app instead, the message is sent by your email provider. We delete inquiries that do not lead to a business relationship when they are no longer needed.</p>
+    <p>If you send a message, we receive your name, email, company, optional role and your message, and use them only to reply and discuss your inquiry. Messages are stored in our database at Supabase (servers in Frankfurt, Germany) and may also be delivered to us by email through the service Resend. If the form opens your own email app instead, the message is sent by your email provider. We delete inquiries that do not lead to a business relationship when they are no longer needed.</p>
+
+    <h2>Signing in to the app</h2>
+    <p>If you create an account in the BOH ERP app, we store your email address and the company records you enter at Supabase (servers in Frankfurt, Germany). Sign-in works with a one-time link sent to your email; we do not store a password. Each company’s records are visible only to its members.</p>
 
     <h2>The demo</h2>
     <p>The demo shows a fictional company with synthetic records. Anything you change or create in the demo is stored only in your own browser:</p>

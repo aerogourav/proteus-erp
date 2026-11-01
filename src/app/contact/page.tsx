@@ -5,12 +5,14 @@ import { ContactForm } from "@/components/marketing/contact-form";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { siteConfig } from "@/lib/site-config";
+import { supabaseConfigured } from "@/lib/supabase/config";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata("Contact", "Tell BOH ERP about the workflow you want to improve and book a short workflow call.", "/contact");
 
 export default function ContactPage() {
-  const apiReady = Boolean(process.env.RESEND_API_KEY && process.env.CONTACT_TO_EMAIL);
+  // Inquiries are saved as leads in Supabase and/or emailed through Resend (see /api/contact).
+  const apiReady = supabaseConfigured() || Boolean(process.env.RESEND_API_KEY && process.env.CONTACT_TO_EMAIL);
   const mode = apiReady ? "api" : siteConfig.contactEmail ? "mailto" : null;
 
   return <div className="b-site"><SiteHeader /><main id="top" className="b-page"><div className="b-wrap b-page-grid">

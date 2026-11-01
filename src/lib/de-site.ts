@@ -127,6 +127,7 @@ export const deSiteTranslations: [string, string][] = [
   ["Is BOH ERP ready to use today?", "Ist BOH ERP heute schon einsatzbereit?"],
   ["Not yet as a production system. Today there is an interactive demo with synthetic data. We are looking for first pilot customers to shape the production version with us.", "Noch nicht als Produktivsystem. Heute gibt es eine interaktive Demo mit synthetischen Daten. Wir suchen erste Pilotkunden, die die Produktivversion mit uns gestalten."],
   ["Who is it for?", "Für wen ist es gedacht?"],
+  ["Signing in to the app", "Anmeldung in der App"],
   ["Startups and small businesses that have outgrown spreadsheets. Our first focus is manufacturing and precision engineering, but the platform is built to support other industries.", "Für Start-ups und kleine Unternehmen, denen Tabellen nicht mehr reichen. Unser erster Fokus liegt auf Fertigung und Präzisionstechnik, die Plattform ist aber auch für andere Branchen ausgelegt."],
   ["What does it cost?", "Was kostet es?"],
   ["A one-time implementation fee plus a monthly subscription. Both depend on the scope of your workflows, so we agree them after the first conversation, before any work starts.", "Eine einmalige Einführungsgebühr plus ein monatliches Abonnement. Beides hängt vom Umfang Ihrer Abläufe ab und wird nach dem ersten Gespräch vereinbart, bevor die Arbeit beginnt."],

@@ -446,3 +446,32 @@ begin
   end loop;
 end;
 $$;
+
+/* ============================== API access ============================== */
+
+-- The project does not expose new tables automatically, so access is granted here explicitly:
+-- signed-in users (authenticated) reach tables only through the row-level security policies above;
+-- signed-out visitors (anon) get no table access and cannot call any function.
+revoke all on all tables in schema public from anon;
+revoke execute on all functions in schema public from public;
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'revoke execute on all functions in schema public from anon';
+  end if;
+end;
+$$;
+
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on
+  public.companies, public.memberships, public.people, public.people_pay, public.contacts, public.items, public.warehouses,
+  public.projects, public.sales_documents, public.sales_lines, public.purchase_documents, public.purchase_lines, public.payments, public.files
+  to authenticated;
+-- Ledgers: read and append only, at the privilege level too.
+grant select, insert on public.stock_moves, public.activity_log to authenticated;
+grant select on public.stock_levels to authenticated;
+grant usage on all sequences in schema public to authenticated;
+grant execute on function
+  public.has_role(uuid, text[]), public.is_member(uuid), public.can_write(uuid), public.is_admin(uuid),
+  public.create_company(text, text, boolean), public.next_number(uuid, text, text), public.stamp_actor()
+  to authenticated;

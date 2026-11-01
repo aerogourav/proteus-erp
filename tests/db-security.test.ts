@@ -18,10 +18,10 @@ const SUPABASE_STANDIN = `
   -- Like Supabase: API roles get execute on every new function in public, granted explicitly.
   alter default privileges in schema public grant execute on functions to anon, authenticated;
 `;
+// Like a Supabase project with "Automatically expose new tables" off: only the auth schema is reachable;
+// all table access must come from the migration's own grants.
 const GRANTS = `
-  grant usage on schema public, auth to authenticated, anon;
-  grant select, insert, update, delete on all tables in schema public to authenticated, anon;
-  grant usage on all sequences in schema public to authenticated, anon;
+  grant usage on schema auth to authenticated, anon;
 `;
 
 const A = "00000000-0000-4000-8000-00000000000a";
@@ -72,8 +72,8 @@ test("a record cannot point at another company's record, even with a known id", 
 test("signed-out visitors (anon) see nothing and cannot create companies", async () => {
   await db.exec("set role anon; select set_config('request.jwt.claim.sub', '', false);");
   try {
-    assert.equal(await count("select * from public.companies"), 0);
-    assert.equal(await count("select * from public.contacts"), 0);
+    await fails("select * from public.companies");
+    await fails("select * from public.contacts");
     await fails("select public.create_company('Anon Ltd', 'saas')");
     await fails("select public.purge_expired_demos()");
   } finally { await db.exec("reset role;"); }
@@ -114,10 +114,10 @@ test("the activity log is append-only and always names the real user", async () 
   await as(A, () => db.query("insert into public.activity_log (company_id, module, action, summary, actor) values ($1, 'sales', 'create', 'Quote created', $2)", [companyA, B]));
   const row = await as(A, () => one<{ actor: string }>("select actor from public.activity_log where company_id = $1", [companyA]));
   assert.equal(row!.actor, A);
-  const edited = await as(A, async () => (await db.query("update public.activity_log set summary = 'rewritten'")).affectedRows);
-  const removed = await as(A, async () => (await db.query("delete from public.activity_log")).affectedRows);
-  assert.equal(edited, 0);
-  assert.equal(removed, 0);
+  // Refused at the privilege level, before row-level security is even consulted.
+  await as(A, () => fails("update public.activity_log set summary = 'rewritten'"));
+  await as(A, () => fails("delete from public.activity_log"));
+  assert.equal(await count("select * from public.activity_log where summary = 'Quote created'"), 1);
 });
 
 test("stock is a ledger and stock levels respect company isolation", async () => {
@@ -127,7 +127,7 @@ test("stock is a ledger and stock levels respect company isolation", async () =>
     await db.query("insert into public.stock_moves (company_id, item_id, warehouse_id, quantity, reason) values ($1, $2, $3, 12, 'receipt'), ($1, $2, $3, -4.5, 'issue')", [companyA, item, wh]);
     const level = await one<{ on_hand: string }>("select on_hand from public.stock_levels where item_id = $1", [item]);
     assert.equal(Number(level!.on_hand), 7.5);
-    assert.equal((await db.query("update public.stock_moves set quantity = 100")).affectedRows, 0);
+    await fails("update public.stock_moves set quantity = 100");
   });
   assert.equal(await as(B, () => count("select * from public.stock_levels")), 0);
 });
@@ -141,4 +141,20 @@ test("expired demo companies are purged with all their data; users cannot trigge
   assert.equal(purged!.n, 1);
   assert.equal(await count("select * from public.contacts where company_id = $1", [demo]), 0);
   assert.equal(await count("select * from public.companies where id = $1", [companyA]), 1);
+});
+
+test("website leads: visitors can submit but nobody can read them through the API; repeats are limited", async () => {
+  const submit = (email: string) => db.query<{ ok: boolean }>("select public.submit_lead('Ada', $1, 'Analytical Engines', 'Owner', 'Our orders live in spreadsheets.') as ok", [email]);
+  await db.exec("set role anon; select set_config('request.jwt.claim.sub', '', false);");
+  try {
+    assert.equal((await submit("ada@example.com")).rows[0]!.ok, true);
+    assert.equal((await submit("ADA@example.com")).rows[0]!.ok, true);
+    assert.equal((await submit("ada@example.com")).rows[0]!.ok, true);
+    assert.equal((await submit("ada@example.com")).rows[0]!.ok, false, "4th from the same address within an hour is refused");
+    await assert.rejects(submit("not-an-email"));
+    await fails("select * from public.leads");
+    await fails("delete from public.leads");
+  } finally { await db.exec("reset role;"); }
+  assert.equal(await as(A, () => count("select * from public.leads").catch(() => -1)), -1, "signed-in users cannot read leads either");
+  assert.equal(await count("select * from public.leads"), 3, "the owner sees them in the dashboard (as admin)");
 });
