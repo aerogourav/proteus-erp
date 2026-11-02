@@ -1,5 +1,9 @@
 /* BOH ERP website design system (marketing pages). Demo workspace keeps its own module styles. */
 :root {
+  /* Font families bundled with the site (see src/app/layout.tsx). Space Grotesk + Manrope: classic look; Nunito: Studio. */
+  --font-display: "Space Grotesk Variable";
+  --font-body: "Manrope Variable";
+  --font-studio: "Nunito Variable";
   --b-ink: #1F0E18;
   --b-ink-2: #2B1522;
   --b-ink-3: #3B2030;

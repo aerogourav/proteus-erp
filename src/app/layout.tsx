@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Manrope, Nunito, Space_Grotesk } from "next/font/google";
+// Fonts ship with the site (Fontsource, SIL Open Font License): builds never download from Google,
+// and visitors' browsers load them from this site only.
+import "@fontsource-variable/space-grotesk";
+import "@fontsource-variable/manrope";
+import "@fontsource-variable/nunito";
 import { siteConfig } from "@/lib/site-config";
 import { LanguageProvider } from "@/components/language-provider";
 import "./globals.css";
 import "./site.css";
-
-const display = Space_Grotesk({ subsets: ["latin"], weight: ["400", "500", "700"], variable: "--font-display", display: "swap" });
-const body = Manrope({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-body", display: "swap" });
-// Studio typeface for the website and the ERP demo; Space Grotesk + Manrope remain for the classic ERP theme.
-const studio = Nunito({ subsets: ["latin", "latin-ext"], weight: ["400", "500", "600", "700", "800"], variable: "--font-studio", display: "swap" });
 
 export const metadata: Metadata = {
   metadataBase: siteConfig.publicUrl ? new URL(siteConfig.publicUrl) : undefined,
@@ -20,7 +19,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" data-scroll-behavior="smooth" className={`${display.variable} ${body.variable} ${studio.variable}`}>
+    <html lang="en" data-scroll-behavior="smooth">
       <body><LanguageProvider>{children}</LanguageProvider></body>
     </html>
   );
