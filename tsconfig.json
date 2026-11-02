@@ -39,7 +39,9 @@
     ".next-proteus-check-live2/types/**/*.ts",
     ".next-proteus-check-live2/dev/types/**/*.ts",
     ".next-proteus-run/types/**/*.ts",
-    ".next-proteus-run/dev/types/**/*.ts"
+    ".next-proteus-run/dev/types/**/*.ts",
+    ".next-build-check/types/**/*.ts",
+    ".next-build-check/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

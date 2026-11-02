@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { LogOut } from "lucide-react";
 import { BohMark } from "@/components/brand/boh-logo";
@@ -31,6 +32,8 @@ function Top({ email, company, role }: { email?: string; company?: Company; role
 }
 
 async function Workspace() {
+  // Always rendered per request (session, live data); never part of the prerendered shell.
+  await connection();
   if (!supabaseConfigured()) return <>
     <Top />
     <div className="app-narrow erp-card erp-card-pad erp-stack">

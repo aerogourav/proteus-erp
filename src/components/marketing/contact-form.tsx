@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight } from "lucide-react";
 
 type Mode = "api" | "mailto";
@@ -13,8 +13,9 @@ export function ContactForm({ mode, contactEmail = "" }: { mode: Mode; contactEm
   const [values, setValues] = useState<Inquiry>(empty);
   const [status, setStatus] = useState<Status>("idle");
   const [limited, setLimited] = useState(false);
-  // When the form was shown: very fast submissions are treated as bots by the server.
-  const [startedAt] = useState(() => Date.now());
+  // When the form was shown (set in the browser, not during prerender): very fast submissions are treated as bots.
+  const startedAt = useRef(0);
+  useEffect(() => { startedAt.current = Date.now(); }, []);
 
   function update(field: keyof Inquiry, value: string) {
     setValues((current) => ({ ...current, [field]: value }));
@@ -36,7 +37,7 @@ export function ContactForm({ mode, contactEmail = "" }: { mode: Mode; contactEm
     }
     setStatus("sending");
     try {
-      const response = await fetch("/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...values, startedAt }) });
+      const response = await fetch("/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...values, startedAt: startedAt.current }) });
       setLimited(response.status === 429);
       if (!response.ok) throw new Error(String(response.status));
       setValues(empty);
