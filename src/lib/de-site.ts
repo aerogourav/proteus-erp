@@ -351,6 +351,9 @@ export const deSiteTranslations: [string, string][] = [
   ["€35.36 per piece · 22% margin", "35,36 € pro Stück · 22 % Marge"],
   // New project-centred demo (homepage)
   ["See Demo", "Demo ansehen"],
+  ["BOH ERP in two minutes", "BOH ERP in zwei Minuten"],
+  ["From scattered spreadsheets to one connected workflow.", "Von verstreuten Tabellen zu einem verbundenen Ablauf."],
+  ["English voiceover · subtitles available in the player", "Englischer Sprecher · Untertitel im Player verfügbar"],
   ["One project. One source of truth.", "Ein Projekt. Eine verlässliche Datenquelle."],
   ["Create a project once and see how BOH ERP connects its information across sales, engineering, procurement, production, quality and dispatch.", "Legen Sie ein Projekt einmal an und sehen Sie, wie BOH ERP die Informationen über Vertrieb, Technik, Einkauf, Fertigung, Qualität und Versand verbindet."],
   ["See all industry demos", "Alle Branchen-Demos ansehen"],

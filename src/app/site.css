@@ -365,3 +365,10 @@
 @media (prefers-reduced-transparency: reduce) {
   .b-site .b-header { background: #F7F4FE; }
 }
+
+/* Product film (homepage, below the hero) */
+.b-film-wrap { text-align: center; }
+.b-film-wrap .b-h2 { margin-inline: auto; }
+.b-film { display: block; width: 100%; max-width: 1040px; aspect-ratio: 16 / 9; margin: 28px auto 0; background: #2F2766; border-radius: 28px; box-shadow: 0 40px 90px -40px rgba(72, 50, 170, .55), 0 0 0 8px rgba(255, 255, 255, .6); }
+.b-site .b-film-wrap .b-fineprint { color: var(--b-muted); }
+@media (max-width: 640px) { .b-film { border-radius: 18px; box-shadow: 0 24px 50px -28px rgba(72, 50, 170, .55), 0 0 0 5px rgba(255, 255, 255, .6); } }

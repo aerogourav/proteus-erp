@@ -100,6 +100,19 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="b-section" id="film" aria-labelledby="film-title">
+        <div className="b-wrap b-film-wrap">
+          <span className="b-kicker">BOH ERP in two minutes</span>
+          <h2 className="b-h2" id="film-title">From scattered spreadsheets to one connected workflow.</h2>
+          {/* Hosted with the site (no third-party player or cookies); nothing downloads until someone presses play. */}
+          <video className="b-film" controls playsInline preload="none" poster="/video/boh-erp-film-poster.jpg" aria-label="BOH ERP product film, 1 minute 51 seconds, with English voiceover">
+            <source src="/video/boh-erp-film.mp4" type="video/mp4" />
+            <track kind="captions" src="/video/boh-erp-film.en.vtt" srcLang="en" label="English" />
+          </video>
+          <p className="b-fineprint">English voiceover · subtitles available in the player</p>
+        </div>
+      </section>
+
       <section className="b-section" aria-labelledby="problem-title">
         <div className="b-wrap">
           <span className="b-kicker">The problem</span>
