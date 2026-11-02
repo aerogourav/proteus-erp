@@ -134,7 +134,7 @@ export default function Home() {
             <h2 className="b-h2" id="demo-title">One project. One source of truth.</h2>
             <p className="b-lead">Create a project once and see how BOH ERP connects its information across sales, engineering, procurement, production, quality and dispatch.</p>
             <ol className="b-story" style={{ marginTop: 28 }}>{story.map(([title, body], index) => <li key={title} className="b-reveal"><span className="b-story-num">{index + 1}</span><div><strong>{title}</strong><span>{body}</span></div></li>)}</ol>
-            <div className="b-hero-actions"><Link className="b-btn b-btn-dark" href="/demo">Try the guided demo <ArrowRight size={18} /></Link><Link className="b-btn b-btn-ghost" href="/demo/classic/journey">Watch an order journey</Link></div>
+            <div className="b-hero-actions"><Link className="b-btn b-btn-dark" href="/demo">Try the guided demo <ArrowRight size={18} /></Link><Link className="b-btn b-btn-ghost" href="/demo/start">See all industry demos</Link></div>
           </div>
           <div className="b-window b-reveal" role="img" aria-label="Preview of the BOH ERP demo workspace with production orders and their document checks">
             <div className="b-window-bar" aria-hidden="true"><i /><i /><i /><span>BOH ERP · Demo workspace</span></div>

@@ -353,7 +353,7 @@ export const deSiteTranslations: [string, string][] = [
   ["See Demo", "Demo ansehen"],
   ["One project. One source of truth.", "Ein Projekt. Eine verlässliche Datenquelle."],
   ["Create a project once and see how BOH ERP connects its information across sales, engineering, procurement, production, quality and dispatch.", "Legen Sie ein Projekt einmal an und sehen Sie, wie BOH ERP die Informationen über Vertrieb, Technik, Einkauf, Fertigung, Qualität und Versand verbindet."],
-  ["Watch an order journey", "Einen Auftragsdurchlauf ansehen"],
+  ["See all industry demos", "Alle Branchen-Demos ansehen"],
   ["Enter it once", "Einmal erfassen"],
   ["Create a project in a short guided form: customer, purchase order, line items, documents, inspection and materials.", "Legen Sie ein Projekt in einem kurzen, geführten Formular an: Kunde, Bestellung, Positionen, Dokumente, Prüfung und Material."],
   ["Watch it connect", "Zusehen, wie alles verknüpft wird"],
