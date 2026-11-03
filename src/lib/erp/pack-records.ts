@@ -13,7 +13,7 @@ export function ensureCustomer(state: ErpState, name: string, contact: string, n
 /** A customer invoice that is not tied to a manufacturing project (shop orders, subscriptions). */
 export function issueInvoice(state: ErpState, input: { customerId: string; lines: InvoiceLine[]; issuedAt: string; paid?: boolean; paidAt?: string }): { state: ErpState; id: string } {
   const [id, next] = nextId(state, "inv");
-  const number = numberFor("INV-2026-", next.invoices.map((item) => item.number), 501);
+  const number = numberFor(`INV-${input.issuedAt.slice(0, 4)}-`, next.invoices.map((item) => item.number), 501);
   const subtotal = round2(input.lines.reduce((sum, line) => sum + line.amount, 0));
   const taxRate = next.settings.taxRate;
   const tax = round2((subtotal * taxRate) / 100);

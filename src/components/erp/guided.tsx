@@ -6,16 +6,17 @@ import { ArrowLeft, ArrowRight, Boxes, CheckCircle2, CircleDashed, Factory, File
 import { BohMark } from "@/components/brand/boh-logo";
 import { commit, getState, nowIso, resetDemo, todayIso, useErp, useHydrated } from "@/components/erp/store";
 import { Badge, Field } from "@/components/erp/ui";
-import { DRAWING_ACCEPT, StatusSelect } from "@/components/erp/edit";
+import { DRAWING_ACCEPT } from "@/components/erp/edit";
 import { formatBytes, hasContent, storeUpload } from "@/components/erp/file-store";
 import { InspectionForm } from "@/components/erp/inspection-form";
 import { MAX_PARTS, guideSteps, workStepCount, type GuideStep, type StepKind } from "@/components/erp/guide-steps";
 import {
   UNITS, advanceProcurement, createProductionOrder, createProjectFromDraft, dispatchProject, firstInvalidStep, formatDate,
-  formatMoney, generateInvoice, isProductionComplete, lineEngineeringReady, setProductionStatus, lineMaterialReady, newDraft, parseAmount, partNumber,
+  formatMoney, generateInvoice, isProductionComplete, lineEngineeringReady, completionBlocker, releaseGate, lineMaterialReady, newDraft, parseAmount, partNumber,
   projectRecords, readiness, reuseCatalog, revisionLabel, validateStep,
   type DraftLine, type ErpState, type ProjectDraft,
 } from "@/lib/erp/model";
+import { recordRemainingOperations } from "@/lib/erp/shopfloor";
 
 type Dept = "crm" | "sales" | "project" | "parts" | "engineering" | "quality" | "purchasing" | "production" | "dispatch" | "finance";
 
@@ -221,7 +222,7 @@ const TITLES: Record<Exclude<StepKind, "welcome" | "done">, { title: string; lea
   review: { title: "Check and create the project", lead: "Everything below becomes one project record. Nothing is saved until you create it." },
   purchase: { title: "Purchase recommendations", lead: "Based on the material for each part, BOH ERP recommends what to buy. Ordering is optional here; you can order and receive later in the Purchasing tab." },
   "production-order": { title: "Create production orders", lead: "Choose a part, confirm the quantity and add the details for the shop floor. Repeat for every part." },
-  "run-production": { title: "Run production", lead: "Start each production order and mark it complete when the parts are made." },
+  "run-production": { title: "Run production", lead: "Each order starts once its drawing is approved and its material is in stock, and completes when every operation is booked on the shop floor." },
   inspect: { title: "Final inspection", lead: "Record the result for each parameter. The inspection report is generated from it in the Quality tab." },
   dispatch: { title: "Ship the order", lead: "Dispatch is possible when production is complete and the final inspection has passed." },
   invoice: { title: "Create the invoice", lead: "The invoice uses the quantities and prices on the order. Nothing is typed again." },
@@ -583,7 +584,7 @@ function WorkStep({ current, step, state }: { current: GuideStep; step: number; 
         </div>
         <Field id="g-mo-notes" label="Details for the shop floor (optional)" help="For example: CNC cell 2, first-off inspection after setup"><input className="erp-input" id="g-mo-notes" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></Field>
         <Checks items={[["Drawing", lineEngineeringReady(state, projectId, selected), lineEngineeringReady(state, projectId, selected) ? "Approved" : "Not approved yet"], ["Material", lineMaterialReady(state, selected), lineMaterialReady(state, selected) ? "Received" : "Not received yet"]]} />
-        <p className="erp-faint">Warnings only. Approvals and goods receipt can happen later in their tabs.</p>
+        <p className="erp-faint">You can create the order now. It can only start once the drawing is approved for this revision and the material is in stock.</p>
         <div><button type="button" className="erp-btn erp-btn-dark" onClick={create}>Create production order</button></div>
       </div> : <p className="erp-done"><CheckCircle2 size={18} /> Every part has a production order.</p>}
     </>;
@@ -591,13 +592,20 @@ function WorkStep({ current, step, state }: { current: GuideStep; step: number; 
   }
 
   if (current.kind === "run-production") {
+    const signedIn = state.employees.find((item) => item.id === state.currentUserId) ?? null;
     body = <>
-      <ul className="erp-recs">{r.productionOrders.map((order) => <li key={order.id}>
-        <Factory size={18} />
-        <span><b>{order.number}</b><small>{order.quantity} × {lineLabel(order.lineItemId)}</small></span>
-        <StatusSelect key={order.status} id={`g-st-${order.id}`} label={`Status of ${order.number}`} value={order.status} onChange={(status) => run((value) => setProductionStatus(value, order.id, status, now))} />
-      </li>)}</ul>
-      <p className="erp-faint">Choose any status, or type your own. Update it any time in the Production tab. Final inspection and dispatch need every order on “Completed”.</p>
+      <ul className="erp-recs">{r.productionOrders.map((order) => {
+        const closed = isProductionComplete(order.status);
+        const gate = closed ? null : releaseGate(state, order);
+        const finish = closed ? null : completionBlocker(state, order.id);
+        const busy = state.activeOps.some((item) => item.orderId === order.id);
+        return <li key={order.id}>
+          <Factory size={18} />
+          <span><b>{order.number}</b><small>{order.quantity} × {lineLabel(order.lineItemId)} · {order.status}</small>{gate ? <small className="erp-error">{gate}</small> : finish ? <small>{finish}</small> : null}</span>
+          {!closed && <button type="button" className="erp-btn erp-btn-sm" disabled={Boolean(gate) || !signedIn || busy} onClick={() => run((value) => recordRemainingOperations(value, order.id, now))}>Book all operations</button>}
+        </li>;
+      })}</ul>
+      <p className="erp-faint">“Book all operations” records each routing operation for {signedIn ? signedIn.name : "the person signed in"} through the same shop-floor rules, so an order only completes with real bookings. Use the Shop floor tab to book partial quantities, scrap or several operators.{!signedIn ? " Choose who you are on the Shop floor first." : ""}</p>
     </>;
   }
 

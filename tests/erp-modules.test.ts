@@ -28,7 +28,7 @@ function project(state: ErpState): { state: ErpState; projectId: string } {
 }
 
 function withPeople(state: ErpState) {
-  state = saveEmployee(state, null, { code: "E-1", name: "Ana Op", role: "Machinist", department: "Production", email: "", hourlyRate: 30, monthlySalary: 3000, pay: "salary", active: true }, NOW);
+  state = saveEmployee(state, null, { code: "E-1", name: "Ana Op", role: "Machinist", access: "admin", department: "Production", email: "", hourlyRate: 30, monthlySalary: 3000, pay: "salary", active: true }, NOW);
   state = saveEmployee(state, null, { code: "E-2", name: "Ben Op", role: "Machinist", department: "Production", email: "", hourlyRate: 24, monthlySalary: 0, pay: "hourly", active: true }, NOW);
   return state;
 }
@@ -47,10 +47,15 @@ test("shop floor: operations start and end in sequence and write a complete log"
   const order = projectRecords(state, projectId).productionOrders[0];
   assert.equal(currentOperation(state, order)?.seq, 10, "routing sorted, first operation offered");
   assert.equal(startBlocker(state, order.id, null), "Choose who you are first.");
+  assert.match(startBlocker(state, order.id, ana.id) ?? "", /not approved/, "release gate");
+  state = setCurrentUser(state, ana.id);
+  state = approveDocument(state, projectRecords(state, projectId).documents[0].id, NOW);
+  state = saveRawMaterial(state, null, { name: "Steel bar", unit: "kg", stock: 5, reorderLevel: 0, unitCost: 2, supplierId: null }, NOW);
 
   state = startOperation(state, order.id, ana.id, "2026-10-29T06:00:00.000Z");
   assert.equal(state.productionOrders[0].status, "Running");
-  assert.ok(startBlocker(state, order.id, ben.id), "one running operation per order");
+  assert.equal(startBlocker(state, order.id, ben.id, 20), "No parts are waiting at Op 20 Milling yet.");
+  assert.equal(startBlocker(state, order.id, ben.id), null, "a second operator may join the same operation");
   assert.ok(endBlocker(state, state.activeOps[0].id, { qtyGood: 0, qtyScrap: 0, notes: "" }), "quantities required");
   state = endOperation(state, state.activeOps[0].id, { qtyGood: 10, qtyScrap: 0, notes: "" }, "2026-10-29T06:25:00.000Z");
   assert.equal(state.opLogs[0].minutes, 25);
@@ -76,22 +81,25 @@ test("shop floor: operations start and end in sequence and write a complete log"
   assert.ok(csv[2].includes("E-2") && csv[2].includes("Ben Op") && csv[2].includes("SF-1") && csv[2].includes("Milling") && csv[2].includes(order.number));
 
   // Short quantity blocks dispatch: 9 good of 10 ordered.
-  state = approveDocument(state, projectRecords(state, projectId).documents[0].id, NOW);
-  state = generateInspectionReport(state, projectId, NOW);
+  const req = projectRecords(state, projectId).inspectionRequirements[0];
+  state = generateInspectionReport(state, projectId, NOW, { [req.id]: { observed: "100.05", result: "pass", sampleSize: 3, gaugeId: "CAL-2" } });
   assert.ok(readiness(state, projectId).dispatch.reasons.some((reason) => reason.text.startsWith("Short quantity")));
   assert.equal(dispatchProject(state, projectId, NOW), state);
 });
 
-test("production start issues material from stock once, and logs shortages", () => {
+test("production cannot start with material short; once stocked, start issues material once", () => {
   let { state, projectId } = project(createInitialState());
+  state = approveDocument(state, projectRecords(state, projectId).documents[0].id, NOW);
   state = saveRawMaterial(state, null, { name: "Steel bar", unit: "kg", stock: 3, reorderLevel: 0, unitCost: 2, supplierId: null }, NOW);
   state = createProductionOrder(state, projectRecords(state, projectId).lineItems[0].id, NOW);
   const order = projectRecords(state, projectId).productionOrders[0];
+  assert.equal(setProductionStatus(state, order.id, "Running", NOW), state, "3 of 5 kg is not enough");
+  state = saveRawMaterial(state, state.rawMaterials[0].id, { name: "Steel bar", unit: "kg", stock: 6, reorderLevel: 0, unitCost: 2, supplierId: null }, NOW);
   state = setProductionStatus(state, order.id, "Running", NOW);
-  assert.equal(state.rawMaterials[0].stock, 0);
-  assert.ok(state.activity[0].text.includes("2 kg short"));
-  state = setProductionStatus(state, order.id, "In process", NOW);
-  assert.equal(state.rawMaterials[0].stock, 0, "issued only once");
+  assert.equal(state.rawMaterials[0].stock, 1);
+  state = setProductionStatus(state, order.id, "On hold", NOW);
+  state = setProductionStatus(state, order.id, "Running", NOW);
+  assert.equal(state.rawMaterials[0].stock, 1, "issued only once");
 });
 
 test("activity and approvals record who did it; delete project removes its records", () => {

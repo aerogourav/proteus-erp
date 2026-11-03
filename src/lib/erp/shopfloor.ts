@@ -3,9 +3,12 @@
  * Pure functions over ErpState, unit-tested with `node --test`.
  */
 import {
-  isProductionComplete, issueMaterial, log, nextId, partNumber, revisionLabel, round2, touch,
-  type Employee, type ErpState, type OperationDef, type OpLog, type ProductionOrder,
+  DEFAULT_ROUTING, completeOrder, completionBlocker, isProductionComplete, issueMaterial, jobCost, log, logLabourCost, nextId, operationProgress, orderRouting, partNumber,
+  releaseGate, revisionLabel, round2, routingFor, touch,
+  type Employee, type ErpState, type OpLog, type OperationDef, type OpProgress, type ProductionOrder,
 } from "./model.ts";
+
+export { DEFAULT_ROUTING, orderRouting, routingFor };
 
 /* ============================== People ============================== */
 
@@ -28,7 +31,7 @@ export function saveEmployee(state: ErpState, id: string | null, input: Employee
   if (!name || !/^[A-Z0-9][A-Z0-9-]{1,15}$/.test(code)) return state;
   if (!(input.hourlyRate >= 0) || !(input.monthlySalary >= 0)) return state;
   if (state.employees.some((item) => item.id !== id && item.code.toUpperCase() === code)) return state;
-  const record = { code, name, role: input.role.trim(), department: input.department.trim(), email: input.email.trim(), hourlyRate: round2(input.hourlyRate), monthlySalary: round2(input.monthlySalary), pay: input.pay, active: input.active };
+  const record = { code, name, role: input.role.trim(), department: input.department.trim(), email: input.email.trim(), hourlyRate: round2(input.hourlyRate), monthlySalary: round2(input.monthlySalary), pay: input.pay, active: input.active, ...(input.access ? { access: input.access } : {}) };
   if (id) {
     if (!state.employees.some((item) => item.id === id)) return state;
     return log({ ...state, employees: touch(state.employees, id, (item) => ({ ...item, ...record })) }, now, "people", `Employee ${code} ${name} updated`, null);
@@ -61,17 +64,6 @@ export const OPERATION_LIBRARY: Omit<OperationDef, "seq">[] = [
   { name: "Washing and packing", workCenter: "PACK-01", setupMin: 5, runMinPerPc: 0.5 },
 ];
 
-export const DEFAULT_ROUTING: OperationDef[] = [
-  { seq: 10, name: "Saw cutting", workCenter: "SAW-01", setupMin: 10, runMinPerPc: 1.5 },
-  { seq: 20, name: "CNC milling", workCenter: "MILL-03", setupMin: 45, runMinPerPc: 6 },
-  { seq: 30, name: "Deburring", workCenter: "BENCH-01", setupMin: 5, runMinPerPc: 1.5 },
-  { seq: 40, name: "Final inspection", workCenter: "QA-01", setupMin: 10, runMinPerPc: 1.2 },
-];
-
-export function routingFor(state: ErpState, partId: string): OperationDef[] {
-  return state.routings.find((item) => item.partId === partId)?.operations ?? DEFAULT_ROUTING;
-}
-
 export function hasOwnRouting(state: ErpState, partId: string) {
   return state.routings.some((item) => item.partId === partId);
 }
@@ -99,75 +91,78 @@ export function saveRouting(state: ErpState, partId: string, operations: Operati
   return log({ ...state, routings }, now, "parts", `Routing for ${partNumber(state, partId)} saved · ${clean.length} operations`, null);
 }
 
-/** The routing a production order follows: frozen when its first operation starts. */
-export function orderRouting(state: ErpState, order: ProductionOrder): OperationDef[] {
-  return order.routing ?? routingFor(state, order.partId);
-}
-
 export const plannedMinutes = (op: OperationDef, quantity: number) => round2(op.setupMin + op.runMinPerPc * quantity);
 
 /* ============================== Operations ============================== */
 
-export type OpStatus = "done" | "running" | "next" | "waiting";
-export type OrderOperation = OperationDef & { status: OpStatus; logs: OpLog[]; active: ErpState["activeOps"][number] | null; planned: number };
+/** done: everything that can arrive is booked; partial: some booked, more to do; next: first one to work on; waiting: nothing has arrived yet. */
+export type OpStatus = "done" | "running" | "partial" | "next" | "waiting";
+export type OrderOperation = OpProgress & { status: OpStatus; logs: OpLog[]; active: ErpState["activeOps"][number] | null; actives: ErpState["activeOps"]; planned: number };
 
 export function orderOperations(state: ErpState, order: ProductionOrder): OrderOperation[] {
-  const routing = orderRouting(state, order);
   let nextFound = false;
-  return routing.map((op) => {
+  return operationProgress(state, order).map((op) => {
     const logs = state.opLogs.filter((entry) => entry.orderId === order.id && entry.seq === op.seq);
-    const active = state.activeOps.find((item) => item.orderId === order.id && item.seq === op.seq) ?? null;
+    const actives = state.activeOps.filter((item) => item.orderId === order.id && item.seq === op.seq);
     let status: OpStatus;
-    if (logs.length) status = "done";
-    else if (active) { status = "running"; nextFound = true; }
-    else if (!nextFound && !isProductionComplete(order.status)) { status = "next"; nextFound = true; }
+    if (op.done) status = "done";
+    else if (actives.length) status = "running";
+    else if (op.booked > 0) status = "partial";
+    else if (!nextFound && !isProductionComplete(order.status) && op.remaining > 0) status = "next";
     else status = "waiting";
-    return { ...op, status, logs, active, planned: plannedMinutes(op, order.quantity) };
+    if (status !== "done" && status !== "waiting") nextFound = true;
+    return { ...op, status, logs, active: actives[0] ?? null, actives, planned: plannedMinutes(op, order.quantity) };
   });
 }
 
-/** The operation that should be worked on now: the running one, or the first one not done. */
+/** The operation to work on by default: the first one with parts waiting. Later operations may start on parts already done (split work). */
 export function currentOperation(state: ErpState, order: ProductionOrder): OrderOperation | null {
-  return orderOperations(state, order).find((op) => op.status === "running" || op.status === "next") ?? null;
+  return orderOperations(state, order).find((op) => !op.done && op.remaining > 0) ?? null;
 }
 
-/** Quantity that arrives at an operation: good parts of the previous one, or the order quantity. */
+/** Parts that have arrived at an operation so far: good parts of the previous one, or the order quantity. */
 export function incomingQuantity(state: ErpState, order: ProductionOrder, seq: number) {
-  const routing = orderRouting(state, order).filter((op) => op.seq < seq);
-  if (!routing.length) return order.quantity;
-  const prev = routing[routing.length - 1].seq;
-  const logs = state.opLogs.filter((entry) => entry.orderId === order.id && entry.seq === prev);
-  return logs.length ? logs.reduce((sum, entry) => sum + entry.qtyGood, 0) : order.quantity;
+  return operationProgress(state, order).find((op) => op.seq === seq)?.incoming ?? order.quantity;
 }
 
-/** Why an operator cannot start the next operation of an order, or null when they can. */
-export function startBlocker(state: ErpState, orderId: string, employeeId: string | null): string | null {
+/**
+ * Why an operator cannot start work on an order, or null when they can.
+ * The release gate applies to every start, so a revised drawing stops further operations.
+ * Several operators may work on the same order and operation at once; one person runs one operation at a time.
+ */
+export function startBlocker(state: ErpState, orderId: string, employeeId: string | null, seq?: number): string | null {
   const order = state.productionOrders.find((item) => item.id === orderId);
   if (!order) return "Production order not found.";
   if (isProductionComplete(order.status)) return `${order.number} is already completed.`;
+  if (order.status === "On hold") return `${order.number} is on hold.`;
   const employee = employeeById(state, employeeId);
   if (!employee) return "Choose who you are first.";
   if (!employee.active) return `${employee.name} is marked inactive.`;
-  if (state.activeOps.some((item) => item.orderId === orderId)) return "An operation on this order is already running. End it first.";
   const running = state.activeOps.find((item) => item.employeeId === employee.id);
   if (running) {
     const other = state.productionOrders.find((item) => item.id === running.orderId);
     return `${employee.name} is still running operation ${running.seq} on ${other?.number ?? "another order"}. End it first.`;
   }
-  if (!currentOperation(state, order)) return "All operations are done.";
+  const gate = releaseGate(state, order);
+  if (gate) return gate;
+  const ops = operationProgress(state, order);
+  const op = seq !== undefined ? ops.find((item) => item.seq === seq) : ops.find((item) => !item.done && item.remaining > 0);
+  if (!op) return seq !== undefined ? `Operation ${seq} is not on this routing.` : ops.every((item) => item.done) ? "All operations are done." : "No parts are waiting for the next operation yet.";
+  if (op.remaining <= 0) return op.done ? `Op ${op.seq} ${op.name} is done.` : `No parts are waiting at Op ${op.seq} ${op.name} yet.`;
   return null;
 }
 
-export function startOperation(state: ErpState, orderId: string, employeeId: string, now: string): ErpState {
-  if (startBlocker(state, orderId, employeeId)) return state;
+export function startOperation(state: ErpState, orderId: string, employeeId: string, now: string, seq?: number): ErpState {
+  if (startBlocker(state, orderId, employeeId, seq)) return state;
   const order = state.productionOrders.find((item) => item.id === orderId)!;
-  const op = currentOperation(state, order)!;
+  const ops = operationProgress(state, order);
+  const op = (seq !== undefined ? ops.find((item) => item.seq === seq) : ops.find((item) => !item.done && item.remaining > 0))!;
   const employee = employeeById(state, employeeId)!;
   const routing = orderRouting(state, order);
   const [id, base] = nextId(state, "op");
   let next: ErpState = {
     ...base,
-    productionOrders: touch(base.productionOrders, orderId, (item) => ({ ...item, routing, status: item.status === "Planned" || !item.status ? "Running" : item.status })),
+    productionOrders: touch(base.productionOrders, orderId, (item) => ({ ...item, routing, status: "Running" })),
     activeOps: [...base.activeOps, { id, orderId, seq: op.seq, employeeId, start: now }],
   };
   next = log(next, now, "shopfloor", `${order.number} · Op ${op.seq} ${op.name} started by ${employee.name} (${employee.code})`, order.projectId);
@@ -176,14 +171,19 @@ export function startOperation(state: ErpState, orderId: string, employeeId: str
 
 export type EndInput = { qtyGood: number; qtyScrap: number; notes: string };
 
+/** Good + scrap may not exceed the parts still waiting at the operation: those that arrived minus those already booked. */
 export function endBlocker(state: ErpState, activeId: string, input: EndInput): string | null {
   const active = state.activeOps.find((item) => item.id === activeId);
   if (!active) return "This operation is not running any more.";
   if (!Number.isInteger(input.qtyGood) || input.qtyGood < 0 || !Number.isInteger(input.qtyScrap) || input.qtyScrap < 0) return "Enter whole numbers of 0 or more.";
   if (input.qtyGood + input.qtyScrap === 0) return "Enter the good and scrap quantity.";
+  const order = state.productionOrders.find((item) => item.id === active.orderId);
+  const op = order ? operationProgress(state, order).find((item) => item.seq === active.seq) : null;
+  if (op && input.qtyGood + input.qtyScrap > op.remaining) return `Only ${op.remaining} part${op.remaining === 1 ? "" : "s"} can be booked at Op ${op.seq}: ${op.incoming} arrived and ${op.booked} ${op.booked === 1 ? "is" : "are"} already booked.`;
   return null;
 }
 
+/** Books what one operator did. Partial quantities are fine: the rest is booked later, in another shift or by someone else. */
 export function endOperation(state: ErpState, activeId: string, input: EndInput, now: string): ErpState {
   if (endBlocker(state, activeId, input)) return state;
   const active = state.activeOps.find((item) => item.id === activeId)!;
@@ -203,12 +203,30 @@ export function endOperation(state: ErpState, activeId: string, input: EndInput,
   };
   next = { ...next, activeOps: next.activeOps.filter((item) => item.id !== activeId), opLogs: [...next.opLogs, entry] };
   next = log(next, now, "shopfloor", `${order.number} · Op ${entry.seq} ${entry.operation} ended by ${entry.employeeName}: ${entry.qtyGood} good, ${entry.qtyScrap} scrap, ${entry.minutes} min`, order.projectId);
-  const last = Math.max(...routing.map((item) => item.seq));
-  if (active.seq === last) {
-    next = { ...next, productionOrders: touch(next.productionOrders, order.id, (item) => ({ ...item, status: "Completed" })) };
-    next = log(next, now, "production", `${order.number} completed on the shop floor · ${entry.qtyGood} good parts`, order.projectId);
-  } else if (order.status !== "Running" && !isProductionComplete(order.status)) {
-    next = { ...next, productionOrders: touch(next.productionOrders, order.id, (item) => ({ ...item, status: "Running" })) };
+  return completionBlocker(next, order.id) === null ? completeOrder(next, order.id, now) : next;
+}
+
+/**
+ * Guided demo shortcut: books every remaining operation for the signed-in person, one log entry each, through the same
+ * start/end rules. Refused (nothing changes) while any operation on the order is running or the release gate blocks.
+ */
+export function recordRemainingOperations(state: ErpState, orderId: string, now: string): ErpState {
+  const order = state.productionOrders.find((item) => item.id === orderId);
+  const employeeId = state.currentUserId;
+  if (!order || !employeeId || isProductionComplete(order.status) || state.activeOps.some((item) => item.orderId === orderId)) return state;
+  const open = operationProgress(state, order).filter((op) => !op.done);
+  let time = Date.parse(now) - open.reduce((sum, op) => sum + Math.max(1, Math.round(plannedMinutes(op, order.quantity))), 0) * 60000;
+  let next = state;
+  for (const planned of open) {
+    const current = next.productionOrders.find((item) => item.id === orderId)!;
+    const op = operationProgress(next, current).find((item) => item.seq === planned.seq)!;
+    if (op.done) continue;
+    if (op.remaining <= 0) return state;
+    const started = startOperation(next, orderId, employeeId, new Date(time).toISOString(), op.seq);
+    if (started === next) return state;
+    const active = started.activeOps.find((item) => item.orderId === orderId && item.employeeId === employeeId)!;
+    time += Math.max(1, Math.round(plannedMinutes(op, op.remaining))) * 60000;
+    next = endOperation(started, active.id, { qtyGood: op.remaining, qtyScrap: 0, notes: "Recorded in one step from the guided demo" }, new Date(Math.min(time, Date.parse(now))).toISOString());
   }
   return next;
 }
@@ -238,13 +256,15 @@ function group(state: ErpState, logs: OpLog[], keyOf: (entry: OpLog) => string, 
   return [...map.values()].map((row) => ({ ...row, efficiency: pct(row.planned, row.minutes), scrapRate: pct(row.scrap, row.good + row.scrap) }));
 }
 
-export function labourCostOf(state: ErpState, entry: OpLog) {
-  const rate = employeeById(state, entry.employeeId)?.hourlyRate ?? 0;
-  return round2((entry.minutes / 60) * (rate + (state.settings.overheadPerHour ?? 0)));
-}
+export const labourCostOf = logLabourCost;
 
+/** Labour cost from the shop-floor log. Closed jobs count with the cost frozen when they closed. */
 export function labourCost(state: ErpState, projectId?: string) {
-  return round2(state.opLogs.filter((entry) => !projectId || entry.projectId === projectId).reduce((sum, entry) => sum + labourCostOf(state, entry), 0));
+  const closed = state.productionOrders.filter((order) => order.costSnapshot);
+  const closedIds = new Set(closed.map((order) => order.id));
+  const live = state.opLogs.filter((entry) => (!projectId || entry.projectId === projectId) && !closedIds.has(entry.orderId)).reduce((sum, entry) => sum + labourCostOf(state, entry), 0);
+  const frozen = closed.filter((order) => !projectId || order.projectId === projectId).reduce((sum, order) => sum + jobCost(state, order.id).labour, 0);
+  return round2(live + frozen);
 }
 
 export type KpiFilter = { from?: string; to?: string; employeeId?: string; projectId?: string };
@@ -258,7 +278,7 @@ export function filterLogs(state: ErpState, filter: KpiFilter = {}) {
 /**
  * Shop floor figures from the operation log.
  * Efficiency = planned minutes ÷ actual minutes. Quality = good ÷ (good + scrap).
- * Availability is not measured (no machine data), so OEE here is performance × quality only.
+ * Availability is not measured (no machine data), so this is reported as performance × quality, not as OEE.
  */
 export function kpiSummary(state: ErpState, filter: KpiFilter = {}, today = new Date().toISOString().slice(0, 10)) {
   const logs = filterLogs(state, filter);
@@ -280,7 +300,7 @@ export function kpiSummary(state: ErpState, filter: KpiFilter = {}, today = new 
   return {
     logs, operations: logs.length, minutes, planned, good, scrap,
     efficiency: pct(planned, minutes), scrapRate: pct(scrap, good + scrap),
-    oee: performance !== null && quality !== null ? round2(performance * quality * 100) : null,
+    performanceQuality: performance !== null && quality !== null ? round2(performance * quality * 100) : null,
     labourCost: round2(logs.reduce((sum, entry) => sum + labourCostOf(state, entry), 0)),
     running: state.activeOps.length,
     openOrders: orders.filter((order) => !isProductionComplete(order.status)).length,

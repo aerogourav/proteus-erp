@@ -264,7 +264,7 @@ export function draftFromEmail(state: ErpState, email: EmailRecord, extraction: 
   return {
     ...draft,
     projectName: lines.length === 1 ? lines[0].description : lines.length ? `${lines[0].description} and ${lines.length - 1} more` : email.subject.replace(/^(re|fw|fwd):\s*/i, "").slice(0, 60),
-    projectCode: suggestProjectCode(state), poNumber: extraction.poNumber ?? "", description: `From email: ${email.subject}`.slice(0, 120),
+    projectCode: suggestProjectCode(state, today.slice(0, 4)), poNumber: extraction.poNumber ?? "", description: `From email: ${email.subject}`.slice(0, 120),
     customerName, contact: email.from, poDate: today, deliveryDate: extraction.deliveryDate ?? addDays(today, 42), currency: extraction.currency ?? state.settings.defaultCurrency,
     orderValue: extraction.total !== null && !lines.some((line) => line.unitPrice !== null) ? String(extraction.total) : "",
     lines: lines.map((line, index) => ({ key: `e${index + 1}`, partNumber: line.partNumber, description: line.description, quantity: String(line.quantity), unit: line.unit, unitPrice: line.unitPrice !== null ? String(line.unitPrice) : "", revision: line.revision })),

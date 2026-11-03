@@ -4,7 +4,7 @@
  * so every number is consistent.
  */
 import {
-  addDays, approveDocument, createInitialState, createProductionOrder, createProjectFromDraft, dispatchProject, generateInspectionReport, generateInvoice,
+  addDays, approveDocument, createInitialState, linkMaterialLot, createProductionOrder, createProjectFromDraft, dispatchProject, generateInspectionReport, generateInvoice,
   log, newDraft, projectRecords, saveRawMaterial, saveSupplier, suggestProjectCode,
   type EmailRecord, type ErpState, type ProjectDraft, type StoredFile,
 } from "./model.ts";
@@ -48,7 +48,7 @@ export function addDemoProjects(input: ErpState, now: string): ErpState {
 
   /* ---------- People ---------- */
   const people = [
-    { code: "E-1001", name: "Lena Hoffmann", role: "Production manager", department: "Production", email: "lena.hoffmann@demo-company.example", hourlyRate: 42, monthlySalary: 5400, pay: "salary" as const },
+    { code: "E-1001", name: "Lena Hoffmann", role: "Production manager", access: "admin" as const, department: "Production", email: "lena.hoffmann@demo-company.example", hourlyRate: 42, monthlySalary: 5400, pay: "salary" as const },
     { code: "E-1002", name: "Murat Yilmaz", role: "CNC machinist", department: "Production", email: "murat.yilmaz@demo-company.example", hourlyRate: 31, monthlySalary: 3650, pay: "salary" as const },
     { code: "E-1003", name: "Jonas Becker", role: "CNC machinist", department: "Production", email: "jonas.becker@demo-company.example", hourlyRate: 30, monthlySalary: 3500, pay: "salary" as const },
     { code: "E-1004", name: "Sofia Marino", role: "Quality inspector", department: "Quality", email: "sofia.marino@demo-company.example", hourlyRate: 34, monthlySalary: 3900, pay: "salary" as const },
@@ -80,7 +80,7 @@ export function addDemoProjects(input: ErpState, now: string): ErpState {
   for (const material of materials) state = saveRawMaterial(state, null, { name: material.name, unit: material.unit, stock: material.stock, reorderLevel: material.reorderLevel, unitCost: material.unitCost, supplierId: supplierId(material.supplier) }, at(50, "09:30"));
 
   /* ---------- Project 2 first (it is older): pump flange, delivered and invoiced ---------- */
-  const codeFor = (wanted: string) => (state.projects.some((project) => project.code === wanted) ? suggestProjectCode(state) : wanted);
+  const codeFor = (wanted: string) => (state.projects.some((project) => project.code === wanted) ? suggestProjectCode(state, today.slice(0, 4)) : wanted);
   const poFor = (wanted: string) => (state.purchaseOrders.some((order) => order.number === wanted) ? `${wanted}-D` : wanted);
   as("E-1001");
   const flangeQuote = saveQuotation(state, null, {
@@ -111,7 +111,8 @@ export function addDemoProjects(input: ErpState, now: string): ErpState {
   state = flange.state;
   const flangeId = flange.projectId;
   if (flangeQuote.id) state = { ...state, quotations: state.quotations.map((quote) => quote.id === flangeQuote.id ? { ...quote, status: "Accepted", projectId: flangeId } : quote) };
-  as("E-1004");
+  // Drawing approval: owner or admin only.
+  as("E-1001");
   for (const doc of projectRecords(state, flangeId).documents) state = approveDocument(state, doc.id, at(39, "11:00"));
 
   // Purchasing: one supplier order, sent by email from the ERP, confirmed and received.
@@ -147,6 +148,7 @@ export function addDemoProjects(input: ErpState, now: string): ErpState {
   const flangeLine = projectRecords(state, flangeId).lineItems[0];
   state = createProductionOrder(state, flangeLine.id, at(32, "07:40"), { quantity: 122, startDate: dayIso(31), notes: "2 spare parts for setup. Zinc-nickel plating at Brightcoat after Op 40." });
   const flangeOrder = projectRecords(state, flangeId).productionOrders[0];
+  state = linkMaterialLot(state, flangeOrder.id, { material: "S355 steel plate 20 mm", heat: "H24117", certificate: "CERT-H24117" }, at(32, "07:45"));
   const runOp = (orderId: string, code: string, start: string, end: string, good: number, scrap: number, notes = "") => {
     state = startOperation(state, orderId, emp(code), start);
     const active = state.activeOps.find((item) => item.orderId === orderId);
@@ -160,7 +162,7 @@ export function addDemoProjects(input: ErpState, now: string): ErpState {
 
   as("E-1004");
   const flangeReqs = projectRecords(state, flangeId).inspectionRequirements;
-  state = generateInspectionReport(state, flangeId, at(11, "09:20"), Object.fromEntries(flangeReqs.map((req, index) => [req.id, { observed: ["0.03", "125.04", "10"][index] ?? "OK", pass: true }])));
+  state = generateInspectionReport(state, flangeId, at(11, "09:20"), Object.fromEntries(flangeReqs.map((req, index) => [req.id, { observed: ["0.03", "125.04", "10"][index] ?? "OK", result: "pass" as const, sampleSize: [3, 5, 5][index] ?? 1, gaugeId: ["SP-02", "CMM-01", "Supplier report"][index] ?? "" }])));
   as("E-1005");
   state = dispatchProject(state, flangeId, at(7, "13:30"));
   as("E-1006");
@@ -199,7 +201,7 @@ export function addDemoProjects(input: ErpState, now: string): ErpState {
   const actuator = createProjectFromDraft(state, actuatorDraft, at(24, "08:20"));
   state = actuator.state;
   const actuatorId = actuator.projectId;
-  as("E-1004");
+  as("E-1001");
   for (const doc of projectRecords(state, actuatorId).documents) state = approveDocument(state, doc.id, at(23, "15:10"));
   as("E-1005");
   sendOrder(actuatorId, "Northline Metals GmbH", "orders@northline-metals.example", [{ material: "EN AW-7075-T6 round bar Ø70 mm", quantity: 42, unit: "kg", unitPrice: 8.4 }], 22, 21, 15);

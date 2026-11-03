@@ -87,10 +87,10 @@ export function OutputDocument({ state, projectId, kind, productionOrderId }: { 
     if (!report) return <p>No inspection report yet.</p>;
     return <DocFrame title="Inspection report" number={report.number}>
       <Meta items={[["Project", projectLabel], ["Customer PO", po.number], ["Date", formatDate(report.createdAt)], ["Production orders", records.productionOrders.map((order) => order.number).join(", ") || "—"], ["Parts", records.lineItems.map((line) => `${partNumber(state, line.partId)} rev ${revisionLabel(state, line.revisionId)}`).join(", ")], ["Overall result", report.passed ? "PASS" : "FAIL"]]} />
-      <table><thead><tr><th>Parameter</th><th>Part</th><th>Specification</th><th>Acceptance</th><th>Result (illustrative)</th></tr></thead><tbody>
-        {report.results.map((result) => { const req = state.inspectionRequirements.find((item) => item.id === result.requirementId); return <tr key={result.requirementId}><td>{req?.name}</td><td>{req?.partId ? partNumber(state, req.partId) : "Project"}</td><td>{req?.spec} {req?.unit}</td><td>{req?.acceptance || "—"}</td><td>{result.pass ? "PASS" : "FAIL"} · {result.observed}</td></tr>; })}
+      <table><thead><tr><th>Parameter</th><th>Part</th><th>Specification</th><th>Acceptance</th><th>Sample</th><th>Gauge</th><th>Result (illustrative)</th></tr></thead><tbody>
+        {report.results.map((result) => { const req = state.inspectionRequirements.find((item) => item.id === result.requirementId); return <tr key={result.requirementId}><td>{req?.name}</td><td>{req?.partId ? partNumber(state, req.partId) : "Project"}</td><td>{req?.spec} {req?.unit}</td><td>{req?.acceptance || "—"}</td><td>{result.sampleSize ?? "—"}</td><td>{result.gaugeId || "—"}</td><td>{result.pass ? "PASS" : "FAIL"} · {result.observed}{result.tolerance === "out" ? " · outside tolerance" : ""}</td></tr>; })}
       </tbody></table>
-      <p style={{ marginTop: 12, color: "#7A6670" }}>Results are generated for demonstration and do not represent real measurements.</p>
+      <p style={{ marginTop: 12, color: "#7A6670" }}>Values were entered in the demo and do not represent real measurements.</p>
       <div className="erp-doc-sign"><div>Inspected by</div><div>Approved by (quality)</div></div>
     </DocFrame>;
   }

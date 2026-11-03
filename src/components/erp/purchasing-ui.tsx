@@ -7,7 +7,7 @@ import { scheduleDemoSupplierReply, sendFromErp } from "@/components/erp/mailer"
 import { commit, getState, nowIso, todayIso, useErp } from "@/components/erp/store";
 import { toast } from "@/components/erp/toast";
 import { Badge, EmptyState, Field, Modal } from "@/components/erp/ui";
-import { saveBill, billError, type BillInput } from "@/lib/erp/finance";
+import { saveBill, billError, billOrderMismatch, type BillInput } from "@/lib/erp/finance";
 import { linkEmail } from "@/lib/erp/mail";
 import {
   BILL_CATEGORIES, CURRENCIES, UNITS, addDays, formatDate, formatMoney, norm, rawMaterialRows, supplierRows,
@@ -186,10 +186,12 @@ export function BillDialog({ prefill, billId, onClose }: { prefill: Partial<Bill
     date: existing?.date ?? prefill.date ?? today, dueDate: existing?.dueDate ?? prefill.dueDate ?? addDays(today, 30), currency: (existing?.currency ?? prefill.currency ?? state.settings.defaultCurrency) as Currency,
     net: String(existing?.net ?? prefill.net ?? ""), taxRate: String(existing?.taxRate ?? prefill.taxRate ?? state.settings.taxRate), description: existing?.description ?? prefill.description ?? "",
     projectId: existing?.projectId ?? prefill.projectId ?? "", supplierOrderId: existing?.supplierOrderId ?? prefill.supplierOrderId ?? "",
+    quantity: String(existing?.quantity ?? prefill.quantity ?? ""),
   });
   const [error, setError] = useState("");
   const set = (patch: Partial<typeof values>) => setValues({ ...values, ...patch });
-  const input: BillInput = { ...values, net: toNum(values.net), taxRate: toNum(values.taxRate), projectId: values.projectId || undefined, supplierOrderId: values.supplierOrderId || undefined, emailId: prefill.emailId };
+  const input: BillInput = { ...values, net: toNum(values.net), taxRate: toNum(values.taxRate), projectId: values.projectId || undefined, supplierOrderId: values.supplierOrderId || undefined, emailId: prefill.emailId, quantity: values.quantity.trim() ? toNum(values.quantity) : undefined };
+  const mismatch = input.supplierOrderId ? billOrderMismatch(state, { id: "draft", number: input.number, supplier: input.supplier, category: input.category, date: input.date, dueDate: input.dueDate, currency: input.currency, net: input.net || 0, taxRate: input.taxRate || 0, tax: 0, total: 0, description: input.description, supplierOrderId: input.supplierOrderId, ...(input.quantity ? { quantity: input.quantity } : {}) }) : [];
   const submit = () => {
     const problem = billError(state, input, billId ?? null);
     if (problem) { setError(problem); return; }
@@ -221,6 +223,8 @@ export function BillDialog({ prefill, billId, onClose }: { prefill: Partial<Bill
         <Field id="bill-project" label="Project (optional)"><select className="erp-select" id="bill-project" value={values.projectId} onChange={(event) => set({ projectId: event.target.value })}><option value="">Company overhead</option>{state.projects.map((project) => <option key={project.id} value={project.id}>{project.code} · {project.name}</option>)}</select></Field>
         <Field id="bill-spo" label="Supplier order (optional)"><select className="erp-select" id="bill-spo" value={values.supplierOrderId} onChange={(event) => set({ supplierOrderId: event.target.value })}><option value="">None</option>{state.supplierOrders.map((order) => <option key={order.id} value={order.id}>{order.number} · {order.supplier}</option>)}</select></Field>
       </div>
+      <Field id="bill-qty" label="Quantity billed (optional)" help="Compared with the supplier order."><input className="erp-input" id="bill-qty" inputMode="decimal" value={values.quantity} onChange={(event) => set({ quantity: event.target.value })} /></Field>
+      {mismatch.map((warning) => <p key={warning} className="erp-error" role="status">{warning}</p>)}
       <Field id="bill-desc" label="Description"><input className="erp-input" id="bill-desc" value={values.description} onChange={(event) => set({ description: event.target.value })} /></Field>
       <p className="erp-faint">Total {formatMoney(net + tax, values.currency)} (tax {formatMoney(tax, values.currency)})</p>
       {error && <p className="erp-error" role="alert">{error}</p>}

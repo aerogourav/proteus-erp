@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Paperclip, Pencil } from "lucide-react";
 import { formatBytes, hasContent, storeUpload } from "@/components/erp/file-store";
 import { Field, Modal } from "@/components/erp/ui";
-import { PRODUCTION_STATUSES, customFieldsFor, isProductionComplete, type CustomEntity, type CustomValues, type ErpState, type StoredFile } from "@/lib/erp/model";
+import { customFieldsFor, isProductionComplete, type CustomEntity, type CustomValues, type ErpState, type StoredFile } from "@/lib/erp/model";
 
 /* ---------- Files kept in this browser (IndexedDB, see file-store) ---------- */
 
@@ -12,25 +12,6 @@ import { PRODUCTION_STATUSES, customFieldsFor, isProductionComplete, type Custom
 export const readStoredFile = storeUpload;
 
 export const DRAWING_ACCEPT = ".pdf,.png,.jpg,.jpeg,.gif,.webp,.svg,.dxf,.dwg,.step,.stp,.igs,.iges,.stl,.txt,.csv";
-
-/* ---------- Production status: presets or custom text ---------- */
-
-export function StatusSelect({ id, value, onChange, label }: { id: string; value: string; onChange: (status: string) => void; label?: string }) {
-  const preset = (PRODUCTION_STATUSES as readonly string[]).includes(value) || value === "Complete";
-  const [custom, setCustom] = useState(!preset);
-  const [text, setText] = useState(preset ? "" : value);
-  const selectValue = custom ? "__custom" : value === "Complete" ? "Completed" : value;
-  return <span className="erp-status-select">
-    <select className="erp-select" id={id} aria-label={label ?? "Production status"} value={selectValue} onChange={(event) => {
-      if (event.target.value === "__custom") { setCustom(true); return; }
-      setCustom(false); onChange(event.target.value);
-    }}>
-      {PRODUCTION_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
-      <option value="__custom">Custom…</option>
-    </select>
-    {custom && <input className="erp-input" aria-label="Custom status" placeholder="e.g. Waiting for heat treatment" maxLength={40} value={text} onChange={(event) => setText(event.target.value)} onBlur={() => text.trim() && onChange(text.trim())} onKeyDown={(event) => { if (event.key === "Enter" && text.trim()) onChange(text.trim()); }} />}
-  </span>;
-}
 
 export const statusTone = (status: string) => isProductionComplete(status) ? "ok" as const : status === "Planned" ? "neutral" as const : "info" as const;
 

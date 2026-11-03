@@ -391,7 +391,8 @@
 .erp-recs li > svg { color: var(--e-accent-ink); }
 .erp-recs span { display: grid; gap: 2px; min-width: 0; }
 .erp-recs small { color: var(--e-text-3); font-size: 12.5px; }
-.erp-inspect-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 110px; gap: 10px; align-items: center; }
+.erp-inspect-block { display: grid; gap: 6px; }
+.erp-inspect-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 150px; gap: 10px; align-items: center; }
 .erp-inspect-row > span { display: grid; gap: 2px; }
 .erp-inspect-row small { color: var(--e-text-3); font-size: 12.5px; }
 .erp-lines { display: grid; gap: 8px; }
@@ -825,3 +826,12 @@
   .erp-rows-projects .erp-row-head > :nth-child(6) { display: none; }
   .erp-rows-projects .erp-row > * { overflow-wrap: anywhere; }
 }
+
+/* Shop floor: partly booked operations, release check */
+.erp-opstrip li.is-partial { background: rgba(232, 160, 32, .16); box-shadow: inset 0 0 0 1.5px rgba(200, 130, 10, .55); }
+.erp-opstrip li small { font-size: 10.5px; font-weight: 700; }
+.erp-gate { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; color: #7A1F1F; background: #FBE1E1; border-radius: 12px; font-size: 13.5px; }
+.erp-gate .erp-btn { margin-left: auto; }
+
+.erp-status-cell { display: grid; gap: 6px; justify-items: start; }
+.erp-status-cell small { font-size: 12px; line-height: 1.4; }

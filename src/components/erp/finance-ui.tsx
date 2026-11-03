@@ -10,7 +10,7 @@ import { BillDialog } from "@/components/erp/purchasing-ui";
 import { commit, nowIso, todayIso } from "@/components/erp/store";
 import { toast } from "@/components/erp/toast";
 import { Badge, EmptyState, Modal, ProjectLink, Rule } from "@/components/erp/ui";
-import { companyFinance, deleteBill, lastMonths, markBillPaid, markPayslipPaid, payslipFigures, projectCosting, runPayroll, type BillInput } from "@/lib/erp/finance";
+import { billOrderMismatch, companyFinance, deleteBill, lastMonths, markBillPaid, markPayslipPaid, payslipFigures, projectCosting, runPayroll, type BillInput } from "@/lib/erp/finance";
 import { formatDate, formatMoney, type ErpState, type Payslip } from "@/lib/erp/model";
 
 const monthLabel = (period: string) => new Date(`${period}-15T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
@@ -71,7 +71,7 @@ export function BillsSection({ state }: { state: ErpState }) {
         return <div key={bill.id} role="row" className="erp-row" style={{ gridTemplateColumns: columns }}>
           <span><strong>{bill.supplier}</strong><small>{bill.number} · {formatDate(bill.date)}</small></span>
           <span>{bill.category}{project && <ProjectLink id={project.id} code={project.code} />}</span>
-          <span>{bill.description || "—"}{order && <small>{order.number}</small>}</span>
+          <span>{bill.description || "—"}{order && <small>{order.number}</small>}{billOrderMismatch(state, bill).map((warning) => <small key={warning} className="erp-error">{warning}</small>)}</span>
           <span className="erp-num" style={{ textAlign: "left" }}>{money(bill.total, bill.currency)}<small>net {money(bill.net, bill.currency)}</small></span>
           <span><Badge tone={bill.paidAt ? "ok" : overdue ? "bad" : "warn"}>{bill.paidAt ? "Paid" : overdue ? "Overdue" : "Open"}</Badge><small>{bill.paidAt ? `Paid ${formatDate(bill.paidAt)}` : `Due ${formatDate(bill.dueDate)}`}</small></span>
           <span className="erp-head-actions">

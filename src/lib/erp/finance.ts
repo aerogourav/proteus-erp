@@ -47,7 +47,7 @@ export function saveQuotation(state: ErpState, id: string | null, input: QuoteIn
     return { state: log({ ...state, quotations: touch(state.quotations, id, (item) => ({ ...item, ...record })) }, now, "sales", `Quotation ${quote.number} updated`, null), id };
   }
   const [newId, next] = nextId(state, "qt");
-  const number = numberFor("QT-2026-", state.quotations.map((item) => item.number), 1);
+  const number = numberFor(`QT-${input.date.slice(0, 4)}-`, state.quotations.map((item) => item.number), 1);
   const quote: Quotation = { id: newId, number, ...record, status: "Draft", ...(input.emailId ? { emailId: input.emailId } : {}) };
   return { state: log({ ...next, quotations: [...next.quotations, quote] }, now, "sales", `Quotation ${number} created for ${quote.customerName}`, null), id: newId };
 }
@@ -83,7 +83,7 @@ export function quoteToDraft(state: ErpState, quote: Quotation, poNumber: string
   const draft = newDraft(state, today);
   return {
     ...draft, projectName: quote.lines.length === 1 ? quote.lines[0].description : `${quote.lines[0].description} and ${quote.lines.length - 1} more`,
-    projectCode: suggestProjectCode(state), poNumber: poNumber.trim().toUpperCase(), description: `From quotation ${quote.number}`,
+    projectCode: suggestProjectCode(state, today.slice(0, 4)), poNumber: poNumber.trim().toUpperCase(), description: `From quotation ${quote.number}`,
     customerName: quote.customerName, contact: quote.contact, poDate: today, deliveryDate: addDays(today, Math.max(1, quote.leadTimeWeeks) * 7), currency: quote.currency,
     lines: quote.lines.map((line, index) => ({ key: `q${index + 1}`, partNumber: line.partNumber, description: line.description, quantity: String(line.quantity), unit: line.unit, unitPrice: String(line.unitPrice), revision: line.revision || "A" })),
   };
@@ -103,7 +103,7 @@ export function convertQuote(state: ErpState, id: string, poNumber: string, now:
 
 /* ============================== Supplier bills ============================== */
 
-export type BillInput = { number: string; supplier: string; category: BillCategory; date: string; dueDate: string; currency: Currency; net: number; taxRate: number; description: string; supplierOrderId?: string; projectId?: string; emailId?: string };
+export type BillInput = { number: string; supplier: string; category: BillCategory; date: string; dueDate: string; currency: Currency; net: number; taxRate: number; description: string; supplierOrderId?: string; projectId?: string; emailId?: string; quantity?: number };
 
 export function billError(state: ErpState, input: BillInput, id: string | null = null): string | null {
   if (!input.supplier.trim()) return "Enter the supplier.";
@@ -122,11 +122,25 @@ export function saveBill(state: ErpState, id: string | null, input: BillInput, n
   const tax = round2((net * input.taxRate) / 100);
   const record = {
     number: input.number.trim(), supplier: input.supplier.trim(), category: input.category, date: input.date, dueDate: input.dueDate, currency: input.currency, net, taxRate: input.taxRate, tax, total: round2(net + tax),
-    description: input.description.trim(), ...(input.supplierOrderId ? { supplierOrderId: input.supplierOrderId } : {}), ...(input.projectId ? { projectId: input.projectId } : {}), ...(input.emailId ? { emailId: input.emailId } : {}), ...(file ? { file } : {}),
+    description: input.description.trim(), ...(input.supplierOrderId ? { supplierOrderId: input.supplierOrderId } : {}), ...(input.projectId ? { projectId: input.projectId } : {}), ...(input.emailId ? { emailId: input.emailId } : {}), ...(input.quantity !== undefined && input.quantity > 0 ? { quantity: round2(input.quantity) } : {}), ...(file ? { file } : {}),
   };
   if (id) return log({ ...state, bills: touch(state.bills, id, (item) => ({ ...item, ...record })) }, now, "finance", `Supplier bill ${record.number} updated`, record.projectId ?? null);
   const [newId, next] = nextId(state, "bill");
   return log({ ...next, bills: [...next.bills, { id: newId, ...record }] }, now, "finance", `Supplier bill ${record.number} from ${record.supplier} recorded · ${formatMoney(record.total, record.currency)}`, record.projectId ?? null);
+}
+
+/** Differences between a supplier bill and the supplier order it belongs to: net amount and, when the bill states one, quantity. */
+export function billOrderMismatch(state: ErpState, bill: Bill): string[] {
+  const order = bill.supplierOrderId ? (state.supplierOrders ?? []).find((item) => item.id === bill.supplierOrderId) : null;
+  if (!order) return [];
+  const warnings: string[] = [];
+  const priced = order.lines.every((line) => line.unitPrice !== null);
+  const orderNet = round2(order.lines.reduce((sum, line) => sum + (line.unitPrice ?? 0) * line.quantity, 0));
+  if (priced && order.currency === bill.currency && Math.abs(orderNet - bill.net) > 0.01) warnings.push(`Bill net ${formatMoney(bill.net, bill.currency)} differs from ${order.number} at ${formatMoney(orderNet, order.currency)}.`);
+  if (priced && order.currency !== bill.currency) warnings.push(`Bill is in ${bill.currency}, ${order.number} in ${order.currency}. Check the amount.`);
+  const orderQty = round2(order.lines.reduce((sum, line) => sum + line.quantity, 0));
+  if (bill.quantity !== undefined && Math.abs(bill.quantity - orderQty) > 0.001) warnings.push(`Bill quantity ${bill.quantity} differs from ${orderQty} ordered on ${order.number}.`);
+  return warnings;
 }
 
 export function markBillPaid(state: ErpState, id: string, paid: boolean, now: string): ErpState {
@@ -214,23 +228,24 @@ export function companyFinance(state: ErpState, today: string, period: string = 
   const inPeriod = (iso: string) => period === "all" || monthOf(iso) === period;
   const base = (amount: number, currency: Currency) => toBase(state, amount, currency);
   const sum = (values: number[]) => round2(values.reduce((total, value) => total + value, 0));
-  const unpaidInvoices = state.invoices.filter((item) => !item.paidAt);
+  const issued = state.invoices.filter((item) => !item.cancelledAt);
+  const unpaidInvoices = issued.filter((item) => !item.paidAt);
   const unpaidBills = state.bills.filter((item) => !item.paidAt);
   const receivable = sum(unpaidInvoices.map((item) => base(item.total, item.currency)));
   const overdueReceivable = sum(unpaidInvoices.filter((item) => item.dueAt < today).map((item) => base(item.total, item.currency)));
   const payable = sum(unpaidBills.map((item) => base(item.total, item.currency)));
   const overduePayable = sum(unpaidBills.filter((item) => item.dueDate < today).map((item) => base(item.total, item.currency)));
-  const cashIn = sum(state.invoices.filter((item) => item.paidAt).map((item) => base(item.total, item.currency)));
+  const cashIn = sum(issued.filter((item) => item.paidAt).map((item) => base(item.total, item.currency)));
   const cashOutBills = sum(state.bills.filter((item) => item.paidAt).map((item) => base(item.total, item.currency)));
   const cashOutPayroll = sum(state.payslips.filter((item) => item.paidAt).map((item) => item.employerCost));
-  const revenue = sum(state.invoices.filter((item) => inPeriod(item.issuedAt)).map((item) => base(item.subtotal, item.currency)));
+  const revenue = sum(issued.filter((item) => inPeriod(item.issuedAt)).map((item) => base(item.subtotal, item.currency)));
   const byCategory = new Map<BillCategory, number>();
   for (const bill of state.bills.filter((item) => inPeriod(item.date))) byCategory.set(bill.category, round2((byCategory.get(bill.category) ?? 0) + base(bill.net, bill.currency)));
   const payroll = sum(state.payslips.filter((item) => period === "all" || item.period === period).map((item) => item.employerCost));
   const costs = round2(sum([...byCategory.values()]) + payroll);
   const months = lastMonths(today, 6).map((month) => ({
     month,
-    revenue: sum(state.invoices.filter((item) => monthOf(item.issuedAt) === month).map((item) => base(item.subtotal, item.currency))),
+    revenue: sum(issued.filter((item) => monthOf(item.issuedAt) === month).map((item) => base(item.subtotal, item.currency))),
     costs: round2(sum(state.bills.filter((item) => monthOf(item.date) === month).map((item) => base(item.net, item.currency))) + sum(state.payslips.filter((item) => item.period === month).map((item) => item.employerCost))),
   }));
   const quotesOpen = state.quotations.filter((quote) => quote.status === "Sent" || quote.status === "Draft");

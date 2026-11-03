@@ -18,7 +18,7 @@ import { clearStoredFiles, downloadBlob } from "@/components/erp/file-store";
 import { Badge, EmptyState, Field, PageHead, ProjectLink, Rule } from "@/components/erp/ui";
 import {
   CURRENCIES, CUSTOM_ENTITIES, DOC_TYPES, RULES, UNITS, WIDGET_LABELS, addCustomField, addDocType, customFieldsFor, docTypes, financeSummary, formatDate,
-  formatMoney, generateInvoice, markInvoicePaid, moveTab, moveWidget, parseStoredState, rawMaterialRows, rawMaterialStats, readiness, removeCustomField, removeDocType,
+  formatMoney, generateInvoice, markInvoicePaid, cancelInvoice, moveTab, moveWidget, parseStoredState, rawMaterialRows, rawMaterialStats, readiness, removeCustomField, removeDocType,
   resetLayout, saveRawMaterial, saveSupplier, supplierRows, supplierStats, updateSettings, updateTab, updateUi, updateWidget, upsertSupplier,
   type Currency, type CustomEntity, type CustomFieldType, type ErpState, type RawMaterial, type Supplier, type UiSettings,
 } from "@/lib/erp/model";
@@ -156,6 +156,7 @@ export function FinanceModule() {
   const params = useSearchParams();
   const [view, setView] = useState<FinanceView>(() => (FINANCE_VIEWS.some(([key]) => key === params.get("view")) ? params.get("view") as FinanceView : filter ? "invoices" : "overview"));
   const [output, setOutput] = useState<OutputState>(null);
+  const editor = useEditor();
   const head = <PageHead eyebrow="Finance" title="Finance" description="Quotations to cash: customer invoices, supplier and raw material bills, payroll with salary slips, project costing and the company overview, all from the same records. Management figures, not bookkeeping." />;
   if (!hydrated) return <>{head}<Loading /></>;
   const manufacturing = industryOf(state) === "manufacturing";
@@ -204,13 +205,14 @@ export function FinanceModule() {
           return <div key={row.project.id} role="row" className="erp-row" style={{ gridTemplateColumns: columns }}>
             <span><ProjectLink id={row.project.id} code={row.project.code} /><small>{row.project.name}</small></span>
             <span>{customer?.name}</span>
-            <span>{invoice ? <><strong>{invoice.number}</strong><small>Issued {formatDate(invoice.issuedAt)} · due {formatDate(invoice.dueAt)}</small></> : <small>{ready.invoice.summary}</small>}</span>
+            <span>{invoice ? <><strong>{invoice.number}</strong><small>Issued {formatDate(invoice.issuedAt)} · due {formatDate(invoice.dueAt)}</small></> : <small>{ready.invoice.summary}</small>}{row.cancelled.map((item) => <small key={item.id}>{item.number} cancelled · credit note {state.creditNotes.find((note) => note.id === item.creditNoteId)?.number ?? "—"}</small>)}</span>
             <span className="erp-num" style={{ textAlign: "left" }}>{invoice ? money(state, invoice.total, invoice.currency) : money(state, row.orderValue, row.currency)}{!invoice && <small>order value</small>}</span>
             <span><Badge tone={row.status === "Paid" ? "ok" : row.status === "Overdue" ? "bad" : row.status === "Unpaid" || row.status === "To invoice" ? "warn" : "neutral"}>{row.status}</Badge>{invoice?.paidAt && <small>Paid {formatDate(invoice.paidAt)}</small>}</span>
             <span className="erp-head-actions">
               {invoice ? <>
                 <button type="button" className="erp-btn erp-btn-sm" onClick={() => setOutput({ projectId: row.project.id, kind: "invoice" })} aria-label={`Print ${invoice.number}`}><Printer size={13} /></button>
                 <button type="button" className="erp-btn erp-btn-sm" onClick={() => commit((value) => markInvoicePaid(value, invoice.id, !invoice.paidAt, nowIso()))}>{invoice.paidAt ? "Unpaid" : "Mark paid"}</button>
+                {!invoice.paidAt && <button type="button" className="erp-btn erp-btn-ghost erp-btn-sm" onClick={() => editor.open({ title: `Cancel ${invoice.number}`, fields: [{ key: "reason", label: "Reason (required)", required: true, help: "The invoice is kept and a credit note with negative amounts is issued. Invoice numbers are never deleted or reused." }], initial: { reason: "" }, onSave: (v) => save((value) => cancelInvoice(value, invoice.id, v.reason, nowIso())) })}>Cancel…</button>}
               </> : canInvoice ? <button type="button" className="erp-btn erp-btn-primary erp-btn-sm" onClick={() => commit((value) => generateInvoice(value, row.project.id, nowIso()))}>Create invoice</button> : null}
             </span>
           </div>;
@@ -239,6 +241,7 @@ export function FinanceModule() {
       <div style={{ marginTop: 12 }}><Rule>{RULES.invoice} Tax rate and payment terms are set in Configuration.</Rule></div>
     </section>
     {output && <OutputDialog state={state} projectId={output.projectId} kind={output.kind} onClose={() => setOutput(null)} />}
+    {editor.dialog}
   </>;
 }
 

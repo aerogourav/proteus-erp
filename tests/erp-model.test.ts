@@ -5,6 +5,7 @@ import {
   loadSample, resolve, approveDocument, advanceProcurement, createProductionOrder, advanceProduction, generateInspectionReport, dispatchProject,
   generateInvoice, addDrawingForLine, setLineItemQuantity, setLineItemPrice, reuseCatalog, setProductionStatus, isProductionComplete, updateCustomer, updatePurchaseOrder, updateDocument, updateMaterial, updateProductionOrder, updateInspectionRequirement, removeInspectionRequirement, saveRawMaterial, saveSupplier, rawMaterialRows, rawMaterialStats, supplierRows, supplierStats, financeSummary, markInvoicePaid, addCustomField, setCustomValues, addDocType, removeDocType, docTypes, updateTab, moveTab, updateWidget, moveWidget, updateUi, upsertSupplier, addDocumentToProject, addInspectionRequirement, addMaterialRequirement, suggestProjectCode, parseStoredState, projectRecords, parseAmount, recentActivity, log, SAMPLE_PROJECT_CODE, DEFAULT_WIDGETS, type ErpState, type ProjectDraft,
 } from "../src/lib/erp/model.ts";
+import { recordRemainingOperations, saveEmployee, setCurrentUser } from "../src/lib/erp/shopfloor.ts";
 
 const NOW = "2026-10-26T10:00:00.000Z";
 
@@ -19,6 +20,21 @@ function validDraft(state: ErpState): ProjectDraft {
   };
 }
 
+/** Books every routing operation through the shop-floor rules (an admin does it in one step), so the job completes honestly. */
+function produce(state: ErpState, projectId: string): ErpState {
+  if (!state.employees.length) state = saveEmployee(state, null, { code: "E-9", name: "Test Admin", role: "Production manager", access: "admin", department: "Production", email: "", hourlyRate: 30, monthlySalary: 0, pay: "hourly", active: true }, NOW);
+  state = setCurrentUser(state, state.employees[0].id);
+  for (const order of projectRecords(state, projectId).productionOrders) state = recordRemainingOperations(state, order.id, NOW);
+  return state;
+}
+
+/** Records an explicit result for every inspection requirement (values default to one inside 100 ± 0.1). */
+function measure(state: ErpState, projectId: string, values: Record<string, string> = {}, result: "pass" | "fail" = "pass"): ErpState {
+  const reqs = projectRecords(state, projectId).inspectionRequirements;
+  return generateInspectionReport(state, projectId, NOW, Object.fromEntries(reqs.map((req) => [req.id, { observed: values[req.name] ?? "100.02", result, sampleSize: 5, gaugeId: "CAL-1" }])));
+}
+
+
 test("required fields are validated per step", () => {
   const state = createInitialState();
   const draft = newDraft(state, "2026-10-26");
@@ -31,7 +47,8 @@ test("required fields are validated per step", () => {
 
 test("project ID suggestion is unique and duplicates are rejected", () => {
   const { state } = loadSample(createInitialState(), NOW);
-  assert.equal(suggestProjectCode(state), "BOH-PRJ-2026-004");
+  assert.equal(suggestProjectCode(state, "2026"), "BOH-PRJ-2026-004");
+  assert.equal(suggestProjectCode(state, "2027"), "BOH-PRJ-2027-001", "numbered by the year of the document date");
   const draft = { ...validDraft(state), projectCode: SAMPLE_PROJECT_CODE.toLowerCase() };
   assert.match(validateStep(state, draft, 0).projectCode ?? "", /already used/);
   const dupPo = { ...validDraft(state), poNumber: "po-2026-1042" };
@@ -104,10 +121,12 @@ test("readiness rules block and unblock with the underlying records", () => {
 
   assert.equal(generateInspectionReport(state, projectId, NOW), state, "no report before production completes");
   assert.equal(dispatchProject(state, projectId, NOW), state, "no dispatch before production completes");
-  state = advanceProduction(state, state.productionOrders[0].id, NOW);
-  state = advanceProduction(state, state.productionOrders[0].id, NOW);
+  assert.equal(advanceProduction(advanceProduction(state, state.productionOrders[0].id, NOW), state.productionOrders[0].id, NOW).productionOrders[0].status, "Running", "Completed needs shop-floor bookings");
+  state = produce(state, projectId);
+  assert.equal(state.productionOrders[0].status, "Completed");
   assert.equal(dispatchProject(state, projectId, NOW), state, "no dispatch before inspection report");
-  state = generateInspectionReport(state, projectId, NOW);
+  assert.equal(generateInspectionReport(state, projectId, NOW), state, "no report without explicit results");
+  state = measure(state, projectId);
   assert.equal(readiness(state, projectId).quality.state, "complete");
   assert.equal(generateInvoice(state, projectId, NOW), state, "no invoice before dispatch");
   state = dispatchProject(state, projectId, NOW);
@@ -183,8 +202,9 @@ test("guided demo: one project moves from order to invoice step by step", () => 
   state = createProductionOrder(state, line.id, NOW);
   const order = projectRecords(state, id).productionOrders[0];
   assert.equal(dispatchProject(state, id, NOW), state, "cannot dispatch before production and inspection");
-  state = advanceProduction(advanceProduction(state, order.id, NOW), order.id, NOW);
-  state = generateInspectionReport(state, id, NOW);
+  state = advanceProduction(state, order.id, NOW);
+  state = produce(state, id);
+  state = measure(state, id);
   state = dispatchProject(state, id, NOW);
   state = generateInvoice(state, id, NOW);
   const records = projectRecords(state, id);
@@ -236,14 +256,18 @@ test("multi-part order: production details, inspection results, editable quantit
   assert.equal(orders[0].quantity, 13);
   assert.equal(orders[0].notes, "Cell 2");
   assert.equal(createProductionOrder(state, projectRecords(state, id).lineItems[0].id, NOW), state, "one order per part");
-  for (const order of orders) state = advanceProduction(advanceProduction(state, order.id, NOW), order.id, NOW);
+  // The release gate: approved drawings and material in stock before anything starts.
+  assert.equal(advanceProduction(state, orders[0].id, NOW), state, "no start without approval and material");
+  for (const doc of projectRecords(state, id).documents) state = approveDocument(state, doc.id, NOW);
+  state = saveRawMaterial(state, null, { name: "Steel plate", unit: "kg", stock: 3, reorderLevel: 0, unitCost: null, supplierId: null }, NOW);
+  state = saveRawMaterial(state, null, { name: "Steel bar", unit: "kg", stock: 2, reorderLevel: 0, unitCost: null, supplierId: null }, NOW);
+  state = produce(state, id);
 
-  // A failed result blocks dispatch until inspected again.
-  const reqs = projectRecords(state, id).inspectionRequirements;
-  state = generateInspectionReport(state, id, NOW, { [reqs[0].id]: { observed: "100.3", pass: false } });
+  // A failed result blocks dispatch until inspected again; an out-of-tolerance value cannot pass.
+  state = measure(state, id, { Length: "100.3" }, "pass");
   assert.equal(projectRecords(state, id).inspectionReports[0].passed, false);
   assert.equal(dispatchProject(state, id, NOW), state);
-  state = generateInspectionReport(state, id, NOW, { [reqs[0].id]: { observed: "100.02", pass: true } });
+  state = measure(state, id, { Length: "100.02" });
   assert.equal(projectRecords(state, id).inspectionReports[0].results[0].observed, "100.02 mm");
   state = generateInvoice(dispatchProject(state, id, NOW), id, NOW);
   assert.equal(projectRecords(state, id).invoices[0].subtotal, 160);
@@ -258,7 +282,7 @@ test("multi-part order: production details, inspection results, editable quantit
   assert.deepEqual(catalog.suppliers, ["Northline"]);
 });
 
-test("records can be edited later from their tabs; production status is free-form", () => {
+test("records can be edited later from their tabs; production status follows the job rules", () => {
   const base = createInitialState();
   let { state, projectId } = createProjectFromDraft(base, validDraft(base), NOW);
   const r = () => projectRecords(state, projectId);
@@ -284,13 +308,14 @@ test("records can be edited later from their tabs; production status is free-for
 
   state = createProductionOrder(state, r().lineItems[0].id, NOW);
   const order = r().productionOrders[0];
-  state = setProductionStatus(state, order.id, "Waiting for heat treatment", NOW);
-  assert.equal(r().productionOrders[0].status, "Waiting for heat treatment");
+  assert.equal(setProductionStatus(state, order.id, "Waiting for heat treatment", NOW), state, "no free-text statuses");
+  state = setProductionStatus(state, order.id, "On hold", NOW);
+  assert.equal(r().productionOrders[0].status, "On hold");
   assert.equal(readiness(state, projectId).production.state, "incomplete");
   state = updateProductionOrder(state, order.id, { quantity: 11, startDate: "2026-11-03", notes: "Night shift", status: "Completed" }, NOW);
-  assert.ok(isProductionComplete(r().productionOrders[0].status));
+  assert.ok(!isProductionComplete(r().productionOrders[0].status), "Completed needs every operation booked");
   assert.equal(r().productionOrders[0].quantity, 11);
-  assert.equal(readiness(state, projectId).production.state, "complete");
+  assert.equal(readiness(state, projectId).production.state, "incomplete");
 
   state = removeInspectionRequirement(state, req.id, NOW);
   assert.equal(r().inspectionRequirements.length, 0);
@@ -331,8 +356,9 @@ test("raw materials, suppliers and finance are connected to the same records", (
   state = approveDocument(state, projectRecords(state, projectId).documents[0].id, NOW);
   state = createProductionOrder(state, projectRecords(state, projectId).lineItems[0].id, NOW);
   const order = projectRecords(state, projectId).productionOrders[0];
-  state = advanceProduction(advanceProduction(state, order.id, NOW), order.id, NOW);
-  state = generateInvoice(dispatchProject(generateInspectionReport(state, projectId, NOW), projectId, NOW), projectId, NOW);
+  state = produce(state, projectId);
+  assert.equal(projectRecords(state, projectId).productionOrders[0].id, order.id);
+  state = generateInvoice(dispatchProject(measure(state, projectId), projectId, NOW), projectId, NOW);
   const invoice = projectRecords(state, projectId).invoices[0];
   summary = financeSummary(state, "2027-06-01");
   assert.equal(summary.receivable, invoice.total);

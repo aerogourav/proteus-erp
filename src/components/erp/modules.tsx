@@ -7,7 +7,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { ArrowLeft, FileText, Mail, Plus, Printer, Sparkles, Trash2, X } from "lucide-react";
 import { LineItemsEditor } from "@/components/erp/line-items";
-import { CustomValuesView, EditButton, NOT_SAVED, StatusSelect, customEditFields, customInitial, pickCustom, useEditor } from "@/components/erp/edit";
+import { CustomValuesView, EditButton, NOT_SAVED, customEditFields, customInitial, pickCustom, useEditor } from "@/components/erp/edit";
+import { OverrideDialog } from "@/components/erp/override-dialog";
 import { BillDialog, ReorderPanel, SupplierOrderDialog, SupplierOrdersSection, type OrderPrefill } from "@/components/erp/purchasing-ui";
 import type { BillInput } from "@/lib/erp/finance";
 import { InspectionForm } from "@/components/erp/inspection-form";
@@ -20,8 +21,8 @@ import {
   RULES, UNITS, advanceProcurement, createProductionOrder, deleteProject, dispatchProject, formatDate, rawMaterialFor,
   addInspectionRequirement, removeInspectionRequirement, setProductionStatus, updateCustomer, updateInspectionRequirement, updateMaterial,
   updatePart, updateProductionOrder, updateProject, updatePurchaseOrder, isProductionComplete, setCustomValues, formatMoney, isActiveOrder, lineEngineeringReady, lineMaterialReady, orderOperationalState,
-  partNumber, projectStage, readiness, revisionLabel,
-  type ErpState, type Project,
+  partNumber, projectStage, readiness, revisionLabel, approver, completionBlocker, deleteProjectBlocker, jobCost, linkMaterialLot, releaseGate,
+  type ErpState, type Project, type ProductionOrder,
 } from "@/lib/erp/model";
 import { addDemoProjects, hasDemoProjects } from "@/lib/erp/seed";
 import { toast } from "@/components/erp/toast";
@@ -105,14 +106,18 @@ export function ProjectsModule() {
       </div>;
     })}
   </Rows></section>{editor.dialog}
-    {deleting && <Modal label="Delete project" onClose={() => setDeleting(null)}>
-      <h2>Delete {deleting.code}?</h2>
-      <p style={{ marginTop: 8 }}>This removes the project, its purchase order, line items, material requirements, production orders, inspection report, dispatch note and invoice from this browser. Customers, parts, shared documents and the shop-floor log stay. It cannot be undone.</p>
-      <div className="erp-head-actions" style={{ marginTop: 18, justifyContent: "flex-end" }}>
-        <button type="button" className="erp-btn erp-btn-ghost" onClick={() => setDeleting(null)}>Cancel</button>
-        <button type="button" className="erp-btn erp-btn-danger" onClick={() => { commit((value) => deleteProject(value, deleting.id, nowIso())); toast(`${deleting.code} deleted.`, { tone: "info" }); setDeleting(null); }}><Trash2 size={14} /> Delete project</button>
-      </div>
-    </Modal>}
+    {deleting && (() => {
+      const blocker = deleteProjectBlocker(state, deleting.id);
+      return <Modal label="Delete project" onClose={() => setDeleting(null)}>
+        <h2>{blocker ? `${deleting.code} can’t be deleted` : `Delete ${deleting.code}?`}</h2>
+        {blocker ? <p className="erp-error" role="alert" style={{ marginTop: 8 }}>{blocker}</p>
+          : <p style={{ marginTop: 8 }}>This removes the project, its purchase order, line items, material requirements, production orders and inspection report from this browser. Customers, parts, shared documents and the shop-floor log stay. It cannot be undone.</p>}
+        <div className="erp-head-actions" style={{ marginTop: 18, justifyContent: "flex-end" }}>
+          <button type="button" className="erp-btn erp-btn-ghost" onClick={() => setDeleting(null)}>{blocker ? "Close" : "Cancel"}</button>
+          {!blocker && <button type="button" className="erp-btn erp-btn-danger" onClick={() => { commit((value) => deleteProject(value, deleting.id, nowIso())); toast(`${deleting.code} deleted.`, { tone: "info" }); setDeleting(null); }}><Trash2 size={14} /> Delete project</button>}
+        </div>
+      </Modal>;
+    })()}
   </>;
 }
 
@@ -306,19 +311,41 @@ export function MaterialsModule() {
 
 /* ---------------- Production ---------------- */
 
+/** Status of a production order with the moves the job rules allow. Completion happens on the shop floor when every operation is booked. */
+function ProductionStatusCell({ state, order }: { state: ErpState; order: ProductionOrder }) {
+  const [overriding, setOverriding] = useState(false);
+  const closed = isProductionComplete(order.status);
+  const gate = closed ? null : releaseGate(state, order);
+  const finish = closed || order.status === "Planned" ? null : completionBlocker(state, order.id);
+  const set = (status: string) => commit((value) => setProductionStatus(value, order.id, status, nowIso()));
+  const cost = closed ? jobCost(state, order.id) : null;
+  return <span className="erp-status-cell">
+    <Badge>{order.status}</Badge>
+    {!closed && <span className="erp-head-actions">
+      {order.status === "Planned" && <button type="button" className="erp-btn erp-btn-sm" disabled={Boolean(gate)} onClick={() => set("Running")}>Release</button>}
+      {order.status === "Running" && <button type="button" className="erp-btn erp-btn-ghost erp-btn-sm" onClick={() => set("On hold")}>Hold</button>}
+      {order.status === "On hold" && <button type="button" className="erp-btn erp-btn-sm" disabled={Boolean(gate)} onClick={() => set("Running")}>Resume</button>}
+    </span>}
+    {gate && <small className="erp-error">{gate}{approver(state) && <> <button type="button" className="erp-linkbtn" onClick={() => setOverriding(true)}>Override…</button></>}</small>}
+    {!gate && finish && <small className="erp-faint">{finish}</small>}
+    {cost?.frozen && <small className="erp-faint">Labour {formatMoney(cost.labour, state.settings.defaultCurrency)} · frozen at close</small>}
+    {overriding && <OverrideDialog state={state} order={order} onClose={() => setOverriding(false)} />}
+  </span>;
+}
+
 export function ProductionModule() {
   const state = useErp();
   const hydrated = useHydrated();
   const filter = useProjectFilter(state);
   const [output, setOutput] = useState<OutputState>(null);
   const editor = useEditor();
-  const head = <PageHead eyebrow="Operations" title="Production" description="Production orders per part, with quantity, planned start and shop-floor details. Unapproved drawings or missing material show as warnings." />;
+  const head = <PageHead eyebrow="Operations" title="Production" description="Production orders per part, with quantity, planned start and shop-floor details. A job is released only with an approved drawing for the ordered revision and material in stock." />;
   if (!hydrated) return <>{head}<Loading /></>;
   if (!state.lineItems.length) return <>{head}<NoProjects what="production orders" /></>;
   const lines = state.lineItems.filter((line) => !filter || line.projectId === filter.id);
   const orders = state.productionOrders.filter((order) => !filter || order.projectId === filter.id);
   const waiting = lines.filter((line) => !state.productionOrders.some((order) => order.lineItemId === line.id));
-  const columns = "minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr) 70px 170px minmax(0,1.2fr)";
+  const columns = "minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr) 70px minmax(0,1.3fr) minmax(0,1.2fr)";
   return <>{head}<FilterBar project={filter} base="/demo/production" />
     <section className="erp-card"><div className="erp-card-head"><div><h2>Production orders</h2><p>Each references its project, part, revision and required documents.</p></div></div>
       {orders.length ? <Rows columns={columns} head={["Order", "Project", "Part · revision", "Qty", "Status", ""]}>
@@ -326,9 +353,10 @@ export function ProductionModule() {
           const project = projectOf(state, order.projectId);
           return <div key={order.id} role="row" className="erp-row" style={{ gridTemplateColumns: columns }}>
             <strong>{order.number}</strong><span>{project && <ProjectLink id={project.id} code={project.code} />}</span>
-            <span>{partNumber(state, order.partId)} rev {revisionLabel(state, order.revisionId)}<CustomValuesView state={state} entity="productionOrder" custom={order.custom} />{(order.startDate || order.notes) && <small>{[order.startDate ? `Start ${formatDate(order.startDate)}` : "", order.notes ?? ""].filter(Boolean).join(" · ")}</small>}</span><span>{order.quantity}</span><span><StatusSelect key={order.status} id={`st-${order.id}`} label={`Status of ${order.number}`} value={order.status} onChange={(status) => commit((current) => setProductionStatus(current, order.id, status, nowIso()))} /></span>
+            <span>{partNumber(state, order.partId)} rev {revisionLabel(state, order.revisionId)}<CustomValuesView state={state} entity="productionOrder" custom={order.custom} />{(order.startDate || order.notes) && <small>{[order.startDate ? `Start ${formatDate(order.startDate)}` : "", order.notes ?? ""].filter(Boolean).join(" · ")}</small>}{order.materialLots?.map((lot) => <small key={lot.material}>Lot: {lot.material} · heat/batch {lot.heat}{lot.certificate ? ` · cert. ${lot.certificate}` : ""}</small>)}</span><span>{order.quantity}</span><ProductionStatusCell state={state} order={order} />
             <span className="erp-head-actions">
               <EditButton onClick={() => editor.open({ title: `Edit ${order.number}`, fields: [{ key: "quantity", label: "Quantity to produce", type: "number", required: true }, { key: "startDate", label: "Planned start", type: "date" }, { key: "notes", label: "Details for the shop floor" }, ...customEditFields(state, "productionOrder")], initial: { quantity: String(order.quantity), startDate: order.startDate ?? "", notes: order.notes ?? "", ...customInitial(state, "productionOrder", order.custom) }, onSave: (v) => save((value) => setCustomValues(updateProductionOrder(value, order.id, { quantity: num(v.quantity), startDate: v.startDate, notes: v.notes, status: order.status }, nowIso()), "productionOrder", order.id, pickCustom(v))) })} />
+              <button type="button" className="erp-btn erp-btn-ghost erp-btn-sm" onClick={() => { const lot = order.materialLots?.[0]; const materials = state.materialRequirements.filter((req) => req.lineItemId === order.lineItemId).map((req) => req.material); editor.open({ title: `Material lot for ${order.number}`, fields: [{ key: "material", label: "Material", required: true, list: materials }, { key: "heat", label: "Heat number or batch", required: true }, { key: "certificate", label: "Certificate number (optional)", help: "For example the 3.1 mill certificate number" }], initial: { material: lot?.material ?? materials[0] ?? "", heat: lot?.heat ?? "", certificate: lot?.certificate ?? "" }, onSave: (v) => save((value) => linkMaterialLot(value, order.id, { material: v.material, heat: v.heat, certificate: v.certificate }, nowIso())) }); }}>Lot</button>
               <button type="button" className="erp-btn erp-btn-ghost erp-btn-sm" onClick={() => setOutput({ projectId: order.projectId, kind: "production", productionOrderId: order.id })}><Printer size={13} /> Order</button>
             </span>
           </div>;

@@ -10,9 +10,10 @@ import { Loading, NoProjects } from "@/components/erp/modules";
 import { commit, nowIso, todayIso, useErp, useHydrated } from "@/components/erp/store";
 import { toast } from "@/components/erp/toast";
 import { Badge, EmptyState, Field, Modal, PageHead, ProjectLink, Rule } from "@/components/erp/ui";
-import { addDays, formatDate, formatMoney, isProductionComplete, partNumber, revisionLabel, type ErpState, type OperationDef, type ProductionOrder } from "@/lib/erp/model";
+import { OverrideDialog } from "@/components/erp/override-dialog";
+import { addDays, approver, formatDate, formatMoney, isProductionComplete, operationProgress, partNumber, releaseGate, revisionLabel, type ErpState, type OperationDef, type ProductionOrder } from "@/lib/erp/model";
 import {
-  OPERATION_LIBRARY, WORK_CENTERS, cancelOperation, currentOperation, employeeById, endBlocker, endOperation, hasOwnRouting, incomingQuantity, kpiSummary, logsToCsv,
+  OPERATION_LIBRARY, WORK_CENTERS, cancelOperation, employeeById, endBlocker, endOperation, hasOwnRouting, kpiSummary, logsToCsv,
   orderOperations, routingError, routingFor, saveRouting, setCurrentUser, startBlocker, startOperation,
 } from "@/lib/erp/shopfloor";
 
@@ -77,7 +78,7 @@ function Terminal({ state }: { state: ErpState }) {
       {showDone && <ul className="erp-reasons erp-card-pad">{done.map((order) => { const logs = state.opLogs.filter((entry) => entry.orderId === order.id); return <li key={order.id}><span><b style={{ color: "var(--e-text)" }}>{order.number}</b> · {partNumber(state, order.partId)} · {logs.length} operations · {duration(logs.reduce((sum, entry) => sum + entry.minutes, 0))}</span>{logs.length > 0 && <button type="button" className="erp-btn erp-btn-sm" onClick={() => downloadBlob(logsToCsv(state, logs), `${order.number}-operation-log.csv`, "text/csv;charset=utf-8")}><Download size={13} /> Log file</button>}</li>; })}</ul>}
     </section>}
     {ending && <EndDialog state={state} activeId={ending} onClose={() => setEnding(null)} />}
-    <Rule>The next operation replaces the finished one in the same place. Starting the first operation takes the order’s material out of stock; ending the last one completes the production order.</Rule>
+    <Rule>A job starts only when its drawing is approved for the ordered revision and its material is in stock; a newer drawing revision stops further operations. Book partial quantities across shifts, and several people can work on one order. Good + scrap can never exceed the parts that arrived at an operation. The order completes when every operation is booked.</Rule>
   </div>;
 }
 
@@ -85,37 +86,51 @@ function OrderCard({ state, order, now, operatorId, onEnd }: { state: ErpState; 
   const project = state.projects.find((item) => item.id === order.projectId);
   const part = state.parts.find((item) => item.id === order.partId);
   const ops = orderOperations(state, order);
-  const current = currentOperation(state, order);
+  const startable = ops.filter((op) => !op.done && op.remaining > 0);
+  const [choice, setChoice] = useState<number | null>(null);
+  const [overriding, setOverriding] = useState(false);
+  const target = startable.find((op) => op.seq === choice) ?? startable[0] ?? null;
   const doneCount = ops.filter((op) => op.status === "done").length;
-  const blocker = startBlocker(state, order.id, operatorId);
-  const runner = current?.active ? employeeById(state, current.active.employeeId) : null;
-  const elapsed = current?.active ? minutesSince(current.active.start, now) : 0;
-  const over = current?.active ? elapsed > current.planned : false;
-  return <article className={`erp-card erp-opcard${current?.status === "running" ? " is-running" : ""}`}>
+  const blocker = startBlocker(state, order.id, operatorId, target?.seq);
+  const gate = releaseGate(state, order);
+  const actives = ops.flatMap((op) => op.actives.map((active) => ({ active, op })));
+  return <article className={`erp-card erp-opcard${actives.length ? " is-running" : ""}`}>
     <header>
       <div><span className="erp-eyebrow">{order.number} · {project && <ProjectLink id={project.id} code={project.code} />}</span><h3>{part?.number} rev {revisionLabel(state, order.revisionId)}</h3><p>{part?.description} · {order.quantity} pcs{order.notes ? ` · ${order.notes}` : ""}</p></div>
       <Badge>{order.status}</Badge>
     </header>
-    <ol className="erp-opstrip" aria-label="Operations">{ops.map((op) => <li key={op.seq} className={`is-${op.status}`} title={`${op.seq} ${op.name} · ${op.workCenter}`}><b>{op.seq}</b><span>{op.name}</span></li>)}</ol>
+    <ol className="erp-opstrip" aria-label="Operations">{ops.map((op) => <li key={op.seq} className={`is-${op.status}`} title={`${op.seq} ${op.name} · ${op.workCenter} · ${op.booked} of ${op.incoming} booked`}><b>{op.seq}</b><span>{op.name}</span>{op.status === "partial" || op.status === "running" ? <small>{op.booked}/{op.incoming}</small> : null}</li>)}</ol>
     <div className="erp-progress-bar" aria-label={`${doneCount} of ${ops.length} operations done`}><span style={{ width: `${(doneCount / Math.max(1, ops.length)) * 100}%` }} /></div>
-    {current ? <div className="erp-opnow">
-      <div><small>{current.status === "running" ? "Running now" : "Next operation"}</small><strong>Op {current.seq} · {current.name}</strong><span>{current.workCenter} · planned {duration(current.planned)} · {incomingQuantity(state, order, current.seq)} pcs in</span></div>
-      {current.active ? <div className="erp-opclock"><span className={over ? "is-over" : ""}><Timer size={14} /> {duration(elapsed)}</span><small>{runner?.name} ({runner?.code}) since {new Date(current.active.start).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</small>
-        <div className="erp-head-actions"><button type="button" className="erp-btn erp-btn-danger erp-btn-lg" onClick={() => onEnd(current.active!.id)}><CircleStop size={18} /> End Op {current.seq}</button></div></div>
-        : <div className="erp-opclock"><button type="button" className="erp-btn erp-btn-primary erp-btn-lg" disabled={Boolean(blocker)} onClick={() => { commit((value) => startOperation(value, order.id, operatorId!, nowIso())); toast(`Op ${current.seq} ${current.name} started on ${order.number}.`, { tone: "ok" }); }}><Play size={18} /> Start Op {current.seq}</button>{blocker && <small className="erp-faint">{blocker}</small>}</div>}
-    </div> : <p className="erp-faint">All operations done.</p>}
+    {gate && <div className="erp-gate" role="alert"><b>Release check:</b> {gate}{approver(state) && <button type="button" className="erp-btn erp-btn-sm" onClick={() => setOverriding(true)}>Override with reason</button>}</div>}
+    {order.releaseOverride && <p className="erp-faint">Released by override: {order.releaseOverride.by} · “{order.releaseOverride.reason}”</p>}
+    {actives.map(({ active, op }) => {
+      const runner = employeeById(state, active.employeeId);
+      const elapsed = minutesSince(active.start, now);
+      return <div key={active.id} className="erp-opnow">
+        <div><small>Running now</small><strong>Op {op.seq} · {op.name}</strong><span>{op.workCenter} · planned {duration(op.planned)} · {op.remaining} of {op.incoming} pcs still to book</span></div>
+        <div className="erp-opclock"><span className={elapsed > op.planned ? "is-over" : ""}><Timer size={14} /> {duration(elapsed)}</span><small>{runner?.name} ({runner?.code}) since {new Date(active.start).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</small>
+          <div className="erp-head-actions"><button type="button" className="erp-btn erp-btn-danger erp-btn-lg" onClick={() => onEnd(active.id)}><CircleStop size={18} /> End Op {op.seq}</button></div></div>
+      </div>;
+    })}
+    {target ? <div className="erp-opnow">
+      <div><small>{target.status === "partial" ? "Continue" : "Next operation"}</small><strong>Op {target.seq} · {target.name}</strong><span>{target.workCenter} · planned {duration(target.planned)} · {target.remaining} pcs waiting</span>
+        {startable.length > 1 && <label className="erp-faint">Work on <select className="erp-select" aria-label="Operation to start" value={target.seq} onChange={(event) => setChoice(Number(event.target.value))}>{startable.map((op) => <option key={op.seq} value={op.seq}>Op {op.seq} {op.name} · {op.remaining} waiting</option>)}</select></label>}
+      </div>
+      <div className="erp-opclock"><button type="button" className="erp-btn erp-btn-primary erp-btn-lg" disabled={Boolean(blocker)} onClick={() => { commit((value) => startOperation(value, order.id, operatorId!, nowIso(), target.seq)); toast(`Op ${target.seq} ${target.name} started on ${order.number}.`, { tone: "ok" }); }}><Play size={18} /> Start Op {target.seq}</button>{blocker && <small className="erp-faint">{blocker}</small>}</div>
+    </div> : !actives.length && <p className="erp-faint">{ops.every((op) => op.done) ? "All operations done." : "Waiting for parts from the previous operation."}</p>}
     {ops.some((op) => op.logs.length) && <details className="erp-opdone"><summary>{doneCount} done · {duration(ops.flatMap((op) => op.logs).reduce((sum, entry) => sum + entry.minutes, 0))} logged</summary>
       <ul>{ops.flatMap((op) => op.logs).map((entry) => <li key={entry.id}><b>Op {entry.seq} {entry.operation}</b> · {entry.employeeName} ({entry.employeeCode}) · {formatDate(entry.end)} · {duration(entry.minutes)} (plan {duration(entry.plannedMinutes)}) · {entry.qtyGood} good{entry.qtyScrap ? `, ${entry.qtyScrap} scrap` : ""}{entry.notes ? ` · ${entry.notes}` : ""}</li>)}</ul>
       <button type="button" className="erp-btn erp-btn-sm" onClick={() => downloadBlob(logsToCsv(state, state.opLogs.filter((entry) => entry.orderId === order.id)), `${order.number}-operation-log.csv`, "text/csv;charset=utf-8")}><Download size={13} /> Log file</button>
     </details>}
+    {overriding && <OverrideDialog state={state} order={order} onClose={() => setOverriding(false)} />}
   </article>;
 }
 
 function EndDialog({ state, activeId, onClose }: { state: ErpState; activeId: string; onClose: () => void }) {
   const active = state.activeOps.find((item) => item.id === activeId);
   const order = active ? state.productionOrders.find((item) => item.id === active.orderId) : null;
-  const incoming = order && active ? incomingQuantity(state, order, active.seq) : 0;
-  const [good, setGood] = useState(String(incoming));
+  const waiting = order && active ? operationProgress(state, order).find((item) => item.seq === active.seq)?.remaining ?? 0 : 0;
+  const [good, setGood] = useState(String(waiting));
   const [scrap, setScrap] = useState("0");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
@@ -126,14 +141,15 @@ function EndDialog({ state, activeId, onClose }: { state: ErpState; activeId: st
     const problem = endBlocker(state, activeId, input);
     if (problem) { setError(problem); return; }
     commit((value) => endOperation(value, activeId, input, nowIso()));
-    const next = op ? orderOperations(state, order).find((item) => item.seq > op.seq) : null;
-    toast(next ? `Op ${active.seq} logged. Next: Op ${next.seq} ${next.name}.` : `${order.number} completed. All operations logged.`, { tone: "ok" });
+    const after = endOperation(state, activeId, input, nowIso());
+    const closed = isProductionComplete(after.productionOrders.find((item) => item.id === order.id)?.status ?? "");
+    toast(closed ? `${order.number} completed. All operations booked.` : input.qtyGood + input.qtyScrap < waiting ? `Op ${active.seq} partly booked: ${waiting - input.qtyGood - input.qtyScrap} pcs still to do.` : `Op ${active.seq} booked.`, { tone: "ok" });
     onClose();
   };
   return <Modal label={`End operation ${active.seq}`} onClose={onClose}>
     <form className="erp-stack" style={{ gap: 12 }} onSubmit={(event) => { event.preventDefault(); submit(); }}>
       <h2>End Op {active.seq} · {op?.name}</h2>
-      <p className="erp-faint">{order.number} · {partNumber(state, order.partId)} · {incoming} pcs came in</p>
+      <p className="erp-faint">{order.number} · {partNumber(state, order.partId)} · {waiting} pcs still to book at this operation. Book fewer if the rest is done later or by someone else.</p>
       <div className="erp-form-grid">
         <Field id="end-good" label="Good parts"><input className="erp-input erp-input-lg" id="end-good" inputMode="numeric" value={good} onChange={(event) => setGood(event.target.value)} /></Field>
         <Field id="end-scrap" label="Scrap"><input className="erp-input erp-input-lg" id="end-scrap" inputMode="numeric" value={scrap} onChange={(event) => setScrap(event.target.value)} /></Field>
@@ -169,7 +185,7 @@ function KpiDashboard({ state }: { state: ErpState }) {
       <Stat label="Hours logged" value={(kpi.minutes / 60).toFixed(1)} note={`Planned ${(kpi.planned / 60).toFixed(1)} h`} />
       <Stat label="Efficiency" value={pct(kpi.efficiency)} note="Planned ÷ actual time" tone={kpi.efficiency !== null && kpi.efficiency < 85 ? "warn" : undefined} />
       <Stat label="Scrap rate" value={pct(kpi.scrapRate)} note={`${kpi.scrap} scrap of ${kpi.good + kpi.scrap}`} tone={kpi.scrapRate !== null && kpi.scrapRate > 2 ? "warn" : undefined} />
-      <Stat label="OEE (performance × quality)" value={pct(kpi.oee)} note="Availability not measured" />
+      <Stat label="Performance × quality" value={pct(kpi.performanceQuality)} note="Not OEE: availability is not measured" />
       <Stat label="Labour cost" value={money(kpi.labourCost)} note="Logged time × hourly rate" />
       <Stat label="Good parts" value={kpi.good} />
       <Stat label="Avg. per operation" value={kpi.operations ? duration(kpi.minutes / kpi.operations) : "—"} />
@@ -189,7 +205,7 @@ function KpiDashboard({ state }: { state: ErpState }) {
         {!kpi.byOperation.length && <p className="erp-faint erp-card-pad">No operations logged in this period.</p>}
       </div>
     </section>
-    <Rule>OEE here is performance × quality from the operation log. Availability needs machine run-time data, which this demo does not collect.</Rule>
+    <Rule>Performance × quality comes from the operation log. It is not OEE: OEE also needs availability from machine run-time data, which this demo does not collect.</Rule>
   </div>;
 }
 

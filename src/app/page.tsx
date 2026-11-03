@@ -31,9 +31,9 @@ const steps = [
 
 const story = [
   ["Enter the order once", "Customer, purchase order, parts and revisions, drawings, inspection and material in a short guided form."],
-  ["Check before release", "Rules flag a job whose drawing is not approved for the ordered revision or whose material has not arrived."],
-  ["Book work on the shop floor", "Operators start and end operations and book good and scrap quantities against the routing."],
-  ["Inspect, dispatch, invoice", "Inspection results, delivery note and invoice come from the same records, with no retyping."],
+  ["Release only when ready", "A job cannot start without an approved drawing for the ordered revision and its material in stock. A revised drawing stops further work. Overrides need an owner or admin and a reason."],
+  ["Book work on the shop floor", "Operators book good and scrap per operation, in parts across shifts. Quantities can never exceed what arrived, and the job completes only when every operation is booked."],
+  ["Inspect, dispatch, invoice", "Every measurement needs an explicit result; out-of-tolerance values fail. Delivery note and invoice come from the same records, and issued invoices are cancelled with a credit note, never deleted."],
 ] as const;
 
 const industries = [
@@ -44,9 +44,9 @@ const industries = [
 const today = [
   "Manufacturing demo with a fictional job shop and months of synthetic data",
   "Customer orders linked to parts, revisions, drawings and material",
-  "Release checks that flag unapproved drawings and missing material",
-  "Shop-floor booking per operation with good and scrap quantities",
-  "Inspection, dispatch and invoices generated from the same records",
+  "Release checks that block jobs with unapproved drawings or missing material, with logged owner/admin overrides",
+  "Shop-floor booking per operation: partial quantities, several shifts and operators, good and scrap",
+  "Inspection with explicit results, sample size and gauge; dispatch and invoices from the same records",
   "E-commerce and SaaS demos on the same core",
   "English and German interface",
 ];
@@ -86,7 +86,7 @@ export default function Home() {
           <div>
             <span className="b-kicker">Configurable ERP for small manufacturers</span>
             <h1 id="hero-title"><span>Your business.</span><span>Your workflows.</span><span className="b-accent-line">Your ERP.</span></h1>
-            <p className="b-lead">BOH ERP links customer orders, drawing revisions, material, shop-floor bookings, inspection and dispatch, so problems are flagged before a job starts, not on the machine.</p>
+            <p className="b-lead">BOH ERP links customer orders, drawing revisions, material, shop-floor bookings, inspection and dispatch, and stops a job from starting on an unapproved drawing or without its material.</p>
             <div className="b-hero-actions">
               <Link className="b-btn b-btn-primary" href="/contact?offer=call">Book a free workflow call <ArrowRight size={18} /></Link>
               <Link className="b-btn b-btn-ghost" href="/contact?offer=walkthrough"><PlayCircle size={18} /> Free demo walkthrough</Link>

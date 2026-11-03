@@ -29,7 +29,7 @@ export function createSupplierOrder(state: ErpState, input: SupplierOrderInput, 
   const supplier = next.suppliers.find((item) => norm(item.name) === norm(input.supplier));
   if (supplier && !supplier.email && input.email.trim()) next = { ...next, suppliers: touch(next.suppliers, supplier.id, (item) => ({ ...item, email: input.email.trim() })) };
   const [id, withId] = nextId(next, "spo");
-  const number = numberFor("SPO-2026-", (withId.supplierOrders ?? []).map((order) => order.number), 1);
+  const number = numberFor(`SPO-${now.slice(0, 4)}-`, (withId.supplierOrders ?? []).map((order) => order.number), 1);
   const order: SupplierOrder = {
     id, number, supplier: supplier?.name ?? input.supplier.trim(), email: input.email.trim() || supplier?.email || "", currency: input.currency,
     lines: input.lines.map((line) => ({ material: line.material.trim(), quantity: round2(line.quantity), unit: line.unit, unitPrice: line.unitPrice === null ? null : round2(line.unitPrice), requirementIds: line.requirementIds })),

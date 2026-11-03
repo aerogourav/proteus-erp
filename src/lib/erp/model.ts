@@ -24,7 +24,8 @@ export type StoredFile = { name: string; size: number; type: string; data?: stri
 export type ProcurementStatus = "Not ordered" | "Ordered" | "Received";
 /** Preset statuses; any custom text is allowed too. "Completed" (or the older "Complete") counts as finished. */
 export type ProductionStatus = string;
-export const PRODUCTION_STATUSES = ["Planned", "Running", "In process", "Completed"] as const;
+/** Planned → Running (release gate) → Completed (every operation booked). "On hold" pauses a job. No free-text statuses. */
+export const PRODUCTION_STATUSES = ["Planned", "Running", "On hold", "Completed"] as const;
 export const isProductionComplete = (status: string) => status === "Completed" || status === "Complete";
 
 export const DOC_TYPES: DocType[] = ["Drawing", "3D model", "Specification", "Bill of materials", "Inspection plan", "Material certificate"];
@@ -125,12 +126,28 @@ export type DocumentRecord = { id: string; number: string; name: string; type: D
 export type InspectionRequirement = { id: string; projectId: string; partId: string | null; name: string; spec: string; unit: string; acceptance: string };
 export type MaterialRequirement = { id: string; projectId: string; lineItemId: string | null; material: string; quantity: number; unit: string };
 export type ProcurementRecord = { id: string; number: string; requirementId: string; supplier: string; status: ProcurementStatus; updatedAt: string };
-export type ProductionOrder = { id: string; number: string; projectId: string; lineItemId: string; partId: string; revisionId: string; quantity: number; status: ProductionStatus; createdAt: string; startDate?: string; notes?: string; custom?: CustomValues; routing?: OperationDef[]; materialIssuedAt?: string };
-export type InspectionResult = { requirementId: string; observed: string; pass: boolean };
+export type ProductionOrder = {
+  id: string; number: string; projectId: string; lineItemId: string; partId: string; revisionId: string; quantity: number; status: ProductionStatus; createdAt: string; startDate?: string; notes?: string; custom?: CustomValues; routing?: OperationDef[]; materialIssuedAt?: string;
+  /** Named release despite open blockers (owner or admin, with a reason). Covers only the blockers listed. */
+  releaseOverride?: ReleaseOverride;
+  /** Heat number or batch and certificate of the material used (traceability). */
+  materialLots?: MaterialLot[];
+  /** Costs frozen when the job closed, so later wage or price changes do not rewrite it. */
+  costSnapshot?: CostSnapshot;
+  completedAt?: string;
+};
+export type ReleaseOverride = { by: string; byId: string; reason: string; at: string; blockers: string[] };
+export type MaterialLot = { material: string; heat: string; certificate: string; linkedAt: string };
+export type CostSnapshot = { labour: number; minutes: number; at: string };
+/** pass is the final verdict: the inspector's explicit result, failed automatically when a number is outside a parseable tolerance. */
+export type InspectionResult = { requirementId: string; observed: string; pass: boolean; result?: "pass" | "fail"; sampleSize?: number; gaugeId?: string; tolerance?: ToleranceResult };
+export type ToleranceResult = "in" | "out" | "unknown";
 export type InspectionReport = { id: string; number: string; projectId: string; productionOrderIds: string[]; results: InspectionResult[]; passed: boolean; createdAt: string };
 export type DispatchRecord = { id: string; number: string; projectId: string; purchaseOrderId: string; dispatchedAt: string };
 export type InvoiceLine = { description: string; quantity: number; unit: string; unitPrice: number; amount: number };
-export type Invoice = { id: string; number: string; projectId: string; purchaseOrderId: string; customerId: string; currency: Currency; lines: InvoiceLine[]; subtotal: number; taxRate: number; tax: number; total: number; issuedAt: string; dueAt: string; paidAt?: string };
+export type Invoice = { id: string; number: string; projectId: string; purchaseOrderId: string; customerId: string; currency: Currency; lines: InvoiceLine[]; subtotal: number; taxRate: number; tax: number; total: number; issuedAt: string; dueAt: string; paidAt?: string; cancelledAt?: string; cancelReason?: string; creditNoteId?: string };
+/** Cancels an issued invoice. The invoice and its number are kept; amounts are negative. */
+export type CreditNote = { id: string; number: string; invoiceId: string; projectId: string; customerId: string; currency: Currency; subtotal: number; tax: number; total: number; reason: string; issuedAt: string };
 export type ActivityEvent = { id: string; at: string; projectId: string | null; module: ModuleKey; text: string; user?: string };
 
 export type ModuleKey = "projects" | "crm" | "sales" | "parts" | "documents" | "materials" | "procurement" | "production" | "quality" | "dispatch" | "finance" | "suppliers" | "settings" | "inbox" | "shopfloor" | "people"
@@ -176,7 +193,9 @@ export type Ticket = {
 
 /* ---------- People, shop floor, email, quotations, purchasing and finance records ---------- */
 
-export type Employee = { id: string; code: string; name: string; role: string; department: string; email: string; hourlyRate: number; monthlySalary: number; pay: "salary" | "hourly"; active: boolean; joinedAt: string };
+/** Owner and admin may approve drawings and override the release gate; members may not. */
+export type EmployeeAccess = "owner" | "admin" | "member";
+export type Employee = { id: string; code: string; name: string; role: string; department: string; email: string; hourlyRate: number; monthlySalary: number; pay: "salary" | "hourly"; active: boolean; joinedAt: string; access?: EmployeeAccess };
 /** One step of a part's routing. Times are planned minutes. */
 export type OperationDef = { seq: number; name: string; workCenter: string; setupMin: number; runMinPerPc: number };
 export type Routing = { partId: string; operations: OperationDef[] };
@@ -211,6 +230,8 @@ export const BILL_CATEGORIES: BillCategory[] = ["Raw material", "Subcontracting"
 export type Bill = {
   id: string; number: string; supplier: string; category: BillCategory; date: string; dueDate: string; currency: Currency; net: number; taxRate: number; tax: number; total: number;
   paidAt?: string; supplierOrderId?: string; projectId?: string; description: string; file?: StoredFile; emailId?: string;
+  /** Quantity billed, when the bill states one: compared with the supplier order. */
+  quantity?: number;
 };
 export type Payslip = {
   id: string; number: string; employeeId: string; period: string; hours: number; gross: number; incomeTax: number; social: number; net: number; employerCost: number;
@@ -248,6 +269,7 @@ export type ErpState = {
   inspectionReports: InspectionReport[];
   dispatches: DispatchRecord[];
   invoices: Invoice[];
+  creditNotes: CreditNote[];
   activity: ActivityEvent[];
   employees: Employee[];
   /** Who is using the demo right now. Used for the activity log and the shop floor. */
@@ -281,7 +303,7 @@ export function createInitialState(): ErpState {
     version: 2, seq: 1, settings: { industry: "manufacturing", taxRate: 19, defaultCurrency: "EUR", paymentTermsDays: 30, ui: { ...DEFAULT_UI }, tabs: DEFAULT_TABS.map((tab) => ({ ...tab })), widgets: DEFAULT_WIDGETS.map((widget) => ({ ...widget })), customFields: [], docTypes: [], fx: { ...DEFAULT_FX }, payroll: { ...DEFAULT_PAYROLL }, companyName: "Your company (demo)", overheadPerHour: 0 },
     suppliers: [], rawMaterials: [],
     customers: [], purchaseOrders: [], projects: [], lineItems: [], parts: [], revisions: [], documents: [], inspectionRequirements: [],
-    materialRequirements: [], procurement: [], productionOrders: [], inspectionReports: [], dispatches: [], invoices: [], activity: [], draft: null,
+    materialRequirements: [], procurement: [], productionOrders: [], inspectionReports: [], dispatches: [], invoices: [], creditNotes: [], activity: [], draft: null,
     employees: [], currentUserId: null, routings: [], opLogs: [], activeOps: [], emails: [], mail: { provider: "demo", address: "", lastSync: "", autoSync: true },
     quotations: [], supplierOrders: [], bills: [], payslips: [],
     warehouses: [], products: [], shopOrders: [], plans: [], subscriptions: [], tickets: [],
@@ -303,6 +325,9 @@ export function numberFor(prefix: string, existing: string[], start = 1, width =
   while (used.has(normCode(`${prefix}${String(n).padStart(width, "0")}`))) n += 1;
   return `${prefix}${String(n).padStart(width, "0")}`;
 }
+
+/** Calendar year of a document date (ISO), used in document numbers such as INV-2027-0501. */
+export const yearOf = (isoDate: string) => isoDate.slice(0, 4);
 
 export const ACTIVITY_LIMIT = 600;
 
@@ -352,7 +377,7 @@ export function addDays(isoDate: string, days: number) {
 
 /* ============================== Draft (wizard) ============================== */
 
-export function suggestProjectCode(state: ErpState, year = 2026) {
+export function suggestProjectCode(state: ErpState, year: number | string) {
   return numberFor(`BOH-PRJ-${year}-`, state.projects.map((project) => project.code), 1, 3);
 }
 
@@ -362,7 +387,7 @@ export function suggestPartNumber(state: ErpState, draft: ProjectDraft) {
 
 export function newDraft(state: ErpState, today: string): ProjectDraft {
   return {
-    step: 0, projectName: "", projectCode: suggestProjectCode(state), poNumber: "", description: "",
+    step: 0, projectName: "", projectCode: suggestProjectCode(state, yearOf(today)), poNumber: "", description: "",
     customerName: "", contact: "", poDate: today, deliveryDate: addDays(today, 42), currency: state.settings.defaultCurrency, orderValue: "",
     lines: [], documents: [], inspections: [], materials: [],
   };
@@ -602,7 +627,7 @@ export function createProjectFromDraft(input: ErpState, draft: ProjectDraft, now
     state = {
       ...state,
       materialRequirements: [...state.materialRequirements, { id: reqId, projectId, lineItemId: item.lineKey ? lineIds.get(item.lineKey) ?? null : null, material: item.material.trim(), quantity: Number(item.quantity), unit: item.unit }],
-      procurement: [...state.procurement, { id: procId, number: numberFor("PUR-2026-", state.procurement.map((record) => record.number), 101), requirementId: reqId, supplier: item.supplier.trim(), status: item.status, updatedAt: now }],
+      procurement: [...state.procurement, { id: procId, number: numberFor(`PUR-${yearOf(now)}-`, state.procurement.map((record) => record.number), 101), requirementId: reqId, supplier: item.supplier.trim(), status: item.status, updatedAt: now }],
     };
     state = log(state, now, "materials", `Material requirement: ${Number(item.quantity)} ${item.unit} ${item.material.trim()} (${item.status})`, projectId);
   }
@@ -660,8 +685,8 @@ export const RULES = {
   engineering: "Every ordered part needs a drawing for the ordered revision. Approval can happen later, outside the guided flow.",
   materials: "Every ordered part needs a material requirement. Purchasing is a recommendation until the material is ordered and received.",
   inspection: "The project needs at least one inspection requirement.",
-  production: "A production order can be created for any line item. A drawing that is not yet approved or material that is not yet received is shown as a warning.",
-  quality: "An inspection report can be generated when all production orders are complete. It must pass.",
+  production: "A production order can be created for any line item, but it starts only with an approved drawing for the ordered revision and its material in stock. A newer drawing revision stops further operations. Owners and admins can override with a logged reason. It completes when every routing operation is booked on the shop floor.",
+  quality: "An inspection report can be recorded when all production orders are complete. Every parameter needs a measured value, an explicit pass or fail and a sample size; a value outside a readable tolerance fails. It must pass.",
   dispatch: "An order can be dispatched only when production is complete and the inspection report has passed.",
   invoice: "The invoice is generated from the dispatched line items and their unit prices.",
 } as const;
@@ -755,7 +780,7 @@ export function readiness(state: ErpState, projectId: string): ProjectReadiness 
   }
 
   // Invoice
-  const invoiceRecord = records.invoices[0] ?? null;
+  const invoiceRecord = records.invoices.find((item) => !item.cancelledAt) ?? null;
   let invoice: Readiness;
   if (invoiceRecord) invoice = { state: "complete", summary: `${invoiceRecord.number} issued`, reasons: [] };
   else if (!dispatched) invoice = { state: "blocked", summary: "After dispatch", reasons: [{ text: "The invoice is created after the order is dispatched." }] };
@@ -808,7 +833,7 @@ export function touch<T extends { id: string }>(list: T[], id: string, change: (
 
 export function approveDocument(state: ErpState, documentId: string, now: string): ErpState {
   const doc = state.documents.find((item) => item.id === documentId);
-  if (!doc || doc.status === "Approved") return state;
+  if (!doc || doc.status === "Approved" || !canApprove(state)) return state;
   const approvedBy = currentUserName(state);
   const next = { ...state, documents: touch(state.documents, documentId, (item) => ({ ...item, status: "Approved" as DocStatus, updatedAt: now, approvedAt: now, ...(approvedBy ? { approvedBy } : {}) })) };
   return log(next, now, "documents", `${doc.type} ${doc.number} rev ${doc.revision} approved`, doc.projectIds[0] ?? null);
@@ -879,7 +904,7 @@ export function addMaterialRequirement(state: ErpState, projectId: string, input
   next = {
     ...next,
     materialRequirements: [...next.materialRequirements, { id: reqId, projectId, lineItemId: input.lineItemId, material: input.material.trim(), quantity: input.quantity, unit: input.unit }],
-    procurement: [...next.procurement, { id: procId, number: numberFor("PUR-2026-", next.procurement.map((record) => record.number), 101), requirementId: reqId, supplier: input.supplier.trim(), status: "Not ordered", updatedAt: now }],
+    procurement: [...next.procurement, { id: procId, number: numberFor(`PUR-${yearOf(now)}-`, next.procurement.map((record) => record.number), 101), requirementId: reqId, supplier: input.supplier.trim(), status: "Not ordered", updatedAt: now }],
   };
   return log(next, now, "materials", `Material requirement added: ${input.quantity} ${input.unit} ${input.material.trim()}`, projectId);
 }
@@ -902,26 +927,22 @@ export function createProductionOrder(state: ErpState, lineItemId: string, now: 
   let id: string;
   let next: ErpState;
   [id, next] = nextId(state, "mo");
-  const number = numberFor("MO-2026-", next.productionOrders.map((order) => order.number), 201);
+  const number = numberFor(`MO-${yearOf(now)}-`, next.productionOrders.map((order) => order.number), 201);
   next = { ...next, productionOrders: [...next.productionOrders, { id, number, projectId: line.projectId, lineItemId, partId: line.partId, revisionId: line.revisionId, quantity, status: "Planned", createdAt: now, ...(details.startDate ? { startDate: details.startDate } : {}), ...(details.notes?.trim() ? { notes: details.notes.trim() } : {}) }] };
   return log(next, now, "production", `Production order ${number} created for ${quantity} × ${partNumber(state, line.partId)} rev ${revisionLabel(state, line.revisionId)}`, line.projectId);
 }
 
+/** Planned → Running through the release gate; Running → Completed only when every operation is booked. */
 export function advanceProduction(state: ErpState, productionOrderId: string, now: string): ErpState {
   const order = state.productionOrders.find((item) => item.id === productionOrderId);
   if (!order || isProductionComplete(order.status)) return state;
-  const status: ProductionStatus = order.status === "Planned" ? "Running" : "Completed";
-  const next = { ...state, productionOrders: touch(state.productionOrders, productionOrderId, (item) => ({ ...item, status })) };
-  return issueMaterial(log(next, now, "production", `${order.number} ${isProductionComplete(status) ? "completed" : "started"}`, order.projectId), productionOrderId, now);
+  return setProductionStatus(state, productionOrderId, order.status === "Planned" ? "Running" : "Completed", now);
 }
 
-/** Good quantity at the last operation when the shop floor recorded it, otherwise the order quantity. */
+/** Good parts booked at the last operation of the routing. Nothing booked means nothing produced. */
 export function producedQuantity(state: ErpState, order: ProductionOrder) {
-  const routing = order.routing ?? [];
-  if (!routing.length) return order.quantity;
-  const last = Math.max(...routing.map((op) => op.seq));
-  const logs = (state.opLogs ?? []).filter((entry) => entry.orderId === order.id && entry.seq === last);
-  return logs.length ? logs.reduce((sum, entry) => sum + entry.qtyGood, 0) : order.quantity;
+  const ops = operationProgress(state, order);
+  return ops.length ? ops[ops.length - 1].good : 0;
 }
 
 /**
@@ -944,18 +965,60 @@ export function issueMaterial(state: ErpState, orderId: string, now: string): Er
   return log(next, now, "materials", `Material issued to ${order.number}${notes.length ? ` · ${notes.join("; ")}` : ""}`, order.projectId);
 }
 
-export function generateInspectionReport(state: ErpState, projectId: string, now: string, measured: Record<string, { observed: string; pass: boolean }> = {}): ErpState {
+export type Measurement = { observed: string; result: "pass" | "fail" | ""; sampleSize: number; gaugeId: string };
+
+const firstNumber = (text: string) => {
+  const match = text.replace(/(\d),(\d)/g, "$1.$2").match(/-?\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : null;
+};
+
+/**
+ * Checks a measured value against a specification it can read: "120.00 ± 0.05", "20 +0.1/-0.05", "8–12", "≤ 0.05", "min 3".
+ * Fits such as "Ø40 H8" and text specifications return "unknown": the inspector's explicit result decides.
+ */
+export function toleranceCheck(spec: string, observed: string): ToleranceResult {
+  const value = firstNumber(observed);
+  if (value === null) return "unknown";
+  const text = spec.replace(/(\d),(\d)/g, "$1.$2").replace(/\s+/g, " ");
+  const num = "(-?\\d+(?:\\.\\d+)?)";
+  let range: [number, number] | null = null;
+  let m: RegExpMatchArray | null;
+  if ((m = text.match(new RegExp(`${num} ?± ?${num}`)))) range = [Number(m[1]) - Number(m[2]), Number(m[1]) + Number(m[2])];
+  else if ((m = text.match(new RegExp(`${num} ?\\+ ?${num} ?/ ?- ?${num}`)))) range = [Number(m[1]) - Number(m[3]), Number(m[1]) + Number(m[2])];
+  else if ((m = text.match(new RegExp(`(?:≤|<=|max\\.?) ?${num}`, "i")))) range = [-Infinity, Number(m[1])];
+  else if ((m = text.match(new RegExp(`(?:≥|>=|min\\.?) ?${num}`, "i")))) range = [Number(m[1]), Infinity];
+  else if ((m = text.match(new RegExp(`^[^\\d-]*${num} ?(?:–|-|to) ?${num}`)))) range = [Number(m[1]), Number(m[2])];
+  if (!range) return "unknown";
+  const eps = 1e-9;
+  return value >= range[0] - eps && value <= range[1] + eps ? "in" : "out";
+}
+
+/** What is missing before an inspection can be recorded, or null. Every requirement needs a value, an explicit result and a sample size. */
+export function inspectionInputError(state: ErpState, projectId: string, measured: Record<string, Measurement>): string | null {
+  for (const req of state.inspectionRequirements.filter((item) => item.projectId === projectId)) {
+    const entry = measured[req.id];
+    if (!entry || !entry.observed.trim()) return `Enter the measured value for ${req.name}.`;
+    if (entry.result !== "pass" && entry.result !== "fail") return `Choose pass or fail for ${req.name}.`;
+    if (!Number.isInteger(entry.sampleSize) || entry.sampleSize < 1) return `Enter how many parts were measured for ${req.name}.`;
+  }
+  return null;
+}
+
+export function generateInspectionReport(state: ErpState, projectId: string, now: string, measured: Record<string, Measurement> = {}): ErpState {
   const ready = readiness(state, projectId);
   if (ready.production.state !== "complete" || ready.inspection.state !== "complete") return state;
+  if (inspectionInputError(state, projectId, measured)) return state;
   const records = projectRecords(state, projectId);
   let id: string;
   let next: ErpState;
   [id, next] = nextId(state, "rep");
-  const number = numberFor("IR-2026-", next.inspectionReports.map((report) => report.number), 301);
+  const number = numberFor(`IR-${yearOf(now)}-`, next.inspectionReports.map((report) => report.number), 301);
   const results: InspectionResult[] = records.inspectionRequirements.map((req) => {
     const entry = measured[req.id];
-    const observed = entry?.observed.trim() ? `${entry.observed.trim()}${req.unit && !entry.observed.includes(req.unit) ? ` ${req.unit}` : ""}` : `Within specification (${req.spec}${req.unit ? ` ${req.unit}` : ""})`;
-    return { requirementId: req.id, observed, pass: entry ? entry.pass : true };
+    const observed = `${entry.observed.trim()}${req.unit && !entry.observed.includes(req.unit) ? ` ${req.unit}` : ""}`;
+    const tolerance = toleranceCheck(req.spec, entry.observed);
+    const result = entry.result as "pass" | "fail";
+    return { requirementId: req.id, observed, pass: result === "pass" && tolerance !== "out", result, sampleSize: entry.sampleSize, gaugeId: entry.gaugeId.trim(), tolerance };
   });
   const report: InspectionReport = { id, number, projectId, productionOrderIds: records.productionOrders.map((order) => order.id), results, passed: results.every((result) => result.pass), createdAt: now };
   next = { ...next, inspectionReports: [report, ...next.inspectionReports] };
@@ -970,7 +1033,7 @@ export function dispatchProject(state: ErpState, projectId: string, now: string)
   let id: string;
   let next: ErpState;
   [id, next] = nextId(state, "dsp");
-  const number = numberFor("DN-2026-", next.dispatches.map((item) => item.number), 401);
+  const number = numberFor(`DN-${yearOf(now)}-`, next.dispatches.map((item) => item.number), 401);
   next = { ...next, dispatches: [...next.dispatches, { id, number, projectId, purchaseOrderId: order.id, dispatchedAt: now }] };
   return log(next, now, "dispatch", `Dispatched with delivery note ${number}`, projectId);
 }
@@ -1006,8 +1069,8 @@ export function generateInvoice(state: ErpState, projectId: string, now: string)
   let id: string;
   let next: ErpState;
   [id, next] = nextId(state, "inv");
-  const number = numberFor("INV-2026-", next.invoices.map((item) => item.number), 501);
   const issuedAt = now.slice(0, 10);
+  const number = numberFor(`INV-${yearOf(issuedAt)}-`, next.invoices.map((item) => item.number), 501);
   next = { ...next, invoices: [...next.invoices, { id, number, projectId, purchaseOrderId: order.id, customerId: project.customerId, currency: order.currency, lines, subtotal, taxRate: state.settings.taxRate, tax, total: round2(subtotal + tax), issuedAt, dueAt: addDays(issuedAt, state.settings.paymentTermsDays) }] };
   return log(next, now, "finance", `Invoice ${number} generated · ${formatMoney(round2(subtotal + tax), order.currency)}`, projectId);
 }
@@ -1039,19 +1102,36 @@ export function setLineItemQuantity(state: ErpState, lineItemId: string, quantit
 
 const clean = (value: string | undefined) => (value ?? "").trim();
 
+/** Why a production order cannot be set to this status, or null. Completed and Running follow the job rules. */
+export function productionStatusBlocker(state: ErpState, orderId: string, status: string): string | null {
+  const order = state.productionOrders.find((item) => item.id === orderId);
+  if (!order) return "Production order not found.";
+  if (!(PRODUCTION_STATUSES as readonly string[]).includes(status)) return `“${status}” is not a production status.`;
+  if (isProductionComplete(order.status)) return `${order.number} is closed.`;
+  if (status === "Completed") return completionBlocker(state, orderId);
+  if (status === "Running") return releaseGate(state, order);
+  if (status === "Planned" && (operationProgress(state, order).some((op) => op.booked > 0 || op.running > 0))) return "Work has been booked, so the order cannot go back to Planned.";
+  return null;
+}
+
 export function setProductionStatus(state: ErpState, orderId: string, status: string, now: string): ErpState {
   const order = state.productionOrders.find((item) => item.id === orderId);
-  const value = clean(status).slice(0, 40);
-  if (!order || !value || order.status === value) return state;
+  const value = clean(status);
+  if (!order || order.status === value || productionStatusBlocker(state, orderId, value)) return state;
+  if (value === "Completed") return completeOrder(state, orderId, now);
   const next = { ...state, productionOrders: touch(state.productionOrders, orderId, (item) => ({ ...item, status: value })) };
   return issueMaterial(log(next, now, "production", `${order.number} status: ${value}`, order.projectId), orderId, now);
 }
 
+/** Quantity can change only before work is booked; status changes follow the job rules. */
 export function updateProductionOrder(state: ErpState, orderId: string, input: { quantity: number; startDate: string; notes: string; status: string }, now: string): ErpState {
   const order = state.productionOrders.find((item) => item.id === orderId);
-  if (!order || !Number.isInteger(input.quantity) || input.quantity <= 0 || !clean(input.status)) return state;
-  const next = { ...state, productionOrders: touch(state.productionOrders, orderId, (item) => ({ ...item, quantity: input.quantity, startDate: input.startDate || undefined, notes: clean(input.notes) || undefined, status: clean(input.status).slice(0, 40) })) };
-  return issueMaterial(log(next, now, "production", `${order.number} updated`, order.projectId), orderId, now);
+  if (!order || !Number.isInteger(input.quantity) || input.quantity <= 0) return state;
+  const started = operationProgress(state, order).some((op) => op.booked > 0 || op.running > 0);
+  const quantity = started ? order.quantity : input.quantity;
+  let next: ErpState = { ...state, productionOrders: touch(state.productionOrders, orderId, (item) => ({ ...item, quantity, startDate: input.startDate || undefined, notes: clean(input.notes) || undefined })) };
+  next = log(next, now, "production", `${order.number} updated`, order.projectId);
+  return clean(input.status) && clean(input.status) !== order.status ? setProductionStatus(next, orderId, input.status, now) : next;
 }
 
 export function updateCustomer(state: ErpState, customerId: string, input: { name: string; contact: string }, now: string): ErpState {
@@ -1224,7 +1304,7 @@ export function loadSample(input: ErpState, now: string): { state: ErpState; pro
   for (const sample of sampleDrafts) {
     // Never collide with a visitor's own project ID or PO number.
     const draft = { ...sample };
-    if (state.projects.some((project) => project.code === draft.projectCode)) draft.projectCode = suggestProjectCode(state);
+    if (state.projects.some((project) => project.code === draft.projectCode)) draft.projectCode = suggestProjectCode(state, yearOf(now));
     let poNumber = Number(draft.poNumber.slice(-4));
     while (state.purchaseOrders.some((order) => order.number === `PO-2026-${poNumber}`)) poNumber += 1;
     draft.poNumber = `PO-2026-${poNumber}`;
@@ -1237,10 +1317,190 @@ export function loadSample(input: ErpState, now: string): { state: ErpState; pro
   const mainLines = state.lineItems.filter((line) => line.projectId === ids[0]);
   for (const line of mainLines) state = createProductionOrder(state, line.id, now);
   const [housingOrder, rodOrder] = state.productionOrders.filter((order) => order.projectId === ids[0]);
-  if (housingOrder) { state = advanceProduction(state, housingOrder.id, now); state = advanceProduction(state, housingOrder.id, now); }
+  // Received material in stock, then both jobs start through the release gate. Completing them needs shop-floor bookings.
+  for (const req of state.materialRequirements.filter((item) => item.projectId === ids[0])) {
+    state = upsertRawMaterial(state, req.material, { unit: req.unit });
+    state = { ...state, rawMaterials: state.rawMaterials.map((item) => norm(item.name) === norm(req.material) ? { ...item, stock: round2(Math.max(item.stock, req.quantity)) } : item) };
+  }
+  if (housingOrder) state = advanceProduction(state, housingOrder.id, now);
   if (rodOrder) state = advanceProduction(state, rodOrder.id, now);
   state = log(state, now, "projects", "Sample data loaded: Kessler Maschinenbau GmbH with three purchase orders", ids[0]);
   return { state, projectId: ids[0] };
+}
+
+/* ============================== Release gate and job rules ============================== */
+
+/** Operations every part goes through unless its own routing is saved. */
+export const DEFAULT_ROUTING: OperationDef[] = [
+  { seq: 10, name: "Saw cutting", workCenter: "SAW-01", setupMin: 10, runMinPerPc: 1.5 },
+  { seq: 20, name: "CNC milling", workCenter: "MILL-03", setupMin: 45, runMinPerPc: 6 },
+  { seq: 30, name: "Deburring", workCenter: "BENCH-01", setupMin: 5, runMinPerPc: 1.5 },
+  { seq: 40, name: "Final inspection", workCenter: "QA-01", setupMin: 10, runMinPerPc: 1.2 },
+];
+
+export function routingFor(state: ErpState, partId: string): OperationDef[] {
+  return (state.routings ?? []).find((item) => item.partId === partId)?.operations ?? DEFAULT_ROUTING;
+}
+
+/** The routing a production order follows: frozen when its first operation starts. */
+export function orderRouting(state: ErpState, order: ProductionOrder): OperationDef[] {
+  return order.routing ?? routingFor(state, order.partId);
+}
+
+export type OpProgress = OperationDef & { incoming: number; booked: number; good: number; scrap: number; remaining: number; done: boolean; running: number };
+
+/**
+ * Progress per operation from the log. Parts arrive at an operation as the good parts of the one before (so far),
+ * and an operation is done once everything that can arrive has been booked as good or scrap.
+ */
+export function operationProgress(state: ErpState, order: ProductionOrder): OpProgress[] {
+  let previousGood = order.quantity;
+  let previousDone = true;
+  return orderRouting(state, order).map((op) => {
+    const logs = (state.opLogs ?? []).filter((entry) => entry.orderId === order.id && entry.seq === op.seq);
+    const good = logs.reduce((sum, entry) => sum + entry.qtyGood, 0);
+    const scrap = logs.reduce((sum, entry) => sum + entry.qtyScrap, 0);
+    const incoming = previousGood;
+    const done = previousDone && good + scrap >= incoming;
+    const running = (state.activeOps ?? []).filter((item) => item.orderId === order.id && item.seq === op.seq).length;
+    previousGood = good;
+    previousDone = done;
+    return { ...op, incoming, booked: good + scrap, good, scrap, remaining: Math.max(0, incoming - good - scrap), done, running };
+  });
+}
+
+/** Why a job cannot be completed, or null: every routing operation booked and none running. */
+export function completionBlocker(state: ErpState, orderId: string): string | null {
+  const order = state.productionOrders.find((item) => item.id === orderId);
+  if (!order) return "Production order not found.";
+  const ops = operationProgress(state, order);
+  const running = ops.find((op) => op.running > 0);
+  if (running) return `Op ${running.seq} ${running.name} is still running.`;
+  const open = ops.find((op) => !op.done);
+  if (open) return `Op ${open.seq} ${open.name} is not booked in full (${open.booked} of ${open.incoming} parts).`;
+  return null;
+}
+
+export function accessOf(employee: Employee | null | undefined): EmployeeAccess {
+  if (!employee) return "member";
+  if (employee.access) return employee.access;
+  if (/owner|managing director|geschäftsführ|ceo|founder/i.test(employee.role)) return "owner";
+  if (/manager|admin|head of/i.test(employee.role)) return "admin";
+  return "member";
+}
+
+/** The signed-in person when they may approve and override (owner or admin), otherwise null. */
+export function approver(state: ErpState): Employee | null {
+  const user = (state.employees ?? []).find((item) => item.id === state.currentUserId) ?? null;
+  return user && user.active && accessOf(user) !== "member" ? user : null;
+}
+
+/** Drawing approval: owner or admin. A demo without any people set up is single-user and may approve. */
+export function canApprove(state: ErpState) {
+  return !(state.employees ?? []).length || approver(state) !== null;
+}
+
+/** Compares revision labels: numbers numerically, letters by length then alphabet (Z < AA). */
+export function compareRevision(a: string, b: string) {
+  const x = normCode(a);
+  const y = normCode(b);
+  if (/^\d+$/.test(x) && /^\d+$/.test(y)) return Number(x) - Number(y);
+  return x.length !== y.length ? x.length - y.length : x.localeCompare(y);
+}
+
+/**
+ * Everything that stops a job from starting or continuing:
+ * an approved drawing for the ordered revision, no newer drawing revision, and enough material in stock until it is issued.
+ */
+export function releaseBlockers(state: ErpState, orderId: string): string[] {
+  const order = state.productionOrders.find((item) => item.id === orderId);
+  if (!order) return ["Production order not found."];
+  const blockers: string[] = [];
+  const revision = revisionLabel(state, order.revisionId);
+  const part = partNumber(state, order.partId);
+  const line = state.lineItems.find((item) => item.id === order.lineItemId);
+  const drawing = line ? drawingFor(state, order.projectId, line) : null;
+  if (!drawing) blockers.push(`No drawing for ${part} rev ${revision}.`);
+  else if (drawing.status !== "Approved") blockers.push(`Drawing ${drawing.number} rev ${drawing.revision} is not approved (${drawing.status.toLowerCase()}).`);
+  for (const doc of state.documents.filter((item) => item.type === "Drawing" && item.partId === order.partId && compareRevision(item.revision, revision) > 0)) {
+    blockers.push(`Drawing ${doc.number} revision ${doc.revision} exists; this job is for revision ${revision}. Check the change before continuing.`);
+  }
+  if (!order.materialIssuedAt) {
+    const reqs = state.materialRequirements.filter((req) => req.lineItemId === order.lineItemId || (req.lineItemId === null && req.projectId === order.projectId));
+    if (!reqs.length) blockers.push(`No material requirement for ${part}.`);
+    for (const req of reqs) {
+      const stock = rawMaterialFor(state, req.material)?.stock ?? 0;
+      if (stock < req.quantity) blockers.push(`${req.material}: ${round2(stock)} of ${req.quantity} ${req.unit} in stock.`);
+    }
+  }
+  return blockers;
+}
+
+/** The first blocker not covered by a release override, or null when the job may run. */
+export function releaseGate(state: ErpState, order: ProductionOrder): string | null {
+  const covered = order.releaseOverride?.blockers ?? [];
+  return releaseBlockers(state, order.id).find((blocker) => !covered.includes(blocker)) ?? null;
+}
+
+/** Releases a job despite its current blockers. Owner or admin only, with a reason; logged with their name. */
+export function overrideRelease(state: ErpState, orderId: string, reason: string, now: string): ErpState {
+  const order = state.productionOrders.find((item) => item.id === orderId);
+  const user = approver(state);
+  const text = reason.trim().replace(/\s+/g, " ").slice(0, 300);
+  if (!order || !user || text.length < 5 || isProductionComplete(order.status)) return state;
+  const blockers = releaseBlockers(state, orderId);
+  if (!blockers.length) return state;
+  const by = currentUserName(state) ?? user.name;
+  const next = { ...state, productionOrders: touch(state.productionOrders, orderId, (item) => ({ ...item, releaseOverride: { by, byId: user.id, reason: text, at: now, blockers } })) };
+  return log(next, now, "production", `Release override for ${order.number} by ${by}: ${text}. Overridden: ${blockers.join(" ")}`, order.projectId);
+}
+
+/** Labour cost of one log entry at the employee's current rate plus overhead. */
+export function logLabourCost(state: ErpState, entry: OpLog) {
+  const rate = (state.employees ?? []).find((item) => item.id === entry.employeeId)?.hourlyRate ?? 0;
+  return round2((entry.minutes / 60) * (rate + (state.settings.overheadPerHour ?? 0)));
+}
+
+/** A job's labour cost: frozen once the job closed, live while it runs. */
+export function jobCost(state: ErpState, orderId: string): { labour: number; minutes: number; frozen: boolean; at?: string } {
+  const order = state.productionOrders.find((item) => item.id === orderId);
+  if (order?.costSnapshot) return { ...order.costSnapshot, frozen: true };
+  const logs = (state.opLogs ?? []).filter((entry) => entry.orderId === orderId);
+  return { labour: round2(logs.reduce((sum, entry) => sum + logLabourCost(state, entry), 0)), minutes: round2(logs.reduce((sum, entry) => sum + entry.minutes, 0)), frozen: false };
+}
+
+/** Closes a job when every operation is booked: status Completed and costs frozen. */
+export function completeOrder(state: ErpState, orderId: string, now: string): ErpState {
+  const order = state.productionOrders.find((item) => item.id === orderId);
+  if (!order || isProductionComplete(order.status) || completionBlocker(state, orderId)) return state;
+  const cost = jobCost(state, orderId);
+  const next = { ...state, productionOrders: touch(state.productionOrders, orderId, (item) => ({ ...item, status: "Completed", completedAt: now, costSnapshot: { labour: cost.labour, minutes: cost.minutes, at: now } })) };
+  return log(next, now, "production", `${order.number} completed · ${producedQuantity(next, order)} good parts · costs frozen`, order.projectId);
+}
+
+/** Links a heat number or batch, and optionally its certificate, to a job. One entry per material. */
+export function linkMaterialLot(state: ErpState, orderId: string, input: { material: string; heat: string; certificate: string }, now: string): ErpState {
+  const order = state.productionOrders.find((item) => item.id === orderId);
+  const material = input.material.trim();
+  const heat = input.heat.trim().slice(0, 60);
+  if (!order || !material || !heat) return state;
+  const lot: MaterialLot = { material, heat, certificate: input.certificate.trim().slice(0, 80), linkedAt: now };
+  const next = { ...state, productionOrders: touch(state.productionOrders, orderId, (item) => ({ ...item, materialLots: [...(item.materialLots ?? []).filter((entry) => norm(entry.material) !== norm(material)), lot] })) };
+  return log(next, now, "materials", `${order.number}: ${material} heat/batch ${heat}${lot.certificate ? `, certificate ${lot.certificate}` : ""}`, order.projectId);
+}
+
+/** Cancels an issued invoice with a credit note. Nothing is deleted and the invoice number is never reused. */
+export function cancelInvoice(state: ErpState, invoiceId: string, reason: string, now: string): ErpState {
+  const invoice = state.invoices.find((item) => item.id === invoiceId);
+  const text = reason.trim().replace(/\s+/g, " ").slice(0, 300);
+  if (!invoice || invoice.cancelledAt || !text) return state;
+  const [id, base] = nextId(state, "cn");
+  const issuedAt = now.slice(0, 10);
+  const creditNotes = base.creditNotes ?? [];
+  const number = numberFor(`CN-${yearOf(issuedAt)}-`, creditNotes.map((item) => item.number), 1);
+  const note: CreditNote = { id, number, invoiceId, projectId: invoice.projectId, customerId: invoice.customerId, currency: invoice.currency, subtotal: -invoice.subtotal, tax: -invoice.tax, total: -invoice.total, reason: text, issuedAt };
+  const next = { ...base, creditNotes: [...creditNotes, note], invoices: touch(base.invoices, invoiceId, (item) => ({ ...item, cancelledAt: now, cancelReason: text, creditNoteId: id })) };
+  return log(next, now, "finance", `Invoice ${invoice.number} cancelled with credit note ${number}: ${text}`, invoice.projectId || null);
 }
 
 /* ============================== Persistence ============================== */
@@ -1307,9 +1567,18 @@ export function upsertSupplier(state: ErpState, name: string, now = new Date().t
 }
 
 /** Removes a project and everything that only belongs to it. Customers, parts and shared documents stay. */
+/** Why a project cannot be deleted, or null. Delivery notes and invoices are issued records and are kept. */
+export function deleteProjectBlocker(state: ErpState, projectId: string): string | null {
+  const invoices = state.invoices.filter((item) => item.projectId === projectId);
+  const dispatches = state.dispatches.filter((item) => item.projectId === projectId);
+  if (invoices.length) return `This project has invoice ${invoices.map((item) => item.number).join(", ")}. Issued invoices are kept for your records; cancel an invoice with a credit note instead of deleting the project.`;
+  if (dispatches.length) return `This project was dispatched with delivery note ${dispatches.map((item) => item.number).join(", ")}. Dispatched projects are kept for traceability.`;
+  return null;
+}
+
 export function deleteProject(state: ErpState, projectId: string, now: string): ErpState {
   const project = state.projects.find((item) => item.id === projectId);
-  if (!project) return state;
+  if (!project || deleteProjectBlocker(state, projectId)) return state;
   const reqIds = new Set(state.materialRequirements.filter((req) => req.projectId === projectId).map((req) => req.id));
   const orderIds = new Set(state.productionOrders.filter((order) => order.projectId === projectId).map((order) => order.id));
   const documents = state.documents
@@ -1423,7 +1692,8 @@ export function financeSummary(state: ErpState, today: string) {
   const projects = state.projects.map((project) => {
     const lines = state.lineItems.filter((line) => line.projectId === project.id);
     const order = state.purchaseOrders.find((item) => item.projectId === project.id);
-    const invoice = state.invoices.find((item) => item.projectId === project.id) ?? null;
+    const invoice = state.invoices.find((item) => item.projectId === project.id && !item.cancelledAt) ?? null;
+    const cancelled = state.invoices.filter((item) => item.projectId === project.id && item.cancelledAt);
     const orderValue = order?.value ?? round2(lines.reduce((total, line) => total + (line.unitPrice ?? 0) * line.quantity, 0));
     const reqs = state.materialRequirements.filter((req) => req.projectId === project.id);
     const costs = reqs.map((req) => requirementCost(state, req));
@@ -1431,15 +1701,16 @@ export function financeSummary(state: ErpState, today: string) {
     const costKnown = costs.length > 0 && costs.every((cost) => cost !== null);
     const revenue = invoice ? invoice.subtotal : 0;
     const status = invoice ? (invoice.paidAt ? "Paid" : invoice.dueAt < today ? "Overdue" : "Unpaid") : state.dispatches.some((item) => item.projectId === project.id) ? "To invoice" : "Open order";
-    return { project, customerId: project.customerId, currency: order?.currency ?? state.settings.defaultCurrency, orderValue, invoice, revenue, materialCost, costKnown, margin: round2(orderValue - materialCost), status };
+    return { project, customerId: project.customerId, currency: order?.currency ?? state.settings.defaultCurrency, orderValue, invoice, cancelled, revenue, materialCost, costKnown, margin: round2(orderValue - materialCost), status };
   });
   const sum = (values: number[]) => round2(values.reduce((total, value) => total + value, 0));
-  const unpaid = state.invoices.filter((item) => !item.paidAt);
+  const issued = state.invoices.filter((item) => !item.cancelledAt);
+  const unpaid = issued.filter((item) => !item.paidAt);
   return {
     projects,
     orderBook: sum(projects.filter((row) => !row.invoice).map((row) => row.orderValue)),
-    invoiced: sum(state.invoices.map((item) => item.total)),
-    paid: sum(state.invoices.filter((item) => item.paidAt).map((item) => item.total)),
+    invoiced: sum(issued.map((item) => item.total)),
+    paid: sum(issued.filter((item) => item.paidAt).map((item) => item.total)),
     receivable: sum(unpaid.map((item) => item.total)),
     overdue: sum(unpaid.filter((item) => item.dueAt < today).map((item) => item.total)),
     materialCost: sum(projects.map((row) => row.materialCost)),

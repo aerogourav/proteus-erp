@@ -9,7 +9,7 @@ import { FilterBar, Loading, NoProjects, projectOf, save, useProjectFilter } fro
 import { commit, nowIso, useErp, useHydrated } from "@/components/erp/store";
 import { Badge, Field, Modal, PageHead, Rule } from "@/components/erp/ui";
 import {
-  DOC_STATUSES, RULES, addDocumentToProject, docTypes, formatDate, partNumber, setDocumentStatus, updateDocument,
+  DOC_STATUSES, RULES, addDocumentToProject, canApprove, docTypes, formatDate, partNumber, setDocumentStatus, updateDocument,
   type DocStatus, type DocumentRecord, type ErpState, type StoredFile,
 } from "@/lib/erp/model";
 
@@ -129,7 +129,7 @@ export function DocumentsModule() {
   });
   const preview = current && <DocPreview state={state} doc={current} onClose={mobilePreview ? () => setMobilePreview(false) : undefined} actions={<>
     <Field id={`status-${current.id}`} label="Approval status"><select className="erp-select" id={`status-${current.id}`} value={current.status} onChange={(event) => commit((value) => setDocumentStatus(value, current.id, event.target.value as DocStatus, nowIso()))}>{DOC_STATUSES.map((item) => <option key={item}>{item}</option>)}</select></Field>
-    {current.status !== "Approved" && <button type="button" className="erp-btn erp-btn-primary erp-btn-sm" onClick={() => commit((value) => setDocumentStatus(value, current.id, "Approved", nowIso()))}><CheckCircle2 size={14} /> Approve</button>}
+    {current.status !== "Approved" && (canApprove(state) ? <button type="button" className="erp-btn erp-btn-primary erp-btn-sm" onClick={() => commit((value) => setDocumentStatus(value, current.id, "Approved", nowIso()))}><CheckCircle2 size={14} /> Approve</button> : <small className="erp-faint">Only an owner or admin can approve. Change “Signed in as” to approve.</small>)}
     <EditButton onClick={() => openEdit(current)} />
   </>} />;
   return <div onDragOver={(event) => { event.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={onDrop}>
