@@ -1,69 +1,81 @@
-import { AlertTriangle, ArrowRight, Check, CircleDashed, Cog, Factory, Layers3, PlayCircle, Repeat, ShoppingBag, Workflow } from "lucide-react";
+import { ArrowRight, Check, CircleDashed, Cog, Factory, Layers3, PlayCircle, Repeat, ShoppingBag, Workflow } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { BohMark } from "@/components/brand/boh-logo";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
+import { legal } from "@/lib/legal";
+import { OFFERS, PILOT_PLACES } from "@/lib/offers";
 import { pageMetadata } from "@/lib/seo";
 
-export const metadata = pageMetadata("BOH ERP — Your business. Your workflows. Your ERP.", "BOH ERP sets up configurable business software around how your company works. Explore the guided demo and talk to us about your workflow.", "/");
+export const metadata = pageMetadata("BOH ERP — Job release and shop-floor software for small manufacturers", "BOH ERP connects orders, drawing revisions, material, shop-floor bookings, inspection and dispatch for small manufacturers. Book a free workflow call, a free demo walkthrough or a free 2-week pilot run.", "/");
 
 const problems = [
   ["Work lives in too many places", "Orders, drawings, approvals and status updates are spread across spreadsheets, inboxes and shared folders."],
   ["Off-the-shelf ERP forces your process", "Standard systems expect you to change how you work, and custom software is slow and expensive to build."],
-  ["Mistakes show up late", "An outdated document or a missing approval is often found on the shop floor, not before the job starts."],
+  ["Mistakes show up late", "An outdated drawing or missing material is often found on the shop floor, not before the job starts."],
 ] as const;
 
 const pillars = [
   { icon: Cog, title: "BUILD", sub: "We set it up around your work", body: "We learn how your work actually moves, then configure records, fields, rules and approval steps on one shared platform." },
-  { icon: Workflow, title: "OPERATE", sub: "Your team runs daily work in one place", body: "Orders, parts, documents and approvals stay linked, so everyone sees the same current information." },
+  { icon: Workflow, title: "OPERATE", sub: "Your team runs daily work in one place", body: "Orders, parts, drawings, operations and inspections stay linked, so everyone sees the same current information." },
   { icon: Layers3, title: "HARMONISE", sub: "It improves as you grow", body: "Repeated needs become reusable modules and templates, so changes stay consistent instead of becoming one-off custom code." },
 ] as const;
 
 const steps = [
-  ["Workflow conversation", "A short call about one process that costs you time or causes errors today. No preparation needed."],
-  ["Bounded pilot", "We configure that one workflow with agreed scope and clear success criteria, and test it with your team."],
-  ["Implementation + subscription", "If the pilot works, we roll it out for a one-time implementation fee and a monthly cloud subscription."],
+  ["Free workflow call", "30 minutes about one process that costs you time or causes errors today. No preparation needed."],
+  ["Free demo walkthrough", "We follow one job through the demo with your team and answer questions live."],
+  ["Free 2-week pilot run", "One workflow on one production cell, with anonymised data and success criteria agreed up front."],
+  ["Paid implementation, only if you want it", "If the pilot works, we agree scope, a one-time implementation fee and a monthly subscription in writing before any paid work starts."],
 ] as const;
 
 const story = [
-  ["Enter it once", "Create a project in a short guided form: customer, purchase order, line items, documents, inspection and materials."],
-  ["Watch it connect", "As you type, a live panel shows where each value goes: CRM, sales, parts, documents, quality and procurement."],
-  ["See what is missing", "Clear rules show why work is blocked, such as an unapproved drawing or missing material, and let you fix it."],
-  ["Generate the outputs", "Purchase order summary, production order, inspection report, dispatch note and invoice, all from the same data."],
+  ["Enter the order once", "Customer, purchase order, parts and revisions, drawings, inspection and material in a short guided form."],
+  ["Check before release", "Rules flag a job whose drawing is not approved for the ordered revision or whose material has not arrived."],
+  ["Book work on the shop floor", "Operators start and end operations and book good and scrap quantities against the routing."],
+  ["Inspect, dispatch, invoice", "Inspection results, delivery note and invoice come from the same records, with no retyping."],
 ] as const;
 
 const industries = [
-  { key: "manufacturing", icon: Factory, title: "Manufacturing", company: "Harmonie Präzisionstechnik", body: "Customer orders, drawings and revisions, purchasing, production, shop-floor times, inspection, dispatch and invoicing." },
   { key: "commerce", icon: ShoppingBag, title: "E-commerce & wholesale", company: "Fjord & Fern Home Goods", body: "Products and variants, stock per warehouse, orders from every channel, pick, pack and ship, returns and invoices." },
   { key: "saas", icon: Repeat, title: "Software & SaaS", company: "Northwind Analytics", body: "Plans and seats, subscriptions, monthly recurring revenue, renewals and churn, recurring invoices and support tickets." },
 ] as const;
 
 const today = [
-  "Interactive demos for manufacturing, e-commerce & wholesale, and software & SaaS, each with a fictional company and months of data",
-  "Order fulfilment with stock per warehouse, returns and automatic invoices",
-  "Subscriptions with MRR, churn, renewals and monthly billing, plus support tickets",
-  "Guided project setup with a live view of where every value goes",
-  "Simulated order journey from enquiry to dispatch and invoice",
-  "Linked orders, parts, revisions and engineering documents",
-  "Configurable document types, fields and requirement rules",
-  "Automatic checks that flag missing, outdated or unapproved records",
+  "Manufacturing demo with a fictional job shop and months of synthetic data",
+  "Customer orders linked to parts, revisions, drawings and material",
+  "Release checks that flag unapproved drawings and missing material",
+  "Shop-floor booking per operation with good and scrap quantities",
+  "Inspection, dispatch and invoices generated from the same records",
+  "E-commerce and SaaS demos on the same core",
   "English and German interface",
 ];
 
 const planned = [
-  "Secure multi-user cloud workspace for each customer",
-  "Roles, permissions and a complete audit history",
-  "Executable approval workflows with notifications",
+  "Invite-only cloud workspace for pilot shops (in testing, not yet open)",
+  "Roles, permissions and a complete audit history in the cloud workspace",
+  "Export of invoices to DATEV or a specialist e-invoicing provider",
   "Reusable industry templates",
   "AI that turns a plain-language request into a configuration you review and approve",
 ];
 
 const faqs = [
-  ["Is BOH ERP ready to use today?", "Not yet as a production system. Today there is an interactive demo with synthetic data. We are looking for first pilot customers to shape the production version with us."],
-  ["Who is it for?", "Startups and small businesses that have outgrown spreadsheets. The demos cover manufacturing, e-commerce & wholesale, and software & SaaS: one shared core, set up differently for each industry."],
-  ["What does it cost?", "A one-time implementation fee plus a monthly subscription. Both depend on the scope of your workflows, so we agree them after the first conversation, before any work starts."],
+  ["Is BOH ERP ready to use today?", "Not yet as a production system. Today there is an interactive demo with synthetic data, and an invite-only workspace that is still being prepared. We are looking for first pilot shops to shape the production version with us."],
+  ["Is the free pilot a production-ready ERP?", "No. The pilot tests one workflow on one production cell with anonymised or non-confidential data. Keep your current process running alongside it. At the end you get a short written result and decide whether to continue."],
+  ["What happens after the 2-week pilot?", "We review the agreed success criteria with you. You can stop at no cost, and we delete the pilot data. If you want to continue, we agree scope and price in writing first. Nothing renews or is billed automatically."],
+  ["Who is it for?", "Small manufacturers and job shops that have outgrown spreadsheets: machining, fabrication and assembly with drawings, revisions and routings. The same core also runs e-commerce and SaaS demos as part of our long-term platform."],
+  ["What does it cost after the pilot?", "A one-time implementation fee plus a monthly subscription. Both depend on the scope of your workflows and are agreed in writing before any paid work starts."],
   ["Does it use AI?", "Not yet. The current checks are clear, rule-based logic. AI-assisted configuration is on our roadmap, and any change it proposes will always need human approval."],
 ] as const;
+
+const pilot = [
+  ["Scope", "One workflow, usually job release and shop-floor booking, on one production cell. Bills of material, capacity planning and accounting are not part of the pilot."],
+  ["Data rules", "Anonymised or non-confidential job data only. No confidential drawings or customer personal data until data processing terms are signed and the hosted workspace has passed its security checks."],
+  ["Success criteria", "Agreed with you at the start. For example: every job released in the cell has its approved drawing revision and material confirmed, and every operation is booked with good and scrap quantities."],
+  ["After 2 weeks", "We review the results together and send a short written summary. You decide: stop at no cost and we delete the pilot data, or continue with a paid implementation agreed in writing beforehand."],
+] as const;
+
+const tbc = "To be confirmed";
 
 export default function Home() {
   return <div className="b-site">
@@ -72,31 +84,20 @@ export default function Home() {
       <section className="b-hero b-dark" aria-labelledby="hero-title">
         <div className="b-wrap b-hero-grid">
           <div>
-            <span className="b-kicker">Configurable ERP for growing businesses</span>
+            <span className="b-kicker">Configurable ERP for small manufacturers</span>
             <h1 id="hero-title"><span>Your business.</span><span>Your workflows.</span><span className="b-accent-line">Your ERP.</span></h1>
-            <p className="b-lead">BOH ERP is business software we set up around how your company already works, so orders, parts, documents and approvals stay connected.</p>
+            <p className="b-lead">BOH ERP links customer orders, drawing revisions, material, shop-floor bookings, inspection and dispatch, so problems are flagged before a job starts, not on the machine.</p>
             <div className="b-hero-actions">
-              <Link className="b-btn b-btn-primary" href="/contact">Book a workflow call <ArrowRight size={18} /></Link>
-              <Link className="b-btn b-btn-ghost" href="/demo/start"><PlayCircle size={18} /> See Demo</Link>
+              <Link className="b-btn b-btn-primary" href="/contact?offer=call">Book a free workflow call <ArrowRight size={18} /></Link>
+              <Link className="b-btn b-btn-ghost" href="/contact?offer=walkthrough"><PlayCircle size={18} /> Free demo walkthrough</Link>
             </div>
+            <p className="b-hero-pilot"><Link href="/#offers">Free 2-week pilot run: {PILOT_PLACES} places <ArrowRight size={15} /></Link></p>
             <span className="b-tagline" data-no-translate>BUILD. OPERATE. HARMONISE.</span>
           </div>
-          <div className="b-card-stage" role="img" aria-label="Example from the demo: production order MO-2026-0142 flagged because the inspection plan is outdated">
-            <BohMark size={64} tone="dark" smile className="b-card-mascot" />
-            <div className="b-order-card" aria-hidden="true">
-              <div className="b-order-head">
-                <div><small>Production order</small><strong>MO-2026-0142</strong><small>48 × AP-1001 · Rev C</small></div>
-                <span className="b-pill b-pill-warn"><AlertTriangle size={14} /> 1 issue</span>
-              </div>
-              <ul className="b-checks">
-                <li><span className="b-check-icon ok"><Check size={16} /></span><span>Drawing<small>Rev C · Approved</small></span><span className="b-pill b-pill-ok">OK</span></li>
-                <li><span className="b-check-icon ok"><Check size={16} /></span><span>Setup sheet<small>Rev B · Approved</small></span><span className="b-pill b-pill-ok">OK</span></li>
-                <li><span className="b-check-icon warn"><AlertTriangle size={16} /></span><span>Inspection plan<small>Rev A · Outdated</small></span><span className="b-pill b-pill-warn">Check</span></li>
-                <li><span className="b-check-icon ok"><Check size={16} /></span><span>Material certificate<small>Reference linked</small></span><span className="b-pill b-pill-ok">OK</span></li>
-              </ul>
-              <p className="b-card-note">From the demo · fictional company and data</p>
-            </div>
-          </div>
+          <figure className="b-shot b-shot-hero">
+            <Image src="/screens/production-order.png" width={1280} height={800} priority sizes="(max-width: 900px) 100vw, 560px" alt="Screenshot of the BOH ERP demo: a production order with its release checks, routing and shop-floor bookings" />
+            <figcaption>From the demo · fictional company and data</figcaption>
+          </figure>
         </div>
       </section>
 
@@ -116,8 +117,35 @@ export default function Home() {
       <section className="b-section" aria-labelledby="problem-title">
         <div className="b-wrap">
           <span className="b-kicker">The problem</span>
-          <h2 className="b-h2" id="problem-title">Growing companies outgrow spreadsheets before they are ready for a big ERP.</h2>
+          <h2 className="b-h2" id="problem-title">Growing job shops outgrow spreadsheets before they are ready for a big ERP.</h2>
           <div className="b-problems">{problems.map(([title, body]) => <article className="b-problem b-reveal" key={title}><h3>{title}</h3><p>{body}</p></article>)}</div>
+        </div>
+      </section>
+
+      <section className="b-section b-offers-section" id="offers" aria-labelledby="offers-title">
+        <div className="b-wrap">
+          <span className="b-kicker">Free offers</span>
+          <h2 className="b-h2" id="offers-title">Three ways to find out if BOH ERP fits. All free, no obligation.</h2>
+          <p className="b-lead">Start small. Any paid next step is agreed in writing before work starts.</p>
+          <div className="b-offers">{OFFERS.map((offer) => <article key={offer.key} className={`b-offer b-reveal${offer.key === "pilot" ? " is-pilot" : ""}`}>
+            <h3>{offer.title}</h3>
+            <dl>
+              <div><dt>Length</dt><dd>{offer.length}</dd></div>
+              <div><dt>Who attends</dt><dd>{offer.attendees}</dd></div>
+              <div><dt>What you get</dt><dd>{offer.youGet}</dd></div>
+              <div><dt>What we need</dt><dd>{offer.weNeed}</dd></div>
+            </dl>
+            <p className="b-offer-free">Free · no obligation</p>
+            <Link className={`b-btn ${offer.key === "pilot" ? "b-btn-primary" : "b-btn-dark"}`} href={`/contact?offer=${offer.key}`}>{offer.key === "call" ? "Book a free workflow call" : offer.key === "walkthrough" ? "Ask for a walkthrough" : "Apply for the pilot"} <ArrowRight size={17} /></Link>
+          </article>)}</div>
+
+          <div className="b-pilot b-reveal" aria-labelledby="pilot-title">
+            <div className="b-pilot-head">
+              <h3 id="pilot-title">The free 2-week pilot run in detail</h3>
+              <p>{PILOT_PLACES} places at a time. The pilot uses early-stage software and is not a production-ready ERP: keep your current process running alongside it.</p>
+            </div>
+            <dl className="b-pilot-grid">{pilot.map(([title, body]) => <div key={title}><dt>{title}</dt><dd>{body}</dd></div>)}</dl>
+          </div>
         </div>
       </section>
 
@@ -125,7 +153,7 @@ export default function Home() {
         <div className="b-wrap">
           <span className="b-kicker">Our approach</span>
           <h2 className="b-h2" id="pillars-title">One shared platform, configured for your business.</h2>
-          <p className="b-lead">Not a collection of custom apps. Every customer runs on the same reliable core, set up for their own way of working.</p>
+          <p className="b-lead">Not a collection of custom apps. Every customer runs on the same core, set up for their own way of working.</p>
           <div className="b-pillars">{pillars.map(({ icon: Icon, title, sub, body }) => <article className="b-pillar b-reveal" key={title}><span className="b-pillar-icon"><Icon size={22} /></span><h3 data-no-translate>{title}</h3><span className="b-pillar-sub">{sub}</span><p>{body}</p></article>)}</div>
         </div>
       </section>
@@ -134,9 +162,9 @@ export default function Home() {
         <div className="b-wrap">
           <span className="b-kicker">How it works</span>
           <h2 className="b-h2" id="how-title">Start with one workflow. Grow from there.</h2>
-          <p className="b-lead">We start small and prove the value with one workflow before you commit to more.</p>
-          <ol className="b-steps">{steps.map(([title, body]) => <li key={title} className="b-reveal"><h3>{title}</h3><p>{body}</p></li>)}</ol>
-          <p className="b-fineprint">Fees depend on scope and are agreed in writing before any work starts. Custom development and complex integrations are quoted separately.</p>
+          <p className="b-lead">The first three steps are free. You only pay if you decide to continue.</p>
+          <ol className="b-steps b-steps-4">{steps.map(([title, body]) => <li key={title} className="b-reveal"><h3>{title}</h3><p>{body}</p></li>)}</ol>
+          <p className="b-fineprint">Fees depend on scope and are agreed in writing before any paid work starts. Custom development and complex integrations are quoted separately.</p>
         </div>
       </section>
 
@@ -144,34 +172,31 @@ export default function Home() {
         <div className="b-wrap b-demo">
           <div>
             <span className="b-kicker">See it working</span>
-            <h2 className="b-h2" id="demo-title">One project. One source of truth.</h2>
-            <p className="b-lead">Create a project once and see how BOH ERP connects its information across sales, engineering, procurement, production, quality and dispatch.</p>
+            <h2 className="b-h2" id="demo-title">One job. One source of truth.</h2>
+            <p className="b-lead">Follow a job from customer order to invoice in the manufacturing demo. Everything runs in your browser with a fictional company.</p>
             <ol className="b-story" style={{ marginTop: 28 }}>{story.map(([title, body], index) => <li key={title} className="b-reveal"><span className="b-story-num">{index + 1}</span><div><strong>{title}</strong><span>{body}</span></div></li>)}</ol>
-            <div className="b-hero-actions"><Link className="b-btn b-btn-dark" href="/demo">Try the guided demo <ArrowRight size={18} /></Link><Link className="b-btn b-btn-ghost" href="/demo/start">See all industry demos</Link></div>
+            <div className="b-hero-actions"><Link className="b-btn b-btn-dark" href="/demo/start?industry=manufacturing">Open the manufacturing demo <ArrowRight size={18} /></Link><Link className="b-btn b-btn-ghost" href="/contact?offer=walkthrough">Or get a free walkthrough</Link></div>
           </div>
-          <div className="b-window b-reveal" role="img" aria-label="Preview of the BOH ERP demo workspace with production orders and their document checks">
-            <div className="b-window-bar" aria-hidden="true"><i /><i /><i /><span>BOH ERP · Demo workspace</span></div>
-            <div className="b-window-body" aria-hidden="true">
-              <div className="b-window-side"><b><BohMark size={20} tone="dark" /> BOH ERP</b><span>Overview</span><span>Order Journey</span><span className="on">Production Orders</span><span>Parts &amp; Revisions</span><span>Documents</span><span>Configuration</span><span>Activity</span></div>
-              <div className="b-window-main">
-                <div className="b-window-kpis"><div><small>Active orders</small><strong>5</strong></div><div><small>Parts</small><strong>6</strong></div><div><small>Docs in review</small><strong>5</strong></div></div>
-                <div className="b-window-rows">
-                  <div><span><b>MO-2026-0142</b><small>48 × AP-1001 · Rev C</small></span><span className="b-pill b-pill-warn">1 issue</span></div>
-                  <div><span><b>MO-2026-0143</b><small>24 × AP-1024 · Rev B</small></span><span className="b-pill b-pill-ok">In progress</span></div>
-                  <div><span><b>MO-2026-0144</b><small>12 × AP-1088 · Rev D</small></span><span className="b-pill b-pill-ok">In progress</span></div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <figure className="b-shot b-reveal">
+            <Image src="/screens/shop-floor.png" width={1280} height={800} sizes="(max-width: 900px) 100vw, 560px" alt="Screenshot of the BOH ERP demo shop floor: running operations, operators and booked quantities" />
+            <figcaption>Shop floor in the demo · fictional data</figcaption>
+          </figure>
         </div>
       </section>
 
       <section className="b-section" style={{ paddingTop: 0 }} aria-labelledby="industries-title">
         <div className="b-wrap">
-          <span className="b-kicker">Your industry</span>
-          <h2 className="b-h2" id="industries-title">One platform, set up for how you work.</h2>
-          <p className="b-lead">Open the demo for your kind of business. Each one is a fictional company with months of realistic data you can work with.</p>
-          <div className="b-pillars b-industries">{industries.map(({ key, icon: Icon, title, company, body }) => <Link key={key} href={`/demo/start?industry=${key}`} className="b-pillar b-industry b-reveal">
+          <span className="b-kicker">Built for manufacturing first</span>
+          <h2 className="b-h2" id="industries-title">Made for job shops today. One platform for more industries later.</h2>
+          <Link href="/demo/start?industry=manufacturing" className="b-pillar b-industry b-industry-main b-reveal">
+            <span className="b-pillar-icon"><Factory size={22} /></span>
+            <h3>Manufacturing</h3>
+            <span className="b-pillar-sub">Harmonie Präzisionstechnik · fictional demo company</span>
+            <p>Customer orders, drawings and revisions, purchasing, production orders and routings, shop-floor times, inspection, dispatch and invoicing.</p>
+            <span className="b-industry-cta">Open this demo <ArrowRight size={16} /></span>
+          </Link>
+          <p className="b-lead" style={{ marginTop: 28 }}>The same core also runs these demos. They show where the platform is heading; our pilots focus on manufacturing.</p>
+          <div className="b-pillars b-industries b-industries-2">{industries.map(({ key, icon: Icon, title, company, body }) => <Link key={key} href={`/demo/start?industry=${key}`} className="b-pillar b-industry b-reveal">
             <span className="b-pillar-icon"><Icon size={22} /></span>
             <h3>{title}</h3>
             <span className="b-pillar-sub">{company}</span>
@@ -190,12 +215,22 @@ export default function Home() {
             <div className="b-status-col"><h3><Check size={20} /> Available in the demo</h3><ul>{today.map((item) => <li key={item}><Check size={17} /><span>{item}</span></li>)}</ul></div>
             <div className="b-status-col planned"><h3><CircleDashed size={20} /> Planned</h3><ul>{planned.map((item) => <li key={item}><CircleDashed size={17} /><span>{item}</span></li>)}</ul></div>
           </div>
-          <ul className="b-chips" aria-label="Industries">
-            <li className="first">Manufacturing &amp; engineering</li>
-            <li>E-commerce &amp; wholesale</li>
-            <li>Software &amp; SaaS</li>
-            <li>Next: services and trades</li>
-          </ul>
+        </div>
+      </section>
+
+      <section className="b-section" style={{ paddingTop: 0 }} id="who-we-are" aria-labelledby="who-title">
+        <div className="b-wrap b-who">
+          <div>
+            <span className="b-kicker">Who we are</span>
+            <h2 className="b-h2" id="who-title">A small, early-stage team building BOH ERP.</h2>
+            <p className="b-lead">We are starting with job release and shop-floor work for small manufacturers, and we are looking for our first pilot shops. We will tell you plainly what works today and what doesn’t yet.</p>
+          </div>
+          <dl className="b-legal-table b-who-facts">
+            <dt>Company</dt><dd data-no-translate={legal.companyName ? true : undefined}>{[legal.companyName, legal.legalForm].filter(Boolean).join(" ") || tbc}</dd>
+            <dt>Represented by</dt><dd data-no-translate={legal.representative ? true : undefined}>{legal.representative || tbc}</dd>
+            <dt>Location</dt><dd data-no-translate={legal.postalCity ? true : undefined}>{legal.postalCity || tbc}</dd>
+            <dt>Contact</dt><dd>{legal.email ? <a href={`mailto:${legal.email}`} data-no-translate>{legal.email}</a> : <Link href="/contact">Contact form</Link>}</dd>
+          </dl>
         </div>
       </section>
 
@@ -212,7 +247,10 @@ export default function Home() {
             <BohMark size={72} tone="dark" smile />
             <div><h2 className="b-h2" id="cta-title" style={{ marginBottom: 8 }}>Which workflow slows you down?</h2><p className="b-lead">Tell us about it. We’ll tell you honestly whether BOH ERP can help.</p></div>
           </div>
-          <Link className="b-btn b-btn-primary" href="/contact">Book a workflow call <ArrowRight size={18} /></Link>
+          <div className="b-hero-actions" style={{ marginTop: 0 }}>
+            <Link className="b-btn b-btn-primary" href="/contact?offer=call">Book a free workflow call <ArrowRight size={18} /></Link>
+            <Link className="b-btn b-btn-ghost" href="/contact?offer=pilot">Apply for the free pilot</Link>
+          </div>
         </div>
       </section>
     </main>

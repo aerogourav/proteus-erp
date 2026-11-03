@@ -1,14 +1,15 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Clock3, MessageSquareText, ShieldCheck } from "lucide-react";
 import { BohMark } from "@/components/brand/boh-logo";
-import { ContactForm } from "@/components/marketing/contact-form";
+import { ContactForm, ContactFormFromLink } from "@/components/marketing/contact-form";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { siteConfig } from "@/lib/site-config";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { pageMetadata } from "@/lib/seo";
 
-export const metadata = pageMetadata("Contact", "Tell BOH ERP about the workflow you want to improve and book a short workflow call.", "/contact");
+export const metadata = pageMetadata("Contact", "Ask for a free workflow call, a free demo walkthrough or a free 2-week pilot run of BOH ERP.", "/contact");
 
 export default function ContactPage() {
   // Inquiries are saved as leads in Supabase and/or emailed through Resend (see /api/contact).
@@ -20,16 +21,17 @@ export default function ContactPage() {
       <BohMark size={56} smile />
       <span className="b-kicker" style={{ display: "block", marginTop: 20 }}>Contact</span>
       <h1>Tell us which workflow slows you down.</h1>
-      <p className="b-lead">We’ll reply to arrange a short call. If BOH ERP isn’t a good fit, we’ll tell you.</p>
+      <p className="b-lead">Choose a free workflow call, a free demo walkthrough or a free 2-week pilot run. We’ll reply by email to arrange it. If BOH ERP isn’t a good fit, we’ll tell you.</p>
       <ul className="b-contact-points">
-        <li><MessageSquareText size={20} /><span>A 30-minute conversation about one real process, such as orders, document approvals or production handoffs.</span></li>
-        <li><Clock3 size={20} /><span>No preparation needed. Bring a spreadsheet or an example if you have one.</span></li>
+        <li><MessageSquareText size={20} /><span>Every offer is free and without obligation. Any paid next step is agreed in writing before work starts.</span></li>
+        <li><Clock3 size={20} /><span>No preparation needed for the call. Bring a spreadsheet or an example if you have one.</span></li>
         <li><ShieldCheck size={20} /><span>Please don’t send confidential drawings or customer data through this form.</span></li>
       </ul>
-      {siteConfig.contactEmail && <p className="b-form-note" style={{ marginTop: 24 }}>Prefer email? <a href={`mailto:${siteConfig.contactEmail}`}>{siteConfig.contactEmail}</a></p>}
+      <p className="b-form-note" style={{ marginTop: 24 }}><Link href="/#offers">Compare the three offers</Link></p>
+      {siteConfig.contactEmail && <p className="b-form-note">Prefer email? <a href={`mailto:${siteConfig.contactEmail}`}>{siteConfig.contactEmail}</a></p>}
     </div>
     <div>
-      {mode ? <ContactForm mode={mode} contactEmail={siteConfig.contactEmail} /> : <div className="b-form" role="status">
+      {mode ? <Suspense fallback={<ContactForm mode={mode} contactEmail={siteConfig.contactEmail} />}><ContactFormFromLink mode={mode} contactEmail={siteConfig.contactEmail} /></Suspense> : <div className="b-form" role="status">
         <h2 style={{ margin: 0, fontFamily: "var(--b-display)" }}>The contact form is being set up.</h2>
         <p className="b-form-note">Message delivery is not connected yet, so this page does not collect any details. In the meantime you can explore the guided demo.</p>
         <div><Link className="b-btn b-btn-dark" href="/demo/start">Open the demo</Link></div>

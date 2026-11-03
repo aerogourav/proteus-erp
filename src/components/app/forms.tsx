@@ -24,10 +24,11 @@ export function SignInForm() {
   const send = async (event: React.FormEvent) => {
     event.preventDefault();
     setState("sending");
-    const { error } = await supabaseBrowser().auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=/app` } });
-    setState(error ? "error" : "sent");
+    const { error } = await supabaseBrowser().auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/auth/callback?next=/app` } });
+    setState(error && error.status !== 422 && error.code !== "otp_disabled" && error.code !== "signup_disabled" ? "error" : "sent");
   };
-  if (state === "sent") return <div className="erp-done" role="status"><Mail size={18} /><span>Check <b>{email}</b> for your sign-in link. You can close this tab.</span></div>;
+  // Invite-only: the same neutral answer whether or not the address was invited, so the form does not reveal who has access.
+  if (state === "sent") return <div className="erp-done" role="status"><Mail size={18} /><span>If <b>{email}</b> has been invited, a sign-in link is on its way. You can close this tab.</span></div>;
   return <form className="erp-stack" onSubmit={send}>
     {linkError && <p className="erp-error" role="alert">That sign-in link has expired or was already used. Request a new one.</p>}
     <div className="erp-field">

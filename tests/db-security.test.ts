@@ -53,7 +53,7 @@ before(async () => {
 });
 
 test("a company's records are invisible and unwritable to other companies", async () => {
-  await as(A, () => db.query("insert into public.contacts (company_id, name, is_customer) values ($1, 'Apex Aerospace', true)", [companyA]));
+  await as(A, () => db.query("insert into public.contacts (company_id, name, is_customer) values ($1, 'Kessler Maschinenbau', true)", [companyA]));
   await as(B, () => db.query("insert into public.contacts (company_id, name, is_customer) values ($1, 'Globex', true)", [companyB]));
 
   assert.equal(await as(A, () => count("select * from public.contacts")), 1);
@@ -157,4 +157,18 @@ test("website leads: visitors can submit but nobody can read them through the AP
   } finally { await db.exec("reset role;"); }
   assert.equal(await as(A, () => count("select * from public.leads").catch(() => -1)), -1, "signed-in users cannot read leads either");
   assert.equal(await count("select * from public.leads"), 3, "the owner sees them in the dashboard (as admin)");
+});
+
+test("website leads record the chosen free offer; an unknown offer is refused", async () => {
+  const submit = (email: string, offer: string) => db.query<{ ok: boolean }>("select public.submit_lead_with_offer('Lin', $1, 'Werkstatt Lin', '', 'One cell, job release on paper.', $2) as ok", [email, offer]);
+  await db.exec("set role anon; select set_config('request.jwt.claim.sub', '', false);");
+  try {
+    assert.equal((await submit("lin@example.com", "pilot")).rows[0]!.ok, true);
+    assert.equal((await submit("lin2@example.com", "walkthrough")).rows[0]!.ok, true);
+    await assert.rejects(submit("lin3@example.com", "free-erp"));
+    await fails("select offer from public.leads");
+  } finally { await db.exec("reset role;"); }
+  const rows = (await db.query<{ email: string; offer: string }>("select email, offer from public.leads order by created_at")).rows;
+  assert.deepEqual(rows.filter((row) => row.email.startsWith("lin")).map((row) => row.offer), ["pilot", "walkthrough"]);
+  assert.ok(rows.filter((row) => row.email.startsWith("ada")).every((row) => row.offer === "call"), "older leads default to the workflow call");
 });

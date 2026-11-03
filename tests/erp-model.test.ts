@@ -63,7 +63,7 @@ test("live data flow reflects actual draft values and removals", () => {
 
 test("creating a project links records and reuses existing customers and parts", () => {
   const sample = loadSample(createInitialState(), NOW).state;
-  const draft = { ...validDraft(sample), customerName: "  apex aerospace gmbh ", lines: [{ key: "a", partNumber: "act-204", description: "Housing", quantity: "5", unit: "pcs", unitPrice: "", revision: "B" }] };
+  const draft = { ...validDraft(sample), customerName: "  kessler maschinenbau gmbh ", lines: [{ key: "a", partNumber: "act-204", description: "Housing", quantity: "5", unit: "pcs", unitPrice: "", revision: "B" }] };
   draft.documents = [{ key: "d", name: "Housing drawing", type: "Drawing", number: "DRW-ACT-204", revision: "A", partKey: "a", status: "Approved", source: "metadata" }];
   const { state, projectId } = createProjectFromDraft(sample, draft, NOW);
   assert.equal(state.customers.length, sample.customers.length, "customer not duplicated");

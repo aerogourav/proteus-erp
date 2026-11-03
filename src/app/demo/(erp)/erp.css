@@ -817,3 +817,11 @@
 @media (max-width: 960px) {
   .erp-board, .erp-industries { grid-template-columns: 1fr; }
 }
+
+/* Projects table at tablet width: actions move to their own line so the data columns keep room. */
+@media (min-width: 641px) and (max-width: 1180px) {
+  .erp-rows-projects .erp-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 1fr) 130px !important; }
+  .erp-rows-projects .erp-row > :nth-child(6) { grid-column: 1 / -1; justify-content: flex-start; }
+  .erp-rows-projects .erp-row-head > :nth-child(6) { display: none; }
+  .erp-rows-projects .erp-row > * { overflow-wrap: anywhere; }
+}

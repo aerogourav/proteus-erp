@@ -1181,7 +1181,7 @@ export function loadSample(input: ErpState, now: string): { state: ErpState; pro
   const sampleDrafts: ProjectDraft[] = [
     {
       step: 6, projectName: "Hydraulic Actuator Assembly", projectCode: SAMPLE_PROJECT_CODE, poNumber: "PO-2026-1042", description: "Fictional sample: housings and piston rods for a hydraulic actuator assembly.",
-      customerName: "Apex Aerospace GmbH", contact: "procurement@apex-aerospace.example", poDate: "2026-10-05", deliveryDate: "2026-11-27", currency: "EUR", orderValue: "",
+      customerName: "Kessler Maschinenbau GmbH", contact: "procurement@kessler-maschinenbau.example", poDate: "2026-10-05", deliveryDate: "2026-11-27", currency: "EUR", orderValue: "",
       lines: [
         { key: "l1", partNumber: "ACT-204", description: "Hydraulic Actuator Housing", quantity: "50", unit: "pcs", unitPrice: "184.00", revision: "A" },
         { key: "l2", partNumber: "ACT-205", description: "Piston Rod", quantity: "50", unit: "pcs", unitPrice: "96.50", revision: "B" },
@@ -1205,7 +1205,7 @@ export function loadSample(input: ErpState, now: string): { state: ErpState; pro
     },
     {
       step: 6, projectName: "Valve Block Machining", projectCode: "BOH-PRJ-2026-002", poNumber: "PO-2026-1057", description: "Fictional sample: waiting for engineering approval.",
-      customerName: "Apex Aerospace GmbH", contact: "", poDate: "2026-10-19", deliveryDate: "2026-12-11", currency: "EUR", orderValue: "",
+      customerName: "Kessler Maschinenbau GmbH", contact: "", poDate: "2026-10-19", deliveryDate: "2026-12-11", currency: "EUR", orderValue: "",
       lines: [{ key: "l1", partNumber: "VB-310", description: "Valve Block", quantity: "20", unit: "pcs", unitPrice: "142.00", revision: "C" }],
       documents: [{ key: "d1", name: "Valve block drawing", type: "Drawing", number: "DRW-VB-310", revision: "C", partKey: "l1", status: "In review", source: "sample" }],
       inspections: [{ key: "i1", name: "Port position", spec: "± 0.10", unit: "mm", acceptance: "CMM report", partKey: "l1" }],
@@ -1213,7 +1213,7 @@ export function loadSample(input: ErpState, now: string): { state: ErpState; pro
     },
     {
       step: 6, projectName: "Pump Mounting Flange", projectCode: "BOH-PRJ-2026-003", poNumber: "PO-2026-1063", description: "Fictional sample: scheduled for a later delivery.",
-      customerName: "Apex Aerospace GmbH", contact: "", poDate: "2026-10-23", deliveryDate: "2027-02-05", currency: "EUR", orderValue: "",
+      customerName: "Kessler Maschinenbau GmbH", contact: "", poDate: "2026-10-23", deliveryDate: "2027-02-05", currency: "EUR", orderValue: "",
       lines: [{ key: "l1", partNumber: "PMF-118", description: "Pump Mounting Flange", quantity: "120", unit: "pcs", unitPrice: "38.40", revision: "A" }],
       documents: [{ key: "d1", name: "Flange drawing", type: "Drawing", number: "DRW-PMF-118", revision: "A", partKey: "l1", status: "Approved", source: "sample" }],
       inspections: [{ key: "i1", name: "Flatness", spec: "≤ 0.05", unit: "mm", acceptance: "Surface plate check", partKey: "l1" }],
@@ -1239,7 +1239,7 @@ export function loadSample(input: ErpState, now: string): { state: ErpState; pro
   const [housingOrder, rodOrder] = state.productionOrders.filter((order) => order.projectId === ids[0]);
   if (housingOrder) { state = advanceProduction(state, housingOrder.id, now); state = advanceProduction(state, housingOrder.id, now); }
   if (rodOrder) state = advanceProduction(state, rodOrder.id, now);
-  state = log(state, now, "projects", "Sample data loaded: Apex Aerospace GmbH with three purchase orders", ids[0]);
+  state = log(state, now, "projects", "Sample data loaded: Kessler Maschinenbau GmbH with three purchase orders", ids[0]);
   return { state, projectId: ids[0] };
 }
 

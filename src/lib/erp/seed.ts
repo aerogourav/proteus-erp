@@ -171,8 +171,8 @@ export function addDemoProjects(input: ErpState, now: string): ErpState {
   as("E-1001");
   const actuatorDraft: ProjectDraft = {
     ...newDraft(state, dayIso(24)), projectName: "Hydraulic Actuator Assembly", projectCode: codeFor("BOH-PRJ-2026-001"), poNumber: poFor("PO-2026-1042"),
-    description: "Demo project: housings and piston rods for Apex's actuator line. In production: follow it on the shop floor.",
-    customerName: "Apex Aerospace GmbH", contact: "procurement@apex-aerospace.example", poDate: dayIso(24), deliveryDate: addDays(today, 18), currency: "EUR", orderValue: "",
+    description: "Demo project: housings and piston rods for Kessler's press line. In production: follow it on the shop floor.",
+    customerName: "Kessler Maschinenbau GmbH", contact: "procurement@kessler-maschinenbau.example", poDate: dayIso(24), deliveryDate: addDays(today, 18), currency: "EUR", orderValue: "",
     lines: [
       { key: "l1", partNumber: "ACT-204", description: "Hydraulic Actuator Housing", quantity: "50", unit: "pcs", unitPrice: "184.00", revision: "A" },
       { key: "l2", partNumber: "ACT-205", description: "Piston Rod", quantity: "50", unit: "pcs", unitPrice: "96.50", revision: "B" },
@@ -254,13 +254,13 @@ export function addDemoProjects(input: ErpState, now: string): ErpState {
   const me = state.mail.address || "info@demo-company.example";
   const inbox: EmailRecord[] = [
     {
-      id: "demo-mail-apex-po", folder: "inbox", from: "procurement@apex-aerospace.example", fromName: "Apex Aerospace GmbH · Procurement", to: me, date: ago(70), read: false, source: "demo",
+      id: "demo-mail-apex-po", folder: "inbox", from: "procurement@kessler-maschinenbau.example", fromName: "Kessler Maschinenbau GmbH · Procurement", to: me, date: ago(70), read: false, source: "demo",
       subject: "Purchase order PO-2026-1088 – valve blocks",
       body: [
         "Dear team,", "", "please find our purchase order PO-2026-1088 for the following parts:", "",
         "1. 20 pcs VB-310 rev C Valve block @ EUR 142.00", "2. 40 pcs VB-311 rev A Valve block cover @ EUR 36.50", "",
-        `Required delivery date: ${addDays(today, 45)}`, "Delivery to: Apex Aerospace GmbH, Goods-in Gate 3, Bremen", "Payment terms: 30 days net", "",
-        "Drawings follow from engineering. Please confirm receipt and delivery date.", "", "Best regards", "Clara Neumann", "Strategic Procurement, Apex Aerospace GmbH",
+        `Required delivery date: ${addDays(today, 45)}`, "Delivery to: Kessler Maschinenbau GmbH, Goods-in Gate 3, Bremen", "Payment terms: 30 days net", "",
+        "Drawings follow from engineering. Please confirm receipt and delivery date.", "", "Best regards", "Clara Neumann", "Strategic Procurement, Kessler Maschinenbau GmbH",
       ].join("\n"),
     },
     {

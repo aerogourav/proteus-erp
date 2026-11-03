@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
-import { CheckCircle2, Inbox, Link2, Mail, MailOpen, PenLine, RefreshCw, Reply, Send, Sparkles, X } from "lucide-react";
+import { CheckCircle2, Link2, Mail, MailOpen, PenLine, RefreshCw, Reply, Send, Sparkles, X } from "lucide-react";
 import { BillDialog, SupplierOrderDialog, supplierOrderByNumber, type OrderPrefill } from "@/components/erp/purchasing-ui";
 import { connectGmail, disconnectGmail, gmailAvailable, hasToken } from "@/components/erp/gmail";
 import { sendFromErp, syncGmail } from "@/components/erp/mailer";
@@ -12,7 +12,7 @@ import { commit, getState, nowIso, todayIso, useErp, useHydrated } from "@/compo
 import { toast } from "@/components/erp/toast";
 import { EmptyState, Field, Modal, PageHead } from "@/components/erp/ui";
 import { saveQuotation, type BillInput } from "@/lib/erp/finance";
-import { KIND_LABELS, dismissEmail, draftFromEmail, extractEmail, linkEmail, markEmailRead, type Extraction } from "@/lib/erp/mail";
+import { KIND_LABELS, dismissEmail, extractionCheck, draftFromEmail, extractEmail, linkEmail, markEmailRead, type Extraction } from "@/lib/erp/mail";
 import {
   addDays, createProjectFromDraft, formatDate, formatMoney, markInvoicePaid, norm, rawMaterialFor, saveRawMaterial, saveSupplier, supplierRows, validateStep,
   type EmailRecord, type ErpState, type ProjectDraft,
@@ -39,7 +39,6 @@ export function InboxModule() {
   const [order, setOrder] = useState<OrderPrefill | null>(null);
   const [bill, setBill] = useState<Partial<BillInput> | null>(null);
   const [projectFrom, setProjectFrom] = useState<{ email: EmailRecord; draft: ProjectDraft } | null>(null);
-  const [setup, setSetup] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const head = <PageHead eyebrow="Communication" title="Inbox" description="Customer orders, requests for quotation, supplier quotes, invoices and payment advice. The ERP reads each email and offers the next step, so the data never has to be typed twice." actions={<button type="button" className="erp-btn erp-btn-primary" onClick={() => setCompose({ to: "", subject: "", body: "" })}><PenLine size={15} /> Compose</button>} />;
   if (!hydrated) return <>{head}<Loading /></>;
@@ -51,7 +50,7 @@ export function InboxModule() {
 
   const gmail = state.mail.provider === "gmail";
   const connect = async () => {
-    if (!gmailAvailable()) { setSetup(true); return; }
+    if (!gmailAvailable()) return;
     try {
       await connectGmail();
       commit((value) => ({ ...value, mail: { ...value.mail, provider: "gmail" } }));
@@ -72,10 +71,10 @@ export function InboxModule() {
     <div className="erp-mailbar">
       <span className={`erp-maildot${gmail && hasToken() ? " is-live" : ""}`} aria-hidden="true" />
       {gmail ? <span><b>Gmail</b> {state.mail.address && `· ${state.mail.address}`} · {hasToken() ? `checks every minute while the ERP is open${state.mail.lastSync ? `, last ${time(state.mail.lastSync)}` : ""}` : "session ended, reconnect to check mail"}</span>
-        : <span><b>Sample inbox.</b> Demo emails from fictional customers and suppliers. Connect Gmail to work with your own mail.</span>}
+        : <span><b>Sample inbox.</b> Demo emails from fictional customers and suppliers.{gmailAvailable() ? " Connect Gmail to work with your own mail." : ""}</span>}
       <span className="erp-head-actions" style={{ marginLeft: "auto" }}>
         {gmail && hasToken() && <button type="button" className="erp-btn erp-btn-sm" disabled={syncing} onClick={sync}><RefreshCw size={13} /> {syncing ? "Checking…" : "Check now"}</button>}
-        {(!gmail || !hasToken()) && <button type="button" className="erp-btn erp-btn-sm erp-btn-primary" disabled={syncing} onClick={connect}><Mail size={13} /> {gmail ? "Reconnect Gmail" : "Connect Gmail"}</button>}
+        {gmailAvailable() && (!gmail || !hasToken()) && <button type="button" className="erp-btn erp-btn-sm erp-btn-primary" disabled={syncing} onClick={connect}><Mail size={13} /> {gmail ? "Reconnect Gmail" : "Connect Gmail"}</button>}
         {gmail && <button type="button" className="erp-btn erp-btn-ghost erp-btn-sm" onClick={() => { disconnectGmail(); commit((value) => ({ ...value, mail: { ...value.mail, provider: "demo" } })); toast("Back to the sample inbox. Emails already fetched stay in this browser until you delete them.", { tone: "info" }); }}>Use sample inbox</button>}
       </span>
     </div>
@@ -106,7 +105,6 @@ export function InboxModule() {
     {order && <SupplierOrderDialog prefill={order} onClose={() => setOrder(null)} />}
     {bill && <BillDialog prefill={bill} onClose={() => setBill(null)} />}
     {projectFrom && <EmailProjectDialog email={projectFrom.email} initial={projectFrom.draft} onClose={() => setProjectFrom(null)} />}
-    {setup && <GmailSetupDialog onClose={() => setSetup(false)} />}
   </>;
 }
 
@@ -199,8 +197,9 @@ function Extracted({ state, mail, x, onCompose, onOrder, onBill, onProject, onQu
   }
   if (x.kind === "general" && !x.lines.length) actions.push(<span key="none" className="erp-faint">No order data recognised. You can still reply or mark it done.</span>);
 
+  const check = extractionCheck(x);
   return <div className="erp-extract">
-    <div className="erp-extract-head"><Sparkles size={15} /><b>Read by BOH ERP</b><span className={`erp-kind is-${x.kind}`}>{KIND_LABELS[x.kind]}</span><small>{Math.round(x.confidence * 100)}% match · rules in your browser, nothing is sent anywhere</small></div>
+    <div className="erp-extract-head"><Sparkles size={15} /><b>Read by BOH ERP</b><span className={`erp-kind is-${x.kind}`}>{KIND_LABELS[x.kind]}</span><small>{check.label}{check.missing.map((name, index) => <span key={name}>{index ? ", " : ": "}{name}</span>)} · rules in your browser, nothing is sent anywhere</small></div>
     {x.fields.length > 0 && <dl className="erp-extract-fields">{x.fields.map((field) => <div key={field.label}><dt>{field.label}</dt><dd>{field.value}</dd></div>)}</dl>}
     {x.lines.length > 0 && <table className="erp-mini-table"><thead><tr><th>Part</th><th>Description</th><th>Rev</th><th className="r">Qty</th><th className="r">Unit price</th></tr></thead><tbody>{x.lines.map((line) => <tr key={line.partNumber}><td>{line.partNumber}</td><td>{line.description}</td><td>{line.revision}</td><td className="r">{line.quantity} {line.unit}</td><td className="r">{line.unitPrice !== null ? formatMoney(line.unitPrice, x.currency ?? "EUR") : "—"}</td></tr>)}</tbody></table>}
     {x.materials.length > 0 && <table className="erp-mini-table"><thead><tr><th>Material</th><th className="r">Qty</th><th className="r">Price</th><th className="r">Current cost</th></tr></thead><tbody>{x.materials.map((item) => { const record = rawMaterialFor(state, item.name); return <tr key={item.name}><td>{item.name}</td><td className="r">{item.quantity ?? "—"} {item.quantity ? item.unit : ""}</td><td className="r">{item.unitPrice !== null ? formatMoney(item.unitPrice, x.currency ?? "EUR") : "—"}</td><td className="r">{record?.unitCost != null ? formatMoney(record.unitCost, state.settings.defaultCurrency) : "—"}</td></tr>; })}</tbody></table>}
@@ -296,7 +295,7 @@ export function ComposeDialog({ prefill, onClose, onSent }: { prefill: ComposePr
       <Field id="mail-to" label="To"><input className="erp-input" id="mail-to" list="mail-contacts" value={values.to} onChange={(event) => setValues({ ...values, to: event.target.value })} /><datalist id="mail-contacts">{contacts.map((item) => <option key={item} value={item} />)}</datalist></Field>
       <Field id="mail-subject" label="Subject"><input className="erp-input" id="mail-subject" value={values.subject} onChange={(event) => setValues({ ...values, subject: event.target.value })} /></Field>
       <Field id="mail-body" label="Message"><textarea className="erp-textarea" id="mail-body" rows={10} value={values.body} onChange={(event) => setValues({ ...values, body: event.target.value })} /></Field>
-      {state.mail.provider !== "gmail" && <p className="erp-faint">Sample inbox: the message is recorded in Sent but not delivered. Connect Gmail to send for real.</p>}
+      {state.mail.provider !== "gmail" && <p className="erp-faint">Sample inbox: the message is recorded in Sent but not delivered.{gmailAvailable() ? " Connect Gmail to send for real." : ""}</p>}
       {error && <p className="erp-error" role="alert">{error}</p>}
       <div className="erp-head-actions" style={{ justifyContent: "flex-end" }}>
         <button type="button" className="erp-btn erp-btn-ghost" onClick={onClose}>Cancel</button>
@@ -306,20 +305,3 @@ export function ComposeDialog({ prefill, onClose, onSent }: { prefill: ComposePr
   </Modal>;
 }
 
-function GmailSetupDialog({ onClose }: { onClose: () => void }) {
-  return <Modal label="Connect Gmail" onClose={onClose}>
-    <div className="erp-stack" style={{ gap: 12 }}>
-      <h2><Inbox size={18} /> Gmail isn’t switched on for this site yet</h2>
-      <p>Connecting your own mailbox needs a Google sign-in client for this website. The site owner sets it up once:</p>
-      <ol className="erp-steps">
-        <li>In Google Cloud Console, create a project and enable the <b>Gmail API</b>.</li>
-        <li>Configure the OAuth consent screen (External, “Testing”) and add the Gmail addresses that may try it as test users.</li>
-        <li>Create an <b>OAuth client ID</b> of type “Web application” with this site’s address as an authorised JavaScript origin.</li>
-        <li>Add it in Vercel as <code>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> and redeploy.</li>
-      </ol>
-      <p className="erp-faint">After that, “Connect Gmail” opens Google’s sign-in. Mail is read and sent straight from your browser with read and send permission only; the access token stays in the open tab and nothing is stored on BOH ERP servers. Public use beyond test users needs Google’s app verification.</p>
-      <p>Until then, the sample inbox shows the full flow with fictional customers and suppliers.</p>
-      <div className="erp-head-actions" style={{ justifyContent: "flex-end" }}><button type="button" className="erp-btn erp-btn-primary" onClick={onClose}>OK</button></div>
-    </div>
-  </Modal>;
-}

@@ -23,6 +23,25 @@ export type Extraction = {
   leadTimeDays: number | null; lines: ExtractedLine[]; materials: ExtractedMaterial[]; fields: { label: string; value: string }[];
 };
 
+/** Fields each kind of email needs before it can be turned into a record. Shown instead of a score. */
+const EXPECTED: Record<EmailKind, [string, (x: Extraction) => boolean][]> = {
+  "customer-po": [["Sender", (x) => x.counterparty.type !== "unknown"], ["PO number", (x) => Boolean(x.poNumber)], ["Line items", (x) => x.lines.length > 0], ["Delivery date", (x) => Boolean(x.deliveryDate)]],
+  rfq: [["Sender", (x) => x.counterparty.type !== "unknown"], ["Line items", (x) => x.lines.length > 0]],
+  "supplier-quote": [["Supplier", (x) => x.counterparty.type === "supplier"], ["Prices", (x) => x.materials.some((item) => item.unitPrice !== null)], ["Lead time", (x) => x.leadTimeDays !== null]],
+  "order-confirmation": [["Our order number", (x) => Boolean(x.supplierOrderNumber)]],
+  "supplier-invoice": [["Supplier", (x) => x.counterparty.type === "supplier"], ["Invoice number", (x) => Boolean(x.invoiceNumber)], ["Total", (x) => x.total !== null], ["Due date", (x) => Boolean(x.dueDate)]],
+  payment: [["Our invoice number", (x) => Boolean(x.ourInvoiceNumber)], ["Amount", (x) => x.total !== null]],
+  shipping: [],
+  general: [],
+};
+
+/** Plain-language result of reading an email: which expected fields were not found. */
+export function extractionCheck(x: Extraction): { missing: string[]; label: string } {
+  const missing = EXPECTED[x.kind].filter(([, found]) => !found(x)).map(([name]) => name);
+  if (!EXPECTED[x.kind].length) return { missing, label: "No fields expected" };
+  return { missing, label: missing.length === 0 ? "All fields found" : missing.length === 1 ? "1 field missing" : `${missing.length} fields missing` };
+}
+
 const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
 
 /** Finds a date written as 2026-11-27, 27.11.2026, 27/11/2026 or 27 November 2026. */

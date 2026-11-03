@@ -338,7 +338,7 @@ function DraftStep({ current, step, state }: { current: GuideStep; step: number;
   let onContinue = next;
 
   if (current.kind === "customer") body = <>
-    <Field id="g-customer" label="Customer name" error={err("customerName")} help="For example: Apex Aerospace GmbH"><input className="erp-input" {...aria("customerName", "g-customer")} list="g-customers" value={draft.customerName} autoComplete="organization" onChange={(event) => update({ customerName: event.target.value })} /></Field>
+    <Field id="g-customer" label="Customer name" error={err("customerName")} help="For example: Kessler Maschinenbau GmbH"><input className="erp-input" {...aria("customerName", "g-customer")} list="g-customers" value={draft.customerName} autoComplete="organization" onChange={(event) => update({ customerName: event.target.value })} /></Field>
     <datalist id="g-customers">{state.customers.map((item) => <option key={item.id} value={item.name} />)}</datalist>
     <Field id="g-contact" label="Contact email (optional)" error={err("contact")} help="Who should receive documents?"><input className="erp-input" {...aria("contact", "g-contact")} value={draft.contact} onChange={(event) => update({ contact: event.target.value })} /></Field>
   </>;

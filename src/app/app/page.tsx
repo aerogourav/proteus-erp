@@ -6,7 +6,7 @@ import { LogOut } from "lucide-react";
 import { BohMark } from "@/components/brand/boh-logo";
 import { AddContactForm, CreateCompanyForm } from "@/components/app/forms";
 import { signOutAction } from "@/app/app/actions";
-import { industryLabel, missingSupabaseSettings, supabaseConfigured } from "@/lib/supabase/config";
+import { industryLabel, supabaseConfigured } from "@/lib/supabase/config";
 import { currentUser } from "@/lib/supabase/server";
 
 type Company = { id: string; name: string; industry: string; is_demo: boolean };
@@ -37,8 +37,8 @@ async function Workspace() {
   if (!supabaseConfigured()) return <>
     <Top />
     <div className="app-narrow erp-card erp-card-pad erp-stack">
-      <h1 style={{ fontSize: 26 }}>Supabase isn’t connected yet</h1>
-      <p className="erp-muted">Add these settings to <code>.env.local</code> (and to Vercel later), then restart the app: {missingSupabaseSettings().join(", ")}.</p>
+      <h1 style={{ fontSize: 26 }}>The workspace isn’t available yet</h1>
+      <p className="erp-muted">The BOH ERP workspace is invite-only while it is being prepared.</p>
       <p className="erp-faint">The demo keeps working without them: <Link className="erp-link" href="/demo">open the demo</Link>.</p>
     </div>
   </>;
@@ -74,7 +74,7 @@ async function Workspace() {
 
   return <>
     <Top email={user.email} company={company} role={role} />
-    <div className="erp-head"><div><span className="erp-eyebrow">Workspace</span><h1>{company.name}</h1><p>Your real company data, stored in your database and visible only to your team.</p></div></div>
+    <div className="erp-head"><div><span className="erp-eyebrow">Workspace</span><h1>{company.name}</h1><p>Invite-only pilot workspace. Records are visible only to your team. Use anonymised or non-confidential data until your data processing terms are signed.</p></div></div>
     <section className="erp-kpis" aria-label="Key figures">
       <article className="erp-card erp-kpi"><small>Customers</small><strong>{customers}</strong></article>
       <article className="erp-card erp-kpi"><small>Suppliers</small><strong>{suppliers}</strong></article>

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { inquiryText, offerByKey, parseInquiry, type Inquiry } from "@/lib/offers";
 import { supabaseAnonKey, supabaseConfigured, supabaseUrl } from "@/lib/supabase/config";
 
 /**
@@ -11,13 +12,6 @@ import { supabaseAnonKey, supabaseConfigured, supabaseUrl } from "@/lib/supabase
  *   CONTACT_FROM_EMAIL  – verified sender, e.g. "BOH ERP <hello@your-domain>"; defaults to Resend's test sender,
  *                         which only delivers to the Resend account's own email address
  */
-
-const limits = { name: 120, email: 200, company: 160, role: 120, message: 4000 } as const;
-type Field = keyof typeof limits;
-
-function clean(value: unknown, max: number) {
-  return typeof value === "string" ? value.trim().slice(0, max) : "";
-}
 
 const htmlEscapes: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 
@@ -39,14 +33,22 @@ function tooMany(ip: string, now: number) {
 
 const contactConfigured = () => supabaseConfigured() || Boolean(process.env.RESEND_API_KEY && process.env.CONTACT_TO_EMAIL);
 
-async function saveLead(data: Record<Field, string>): Promise<"saved" | "limited" | "failed" | "off"> {
+async function callRpc(name: string, body: Record<string, string>) {
+  return fetch(`${supabaseUrl}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+async function saveLead(data: Inquiry): Promise<"saved" | "limited" | "failed" | "off"> {
   if (!supabaseConfigured()) return "off";
+  const base = { lead_name: data.name, lead_email: data.email, lead_company: data.company, lead_role: data.role };
   try {
-    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/submit_lead`, {
-      method: "POST",
-      headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ lead_name: data.name, lead_email: data.email, lead_company: data.company, lead_role: data.role, lead_message: data.message }),
-    });
+    // submit_lead_with_offer comes from migration 20261103000000_lead_offer.sql. Until that migration runs on the
+    // hosted database, fall back to the original function and keep the chosen offer in the message.
+    let response = await callRpc("submit_lead_with_offer", { ...base, lead_message: data.message, lead_offer: data.offer });
+    if (response.status === 404) response = await callRpc("submit_lead", { ...base, lead_message: `[${offerByKey(data.offer)?.title ?? data.offer}]\n${data.message}`.slice(0, 4000) });
     if (!response.ok) { console.error("Lead not saved", response.status); return "failed"; }
     return (await response.json()) === true ? "saved" : "limited";
   } catch (error) {
@@ -55,11 +57,11 @@ async function saveLead(data: Record<Field, string>): Promise<"saved" | "limited
   }
 }
 
-async function emailTeam(data: Record<Field, string>): Promise<"sent" | "failed" | "off"> {
+async function emailTeam(data: Inquiry): Promise<"sent" | "failed" | "off"> {
   const apiKey = process.env.RESEND_API_KEY;
   const to = process.env.CONTACT_TO_EMAIL;
   if (!apiKey || !to) return "off";
-  const text = [`Name: ${data.name}`, `Email: ${data.email}`, `Company: ${data.company}`, `Role: ${data.role || "–"}`, "", "Workflow / problem:", data.message].join("\n");
+  const text = inquiryText(data);
   try {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -68,7 +70,7 @@ async function emailTeam(data: Record<Field, string>): Promise<"sent" | "failed"
         from: process.env.CONTACT_FROM_EMAIL || "BOH ERP Website <onboarding@resend.dev>",
         to: [to],
         reply_to: data.email,
-        subject: `BOH ERP inquiry — ${data.company}`,
+        subject: `BOH ERP ${offerByKey(data.offer)?.title ?? "inquiry"} — ${data.company}`,
         text,
         html: `<pre style="font:14px/1.5 system-ui,sans-serif;white-space:pre-wrap">${escapeHtml(text)}</pre>`,
       }),
@@ -93,17 +95,15 @@ export async function POST(request: Request) {
   // Bots: the hidden field must stay empty, and a person needs a few seconds to fill in the form.
   const startedAt = typeof payload.startedAt === "number" ? payload.startedAt : 0;
   const now = Date.now();
-  if (clean(payload.website, 200) || now - startedAt < 3000 || now - startedAt > 24 * 3600 * 1000) return NextResponse.json({ ok: true });
+  if ((typeof payload.website === "string" && payload.website.trim()) || now - startedAt < 3000 || now - startedAt > 24 * 3600 * 1000) return NextResponse.json({ ok: true });
 
   const ip = (request.headers.get("x-forwarded-for") ?? "").split(",")[0]!.trim() || "unknown";
   if (tooMany(ip, now)) return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
 
-  const data = Object.fromEntries((Object.keys(limits) as Field[]).map((field) => [field, clean(payload[field], limits[field])])) as Record<Field, string>;
-  if (!data.name || !data.company || !data.message || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-    return NextResponse.json({ ok: false, error: "invalid_fields" }, { status: 422 });
-  }
+  const parsed = parseInquiry(payload);
+  if (!parsed.ok) return NextResponse.json({ ok: false, error: "invalid_fields", message: parsed.error }, { status: 422 });
 
-  const [lead, mail] = await Promise.all([saveLead(data), emailTeam(data)]);
+  const [lead, mail] = await Promise.all([saveLead(parsed.inquiry), emailTeam(parsed.inquiry)]);
   if (lead === "limited" && mail !== "sent") return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
   if (lead === "saved" || mail === "sent") return NextResponse.json({ ok: true });
   return NextResponse.json({ ok: false, error: "delivery_failed" }, { status: 502 });

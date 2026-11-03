@@ -1169,7 +1169,7 @@ export function translateText(value: string, locale: "en" | "de"): string {
   const content = value.trim();
   const months: Record<string, string> = { Jan: "Jan", Feb: "Feb", Mar: "Mär", Apr: "Apr", May: "Mai", Jun: "Jun", Jul: "Jul", Aug: "Aug", Sep: "Sep", Oct: "Okt", Nov: "Nov", Dec: "Dez" };
   const date = content.match(/^(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4})$/);
-  const translated = de[content] ?? (date ? `${date[1]}. ${months[date[2]]} ${date[3]}` : content.replace(/^(\d+) custom fields?$/i, "$1 benutzerdefinierte Felder"));
+  const translated = de[content] ?? (date ? `${date[1]}. ${months[date[2]]} ${date[3]}` : content.replace(/^(\d+) custom fields?$/i, "$1 benutzerdefinierte Felder").replace(/^(\d+) fields missing$/, "$1 Felder fehlen"));
   return translated !== content ? `${leading}${translated}${trailing}` : value;
 }
 

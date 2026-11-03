@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import type { ReactNode } from "react";
 // Fonts ship with the site (Fontsource, SIL Open Font License): builds never download from Google,
 // and visitors' browsers load them from this site only.
@@ -20,7 +21,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" data-scroll-behavior="smooth">
-      <body><LanguageProvider>{children}</LanguageProvider></body>
+      <body>
+        <LanguageProvider>{children}</LanguageProvider>
+        {/* Cookie-free page-view counts, only once switched on in Vercel (see siteConfig.analyticsEnabled and the privacy notice). */}
+        {siteConfig.analyticsEnabled && <Script src="/_vercel/insights/script.js" strategy="afterInteractive" />}
+      </body>
     </html>
   );
 }

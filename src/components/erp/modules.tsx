@@ -59,8 +59,8 @@ export function NoProjects({ what }: { what: string }) {
 export function Loading() { return <p className="erp-muted" role="status">Loading…</p>; }
 
 
-export function Rows({ columns, head, children }: { columns: string; head: string[]; children: ReactNode }) {
-  return <div className="erp-rows" role="table">
+export function Rows({ columns, head, children, className }: { columns: string; head: string[]; children: ReactNode; className?: string }) {
+  return <div className={className ? `erp-rows ${className}` : "erp-rows"} role="table">
     <div className="erp-row erp-row-head" role="row" style={{ gridTemplateColumns: columns }}>{head.map((label, index) => <span key={index} role="columnheader">{label}</span>)}</div>
     {children}
   </div>;
@@ -89,7 +89,7 @@ export function ProjectsModule() {
   if (!hydrated) return <>{head}<Loading /></>;
   if (!state.projects.length) return <>{head}<NoProjects what="projects" /></>;
   const columns = "minmax(0,2fr) minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) 140px 290px";
-  return <>{head}<section className="erp-card"><Rows columns={columns} head={["Project", "Customer", "Purchase order", "Delivery", "Status", ""]}>
+  return <>{head}<section className="erp-card"><Rows className="erp-rows-projects" columns={columns} head={["Project", "Customer", "Purchase order", "Delivery", "Status", ""]}>
     {[...state.projects].reverse().map((project) => {
       const customer = state.customers.find((item) => item.id === project.customerId);
       const po = state.purchaseOrders.find((item) => item.projectId === project.id);
