@@ -33,7 +33,7 @@ Both pages show a "Draft: not yet reviewed by a lawyer" notice. Remove it only a
 
 The form stores a lead in Supabase and/or emails it through Resend. Either one is enough.
 
-- Supabase: run migration `supabase/migrations/20261103000000_lead_offer.sql` (additive: adds the `offer` column and `submit_lead_with_offer`).
+- Supabase: run migrations `supabase/migrations/20261103000000_lead_offer.sql` and `20261104000000_controls.sql` (approvals, invoice lock, audit history, yearly numbering, Storage bucket and policies; see `docs/OPERATIONS.md`). Both are additive; the first adds the `offer` column and `submit_lead_with_offer`.
   Until it runs, inquiries still arrive; the chosen offer is written at the top of the message instead.
 - Email: `RESEND_API_KEY`, `CONTACT_TO_EMAIL` (your inbox) and, once your domain is verified in Resend, `CONTACT_FROM_EMAIL`.
 

@@ -43,11 +43,11 @@ Supabase
   └─ scheduled job     deletes expired demo companies
 ```
 
-Rules stay in plain TypeScript (`src/lib/erp`) so they are unit-tested without a database. The database enforces what must never be wrong regardless of UI: company isolation, roles, unique document numbers, an append-only activity log, stock as a ledger of movements (not a number that gets overwritten).
+Rules stay in plain TypeScript (`src/lib/erp`) so they are unit-tested without a database. The database enforces what must never be wrong regardless of UI: company isolation, roles, unique yearly document numbers, an append-only activity log, trigger-written audit history, approvals only by owners and admins, locked issued invoices corrected by credit notes, and stock as a ledger of movements (not a number that gets overwritten). See `docs/OPERATIONS.md`.
 
 ### Roles
 
-`owner` (billing, delete company), `admin` (settings, users), `member` (daily work), `viewer` (read only). Finer permissions (who may approve drawings, see salaries) come as a later step on top of these.
+`owner` (billing; a company with records is closed through the retention process, not deleted), `admin` (settings, users, approvals, cancelling invoices), `member` (daily work), `viewer` (read only). Only owners and admins approve files and see pay data.
 
 ## Phases
 

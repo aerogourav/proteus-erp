@@ -562,4 +562,5 @@ export const deSiteTranslations: [string, string][] = [
   ["Continue", "Fortsetzen"],
   ["Next operation", "Nächster Arbeitsgang"],
   ["Running now", "Läuft gerade"],
+  ["Screens for roles, permissions and the audit history in the cloud workspace (the database already records the history)", "Ansichten für Rollen, Berechtigungen und die Änderungshistorie im Cloud-Arbeitsbereich (die Datenbank zeichnet die Historie bereits auf)"],
 ];

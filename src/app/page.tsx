@@ -53,7 +53,7 @@ const today = [
 
 const planned = [
   "Invite-only cloud workspace for pilot shops (in testing, not yet open)",
-  "Roles, permissions and a complete audit history in the cloud workspace",
+  "Screens for roles, permissions and the audit history in the cloud workspace (the database already records the history)",
   "Export of invoices to DATEV or a specialist e-invoicing provider",
   "Reusable industry templates",
   "AI that turns a plain-language request into a configuration you review and approve",
