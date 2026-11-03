@@ -51,6 +51,7 @@ npx supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/schema.sql
 npx supabase db dump --db-url "$SUPABASE_DB_URL" --data-only -f backup/data.sql
 ```
 
+- `supabase db dump` may need Docker Desktop running; if it is not installed, export each table as CSV from Supabase → Table Editor → Export, or use `pg_dump` with the same connection string.
 - `SUPABASE_DB_URL` is the connection string from Supabase → Project Settings → Database. It contains the database password:
   keep it in your password manager, never in the repository or in chat.
 - Store the files encrypted (for example an encrypted disk or a password-protected archive) outside the repository.

@@ -58,3 +58,9 @@ The sign-in form no longer creates accounts. To make that binding on the server 
 ## Gmail in the demo inbox
 
 Hidden unless `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is set. See `docs/GMAIL-SETUP.md`.
+
+## Applied on the hosted project
+
+On 2026-11-03 the three migrations `20261103000000_lead_offer.sql`, `20261104000000_controls.sql` and `20261105000000_production.sql`
+were run on the `boh-erp` Supabase project (each checked against the repository file by SHA-256 before running). A read-only
+check afterwards confirmed all three, the private `company-files` bucket and its 4 policies. No existing rows were changed.
