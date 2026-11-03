@@ -19,3 +19,34 @@
   .app-panel { min-height: 100vh; border-radius: 0; border: 0; box-shadow: none; }
   .app-inline-form { grid-template-columns: 1fr; }
 }
+
+/* Job release (/app/production) */
+.app-pad { padding: 0 20px 16px; }
+.app-form-3 { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; }
+.app-form-4 { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
+.app-form-5 { grid-template-columns: repeat(4, minmax(0, 1fr)) auto; }
+.app-form-6 { grid-template-columns: repeat(5, minmax(0, 1fr)) auto; }
+.app-form-7 { grid-template-columns: repeat(6, minmax(0, 1fr)) auto; }
+.app-mini-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.app-mini-form .app-form-status { flex-basis: 100%; }
+.app-grow { flex: 1 1 320px; }
+.app-grow .erp-input { flex: 1 1 200px; }
+.app-orders { display: grid; gap: 12px; padding: 16px 20px 20px; }
+.app-order { display: grid; gap: 10px; padding: 16px; background: #FFFFFF; border: 1px solid var(--e-border); border-radius: 18px; }
+.app-order header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.app-order header small { display: block; color: var(--e-text-3); font-size: 13px; }
+.app-order-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.app-shopfloor .app-inline-form { padding: 10px 0; border-bottom: 0; }
+.app-running { grid-column: 1 / -1; margin: 0; font-size: 14px; }
+.app-more summary { cursor: pointer; font-weight: 700; font-size: 14px; }
+.app-results { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 14px; }
+.app-list { display: grid; gap: 8px; margin: 0; padding: 12px 20px; list-style: none; font-size: 14px; }
+.app-list small { display: block; color: var(--e-text-3); }
+.app-doc { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 10px 0 0; }
+.app-inspect { padding: 10px 0; }
+.app-inspect-row { display: grid; grid-template-columns: 1.4fr 1.3fr .6fr .9fr .9fr .8fr .9fr; gap: 8px; }
+.app-inspect-note { grid-column: 1 / -1; margin: 0; }
+@media (max-width: 860px) {
+  .app-form-3, .app-form-4, .app-form-5, .app-form-6, .app-form-7, .app-inspect-row { grid-template-columns: 1fr; }
+}
+.app-span { grid-column: 1 / -1; }

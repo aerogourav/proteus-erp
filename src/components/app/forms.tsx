@@ -70,6 +70,15 @@ export function AddContactForm({ companyId }: { companyId: string }) {
     <div className="erp-field"><label htmlFor="contact-kind">Type</label>
       <select id="contact-kind" name="kind" className="erp-select" defaultValue="customer"><option value="customer">Customer</option><option value="supplier">Supplier</option><option value="both">Both</option></select></div>
     <button type="submit" className="erp-btn erp-btn-primary" disabled={pending}><Plus size={16} /> {pending ? "Saving…" : "Add"}</button>
+    <details className="app-more app-span"><summary>Billing address and tax ID (needed for invoices)</summary>
+      <div className="app-inline-form app-form-5" style={{ padding: "10px 0 0", borderBottom: 0 }}>
+        <div className="erp-field"><label htmlFor="contact-street">Street</label><input id="contact-street" name="street" className="erp-input" maxLength={160} autoComplete="street-address" /></div>
+        <div className="erp-field"><label htmlFor="contact-postal">Postal code</label><input id="contact-postal" name="postalCode" className="erp-input" maxLength={20} autoComplete="postal-code" /></div>
+        <div className="erp-field"><label htmlFor="contact-city">City</label><input id="contact-city" name="city" className="erp-input" maxLength={120} autoComplete="address-level2" /></div>
+        <div className="erp-field"><label htmlFor="contact-country">Country code</label><input id="contact-country" name="country" className="erp-input" maxLength={2} placeholder="DE" /></div>
+        <div className="erp-field"><label htmlFor="contact-tax">VAT ID</label><input id="contact-tax" name="taxId" className="erp-input" maxLength={40} placeholder="Customer’s VAT ID" /></div>
+      </div>
+    </details>
     <div className="app-form-status"><Status state={state} /></div>
   </form>;
 }

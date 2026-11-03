@@ -10,7 +10,7 @@ import { industryLabel, supabaseConfigured } from "@/lib/supabase/config";
 import { currentUser } from "@/lib/supabase/server";
 
 type Company = { id: string; name: string; industry: string; is_demo: boolean };
-type Contact = { id: string; name: string; email: string; is_customer: boolean; is_supplier: boolean };
+type Contact = { id: string; name: string; email: string; is_customer: boolean; is_supplier: boolean; tax_id: string; address: { city?: string; country?: string } | null };
 type Activity = { id: number; at: string; summary: string };
 
 const ROLE_LABEL: Record<string, string> = { owner: "Owner", admin: "Admin", member: "Member", viewer: "Viewer" };
@@ -64,7 +64,7 @@ async function Workspace() {
     tally("contacts").eq("is_customer", true),
     tally("contacts").eq("is_supplier", true),
     tally("items"),
-    supabase.from("contacts").select("id, name, email, is_customer, is_supplier").eq("company_id", company.id).order("created_at", { ascending: false }).limit(25),
+    supabase.from("contacts").select("id, name, email, is_customer, is_supplier, tax_id, address").eq("company_id", company.id).order("created_at", { ascending: false }).limit(25),
     supabase.from("activity_log").select("id, at, summary").eq("company_id", company.id).order("at", { ascending: false }).limit(8),
   ]);
   const [customers, suppliers, items] = [customerCount.count ?? 0, supplierCount.count ?? 0, itemCount.count ?? 0];
@@ -74,7 +74,7 @@ async function Workspace() {
 
   return <>
     <Top email={user.email} company={company} role={role} />
-    <div className="erp-head"><div><span className="erp-eyebrow">Workspace</span><h1>{company.name}</h1><p>Invite-only pilot workspace. Records are visible only to your team. Use anonymised or non-confidential data until your data processing terms are signed.</p></div></div>
+    <div className="erp-head"><div><span className="erp-eyebrow">Workspace</span><h1>{company.name}</h1><p style={{ display: "flex", flexWrap: "wrap", gap: 8 }}><Link className="erp-btn erp-btn-sm erp-btn-primary" href="/app/production">Open job release</Link><a className="erp-btn erp-btn-sm" href="/app/export/invoices">Export invoices (CSV)</a></p><p>Invite-only pilot workspace. Records are visible only to your team. Use anonymised or non-confidential data until your data processing terms are signed.</p></div></div>
     <section className="erp-kpis" aria-label="Key figures">
       <article className="erp-card erp-kpi"><small>Customers</small><strong>{customers}</strong></article>
       <article className="erp-card erp-kpi"><small>Suppliers</small><strong>{suppliers}</strong></article>
@@ -88,7 +88,7 @@ async function Workspace() {
         <div className="erp-rows">
           {contacts.length > 0 && <div className="erp-row erp-row-head"><span>Name</span><span>Email</span><span>Type</span></div>}
           {contacts.map((contact) => <div key={contact.id} className="erp-row">
-            <strong>{contact.name}</strong>
+            <strong>{contact.name}{(contact.tax_id || contact.address?.city) && <small className="erp-faint" style={{ display: "block", fontWeight: 400 }}>{[contact.address?.city, contact.address?.country, contact.tax_id && `VAT ID ${contact.tax_id}`].filter(Boolean).join(" · ")}</small>}</strong>
             <span className="erp-muted">{contact.email || "—"}</span>
             <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{contact.is_customer && <span className="erp-badge erp-badge-info">Customer</span>}{contact.is_supplier && <span className="erp-badge erp-badge-warn">Supplier</span>}</span>
           </div>)}

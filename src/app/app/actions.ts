@@ -39,8 +39,12 @@ export async function addContactAction(_previous: FormState, form: FormData): Pr
   if (!["customer", "supplier", "both"].includes(kind)) return { error: "Choose customer, supplier or both." };
   const { supabase, user } = await currentUser();
   if (!user) redirect("/app/login");
+  // Billing address and tax ID, needed on invoices and for the accounting export.
+  const address = { street: text(form, "street", 160), postal_code: text(form, "postalCode", 20), city: text(form, "city", 120), country: text(form, "country", 2).toUpperCase() };
+  if (address.country && !/^[A-Z]{2}$/.test(address.country)) return { error: "Use a two-letter country code, for example DE." };
+  const taxId = text(form, "taxId", 40).toUpperCase().replace(/\s+/g, "");
   const { data, error } = await supabase.from("contacts")
-    .insert({ company_id: companyId, name, email, is_customer: kind !== "supplier", is_supplier: kind !== "customer" })
+    .insert({ company_id: companyId, name, email, is_customer: kind !== "supplier", is_supplier: kind !== "customer", address, tax_id: taxId })
     .select("id").single();
   if (error || !data) return { error: "The contact could not be saved. You may only have read access to this company." };
   const label = kind === "both" ? "Customer and supplier" : kind === "customer" ? "Customer" : "Supplier";
