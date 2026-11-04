@@ -41,7 +41,7 @@ Legend: **[code]** enforced in this repository and covered by tests · **[you]**
 
 - [code] Private Storage bucket `company-files`; policies allow access only inside the company's own folder.
 - [code] Drawings are hashed (SHA-256) on upload; an approval is bound to that hash and re-checked before release and on the job page. Stored files cannot be overwritten, and drawings or non-draft files cannot be deleted (`tests/db-pilot.test.ts`).
-- [code] File limits: the migration `20261106000000_pilot_blockers.sql` sets the bucket to 20 MB and an allowed list of types (PDF, images, DXF/DWG/STEP/IGES, CSV, Office files); the upload form checks the same before sending.
+- [code] File limits: the migration `20261106000000_pilot_blockers.sql` sets the bucket to 20 MB and an allowed list of types (PDF, PNG, JPG, SVG, DXF, DWG, STEP, IGES, STL); the upload form checks the same before sending.
 - [open] Virus scanning. Not practical without a paid scanning service or a server process outside Vercel's limits. **Decision: confidential files stay blocked** — pilots use anonymised or non-confidential files only, and the app says so on the job release page. Revisit before paying customers (for example a Supabase Edge Function calling a scanning API, files kept in a quarantine folder until clean).
 
 ## Logging and monitoring

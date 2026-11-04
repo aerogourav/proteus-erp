@@ -69,7 +69,13 @@ On 2026-11-03 the three migrations `20261103000000_lead_offer.sql`, `20261104000
 were run on the `boh-erp` Supabase project (each checked against the repository file by SHA-256 before running). A read-only
 check afterwards confirmed all three, the private `company-files` bucket and its 4 policies. No existing rows were changed.
 
-The hardening migrations `20261106000000_pilot_blockers.sql`, `20261107000000_finance_material.sql` and
-`20261108000000_dispatch_review.sql` are **not** applied on the hosted project. They need a backup first and your approval
-(plan, risks, rollback and read-only checks are in the hardening report). Deploying the hardening branch before they run
-would break `/app` pages that call the new functions; the website and demo are not affected.
+On 2026-11-04 the hardening migrations `20261106000000_pilot_blockers.sql`, `20261107000000_finance_material.sql` and
+`20261108000000_dispatch_review.sql` were run on the `boh-erp` project, after a read-only backup (kept outside the repository)
+and a rehearsal on a local copy of the hosted rows. Each file was checked by SHA-256 (LF line endings) before running.
+A read-only check afterwards confirmed: all new tables and functions present; `document_number`, `next_number`, `pin_ok`,
+the old one-argument `approve_file` and the operator functions not callable from the app; no direct writes to
+`activity_log`, `dispatches` or `people_pins`; row-level security on every table; the `company-files` bucket private,
+20 MB, 12 allowed types, with read, insert and delete policies only (no overwrite); row counts unchanged.
+
+Until the hardening branch is deployed, `/app` on the live site calls functions that changed (drawing approval,
+inspection, shop-floor bookings) and those actions fail with an error. The website and demo are not affected.

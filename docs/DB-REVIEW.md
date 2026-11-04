@@ -69,4 +69,5 @@ All functions use `set search_path = ''`. Security-definer functions check membe
 2. App-user MFA is planned, not built (`docs/SECURITY-CHECKLIST.md`).
 3. No virus scanning; confidential files stay blocked for the pilot.
 4. These checks run on PGlite (Postgres 17 in WebAssembly) with stand-ins for Supabase's `auth` and `storage` schemas.
-   They must be repeated read-only on the hosted project after the migrations are applied (see the hosted plan in the final report).
+   On 2026-11-04, after the migrations were applied, a read-only check on the hosted project confirmed the grants, row-level
+   security and Storage settings listed here. Behaviour (for example a full dispatch) has not yet been exercised there.

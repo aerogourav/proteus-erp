@@ -49,8 +49,8 @@ Legend: **pass** = evidence exists · **fail** = known not to hold · **manual**
 
 | Gate | Status | Evidence |
 |---|---|---|
-| Hardening migrations 20261106–20261108 applied on hosted Supabase | **manual** (needs backup + your approval) | not applied |
-| Read-only checks after applying them | **manual** | listed in the hardening report |
+| Hardening migrations 20261106–20261108 applied on hosted Supabase | pass (2026-11-04) | backup taken first; SHA-256 checked; `docs/LAUNCH-SETTINGS.md` |
+| Read-only checks after applying them | pass (2026-11-04) | functions, grants, RLS, bucket limits and row counts confirmed; `docs/LAUNCH-SETTINGS.md` |
 | Hardening branch reviewed, merged and deployed | **manual** | not merged |
 | `/app` job flow tested end to end on the hosted project with a test company | **manual** | after the migrations |
 
