@@ -118,7 +118,7 @@ export type Supplier = { id: string; name: string; contact: string; email: strin
 export type RawMaterial = { id: string; name: string; unit: string; stock: number; reorderLevel: number; unitCost: number | null; supplierId: string | null; custom?: CustomValues };
 export type Customer = { id: string; name: string; contact: string; createdAt: string; custom?: CustomValues };
 export type PurchaseOrder = { id: string; number: string; customerId: string; projectId: string; poDate: string; deliveryDate: string; currency: Currency; value: number | null; receivedAt: string; custom?: CustomValues };
-export type Project = { id: string; code: string; name: string; description: string; customerId: string; purchaseOrderIds: string[]; createdAt: string; isSample: boolean; custom?: CustomValues };
+export type Project = { id: string; code: string; name: string; description: string; customerId: string; purchaseOrderIds: string[]; createdAt: string; isSample: boolean; custom?: CustomValues; archivedAt?: string; archiveReason?: string; dispatchOverride?: DispatchOverride };
 export type LineItem = { id: string; projectId: string; purchaseOrderId: string; partId: string; revisionId: string; quantity: number; unit: string; unitPrice: number | null };
 export type Part = { id: string; number: string; description: string; custom?: CustomValues };
 export type PartRevision = { id: string; partId: string; revision: string; createdAt: string };
@@ -145,8 +145,11 @@ export type ProductionOrder = {
   completedAt?: string;
 };
 export type ReleaseOverride = { by: string; byId: string; reason: string; at: string; blockers: string[] };
+/** A named release at dispatch despite drawing problems found then (owner or admin, with a reason). */
+export type DispatchOverride = { by: string; reason: string; at: string; blockers: string[] };
 export type MaterialLot = { material: string; heat: string; certificate: string; linkedAt: string };
-export type CostSnapshot = { labour: number; minutes: number; at: string };
+/** Costs frozen when a job closes. overhead, material and fx were added in hardening phase 2 (older snapshots lack them). */
+export type CostSnapshot = { labour: number; minutes: number; at: string; overhead?: number; material?: number; fx?: FxRates; currency?: Currency };
 /** pass is the final verdict: the inspector's explicit result, failed automatically when a number is outside a parseable tolerance. */
 export type InspectionOutcome = "pass" | "fail" | "needs_review";
 /** A review decision on a "needs review" result. The original outcome is kept next to it. */
@@ -218,6 +221,8 @@ export type OpLog = {
   id: string; orderId: string; orderNumber: string; projectId: string; partId: string; partNumber: string; revision: string; partDescription: string;
   seq: number; operation: string; workCenter: string; employeeId: string; employeeCode: string; employeeName: string;
   start: string; end: string; minutes: number; plannedMinutes: number; qtyGood: number; qtyScrap: number; notes: string;
+  /** Booked by the demo shortcut, not by an operator at a terminal. */
+  synthetic?: boolean;
 };
 /** An operation that has been started and not yet ended. */
 export type ActiveOp = { id: string; orderId: string; seq: number; employeeId: string; start: string };
@@ -263,8 +268,12 @@ export type ProjectDraft = {
   lines: DraftLine[]; documents: DraftDocument[]; inspections: DraftInspection[]; materials: DraftMaterial[];
 };
 
+/** Bumped when stored demo data must be checked against new rules (see stateProblems and the store). */
+export const RULES_VERSION = 3;
+
 export type ErpState = {
   version: 2;
+  rulesVersion?: number;
   seq: number;
   settings: Settings;
   suppliers: Supplier[];
@@ -314,7 +323,7 @@ export const WIZARD_STEPS = ["Project", "Customer & order", "Line items", "Docum
 
 export function createInitialState(): ErpState {
   return {
-    version: 2, seq: 1, settings: { industry: "manufacturing", taxRate: 19, defaultCurrency: "EUR", paymentTermsDays: 30, ui: { ...DEFAULT_UI }, tabs: DEFAULT_TABS.map((tab) => ({ ...tab })), widgets: DEFAULT_WIDGETS.map((widget) => ({ ...widget })), customFields: [], docTypes: [], fx: { ...DEFAULT_FX }, payroll: { ...DEFAULT_PAYROLL }, companyName: "Your company (demo)", overheadPerHour: 0 },
+    version: 2, rulesVersion: RULES_VERSION, seq: 1, settings: { industry: "manufacturing", taxRate: 19, defaultCurrency: "EUR", paymentTermsDays: 30, ui: { ...DEFAULT_UI }, tabs: DEFAULT_TABS.map((tab) => ({ ...tab })), widgets: DEFAULT_WIDGETS.map((widget) => ({ ...widget })), customFields: [], docTypes: [], fx: { ...DEFAULT_FX }, payroll: { ...DEFAULT_PAYROLL }, companyName: "Your company (demo)", overheadPerHour: 0 },
     suppliers: [], rawMaterials: [],
     customers: [], purchaseOrders: [], projects: [], lineItems: [], parts: [], revisions: [], documents: [], inspectionRequirements: [],
     materialRequirements: [], procurement: [], productionOrders: [], inspectionReports: [], dispatches: [], invoices: [], creditNotes: [], activity: [], draft: null,
@@ -792,6 +801,7 @@ export function readiness(state: ErpState, projectId: string): ProjectReadiness 
     }).filter(Boolean);
     if (short.length) reasons.push({ text: `Short quantity: ${short.join(", ")} produced. Produce the rest or change the ordered quantity first.` });
     if (quality.state !== "complete") reasons.push({ text: "The inspection report has not passed yet." });
+    for (const blocker of dispatchDrawingBlockers(state, projectId)) reasons.push({ text: `Drawing check before dispatch: ${blocker}` });
     dispatch = reasons.length ? { state: "blocked", summary: "Not ready to dispatch", reasons } : { state: "incomplete", summary: "Ready to dispatch", reasons: [{ text: "All checks passed. The order can be dispatched.", action: { kind: "dispatch", label: "Dispatch order" } }] };
   }
 
@@ -1270,15 +1280,37 @@ export function updateDocument(state: ErpState, documentId: string, input: { nam
   return log(next, now, "documents", `${number} rev ${revision} updated${changedContent && doc.status === "Approved" ? " · back to review" : ""}`, doc.projectIds[0] ?? null);
 }
 
+/** True once a production order using this requirement has been released (material issued). */
+function requirementReleased(state: ErpState, req: MaterialRequirement) {
+  return state.productionOrders.some((order) => order.materialIssuedAt && (req.lineItemId === order.lineItemId || (req.lineItemId === null && req.projectId === order.projectId)));
+}
+
 export function updateMaterial(state: ErpState, requirementId: string, input: { material: string; quantity: number; unit: string; supplier: string }, now: string): ErpState {
   const req = state.materialRequirements.find((item) => item.id === requirementId);
   if (!req || !clean(input.material) || !(input.quantity > 0)) return state;
+  // After release only the supplier may change here; material and quantity need changeReleasedMaterial().
+  if (requirementReleased(state, req) && (norm(input.material) !== norm(req.material) || input.quantity !== req.quantity || input.unit !== req.unit)) return state;
   const next = {
     ...state,
     materialRequirements: touch(state.materialRequirements, requirementId, (item) => ({ ...item, material: clean(input.material), quantity: input.quantity, unit: input.unit })),
     procurement: state.procurement.map((record) => record.requirementId === requirementId ? { ...record, supplier: clean(input.supplier), updatedAt: now } : record),
   };
   return log(next, now, "materials", `Material ${clean(input.material)} updated`, req.projectId);
+}
+
+/**
+ * Changes the quantity of a released material requirement. Owner or admin with a reason; logged. The difference is taken
+ * from or returned to stock, so stock stays true.
+ */
+export function changeReleasedMaterial(state: ErpState, requirementId: string, quantity: number, reason: string, now: string): ErpState {
+  const req = state.materialRequirements.find((item) => item.id === requirementId);
+  const user = approver(state);
+  const text = reason.trim().replace(/\s+/g, " ").slice(0, 300);
+  if (!req || !user || text.length < 5 || !(quantity > 0) || quantity === req.quantity) return state;
+  const diff = round2(quantity - req.quantity);
+  let next: ErpState = { ...state, materialRequirements: touch(state.materialRequirements, requirementId, (item) => ({ ...item, quantity })) };
+  if (requirementReleased(state, req)) next = { ...next, rawMaterials: next.rawMaterials.map((item) => norm(item.name) === norm(req.material) ? { ...item, stock: round2(item.stock - diff) } : item) };
+  return log(next, now, "materials", `${req.material}: ${req.quantity} → ${quantity} ${req.unit} after release, by ${currentUserName(state) ?? user.name}: ${text}`, req.projectId);
 }
 
 /** Edits a requirement. Explicit limits (lower/upper) win over the specification text; sample size and gauge are optional. */
@@ -1544,6 +1576,30 @@ export function releaseGate(state: ErpState, order: ProductionOrder): string | n
   return releaseBlockers(state, order.id).find((blocker) => !covered.includes(blocker)) ?? null;
 }
 
+/**
+ * Drawing problems found at dispatch: the ordered revision's drawing is no longer approved, or a newer revision exists.
+ * Blockers covered by the project's dispatch override are left out.
+ */
+export function dispatchDrawingBlockers(state: ErpState, projectId: string): string[] {
+  const project = state.projects.find((item) => item.id === projectId);
+  const covered = project?.dispatchOverride?.blockers ?? [];
+  return state.productionOrders.filter((order) => order.projectId === projectId)
+    .flatMap((order) => releaseBlockers(state, order.id))
+    .filter((blocker) => /^(No drawing|Drawing )/.test(blocker) && !covered.includes(blocker));
+}
+
+/** Allows dispatch despite drawing problems found at dispatch. Owner or admin with a reason; logged. */
+export function overrideDispatch(state: ErpState, projectId: string, reason: string, now: string): ErpState {
+  const user = approver(state);
+  const project = state.projects.find((item) => item.id === projectId);
+  const text = reason.trim().replace(/\s+/g, " ").slice(0, 300);
+  const blockers = dispatchDrawingBlockers(state, projectId);
+  if (!user || !project || text.length < 5 || !blockers.length) return state;
+  const by = currentUserName(state) ?? user.name;
+  const next = { ...state, projects: touch(state.projects, projectId, (item) => ({ ...item, dispatchOverride: { by, reason: text, at: now, blockers: [...(item.dispatchOverride?.blockers ?? []), ...blockers] } })) };
+  return log(next, now, "dispatch", `Dispatch released by ${by} despite: ${blockers.join(" ")} Reason: ${text}`, projectId);
+}
+
 /** Releases a job despite its current blockers. Owner or admin only, with a reason; logged with their name. */
 export function overrideRelease(state: ErpState, orderId: string, reason: string, now: string): ErpState {
   const order = state.productionOrders.find((item) => item.id === orderId);
@@ -1563,12 +1619,27 @@ export function logLabourCost(state: ErpState, entry: OpLog) {
   return round2((entry.minutes / 60) * (rate + (state.settings.overheadPerHour ?? 0)));
 }
 
-/** A job's labour cost: frozen once the job closed, live while it runs. */
-export function jobCost(state: ErpState, orderId: string): { labour: number; minutes: number; frozen: boolean; at?: string } {
+export type JobCost = { labour: number; overhead: number; material: number; minutes: number; frozen: boolean; at?: string; fx?: FxRates };
+
+/** Material cost of the requirements of a production order's line at current unit costs. */
+function orderMaterialCost(state: ErpState, order: ProductionOrder) {
+  return round2(state.materialRequirements.filter((req) => req.lineItemId === order.lineItemId).reduce((sum, req) => sum + (requirementCost(state, req) ?? 0), 0));
+}
+
+/**
+ * A job's cost: labour (time × each person's rate), overhead (time × overhead rate) and material. Frozen when the job closed,
+ * with the exchange rates of that day, so later price, wage, overhead or rate changes do not rewrite a closed job.
+ */
+export function jobCost(state: ErpState, orderId: string): JobCost {
   const order = state.productionOrders.find((item) => item.id === orderId);
-  if (order?.costSnapshot) return { ...order.costSnapshot, frozen: true };
+  if (order?.costSnapshot) {
+    const snap = order.costSnapshot;
+    return { labour: snap.labour, overhead: snap.overhead ?? 0, material: snap.material ?? 0, minutes: snap.minutes, frozen: true, at: snap.at, ...(snap.fx ? { fx: snap.fx } : {}) };
+  }
   const logs = (state.opLogs ?? []).filter((entry) => entry.orderId === orderId);
-  return { labour: round2(logs.reduce((sum, entry) => sum + logLabourCost(state, entry), 0)), minutes: round2(logs.reduce((sum, entry) => sum + entry.minutes, 0)), frozen: false };
+  const minutes = round2(logs.reduce((sum, entry) => sum + entry.minutes, 0));
+  const labour = round2(logs.reduce((sum, entry) => sum + (entry.minutes / 60) * ((state.employees ?? []).find((item) => item.id === entry.employeeId)?.hourlyRate ?? 0), 0));
+  return { labour, overhead: round2((minutes / 60) * (state.settings.overheadPerHour ?? 0)), material: order ? orderMaterialCost(state, order) : 0, minutes, frozen: false };
 }
 
 /** Closes a job when every operation is booked: status Completed and costs frozen. */
@@ -1576,7 +1647,8 @@ export function completeOrder(state: ErpState, orderId: string, now: string): Er
   const order = state.productionOrders.find((item) => item.id === orderId);
   if (!order || isProductionComplete(order.status) || completionBlocker(state, orderId)) return state;
   const cost = jobCost(state, orderId);
-  const next = { ...state, productionOrders: touch(state.productionOrders, orderId, (item) => ({ ...item, status: "Completed", completedAt: now, costSnapshot: { labour: cost.labour, minutes: cost.minutes, at: now } })) };
+  const costSnapshot: CostSnapshot = { labour: cost.labour, overhead: cost.overhead, material: cost.material, minutes: cost.minutes, at: now, fx: { ...state.settings.fx }, currency: state.settings.defaultCurrency };
+  const next = { ...state, productionOrders: touch(state.productionOrders, orderId, (item) => ({ ...item, status: "Completed", completedAt: now, costSnapshot })) };
   return log(next, now, "production", `${order.number} completed · ${producedQuantity(next, order)} good parts · costs frozen`, order.projectId);
 }
 
@@ -1585,17 +1657,32 @@ export function linkMaterialLot(state: ErpState, orderId: string, input: { mater
   const order = state.productionOrders.find((item) => item.id === orderId);
   const material = input.material.trim();
   const heat = input.heat.trim().slice(0, 60);
-  if (!order || !material || !heat) return state;
+  // A closed job's traceability is locked; corrections go through correctMaterialLot().
+  if (!order || !material || !heat || isProductionComplete(order.status)) return state;
   const lot: MaterialLot = { material, heat, certificate: input.certificate.trim().slice(0, 80), linkedAt: now };
   const next = { ...state, productionOrders: touch(state.productionOrders, orderId, (item) => ({ ...item, materialLots: [...(item.materialLots ?? []).filter((entry) => norm(entry.material) !== norm(material)), lot] })) };
   return log(next, now, "materials", `${order.number}: ${material} heat/batch ${heat}${lot.certificate ? `, certificate ${lot.certificate}` : ""}`, order.projectId);
 }
 
-/** Cancels an issued invoice with a credit note. Nothing is deleted and the invoice number is never reused. */
+/** Corrects the heat/batch or certificate of a closed job. Owner or admin with a reason; the old value stays in the activity log. */
+export function correctMaterialLot(state: ErpState, orderId: string, input: { material: string; heat: string; certificate: string }, reason: string, now: string): ErpState {
+  const order = state.productionOrders.find((item) => item.id === orderId);
+  const user = approver(state);
+  const text = reason.trim().replace(/\s+/g, " ").slice(0, 300);
+  const material = input.material.trim();
+  const heat = input.heat.trim().slice(0, 60);
+  if (!order || !user || text.length < 5 || !material || !heat) return state;
+  const old = (order.materialLots ?? []).find((entry) => norm(entry.material) === norm(material));
+  const lot: MaterialLot = { material, heat, certificate: input.certificate.trim().slice(0, 80), linkedAt: now };
+  const next = { ...state, productionOrders: touch(state.productionOrders, orderId, (item) => ({ ...item, materialLots: [...(item.materialLots ?? []).filter((entry) => norm(entry.material) !== norm(material)), lot] })) };
+  return log(next, now, "materials", `${order.number}: ${material} heat/batch ${old?.heat ?? "—"} → ${heat}${old && old.certificate !== lot.certificate ? `, certificate ${old.certificate || "—"} → ${lot.certificate || "—"}` : ""} corrected by ${currentUserName(state) ?? user.name}: ${text}`, order.projectId);
+}
+
+/** Cancels an issued invoice with a credit note. Owner or admin. Nothing is deleted and the invoice number is never reused. */
 export function cancelInvoice(state: ErpState, invoiceId: string, reason: string, now: string): ErpState {
   const invoice = state.invoices.find((item) => item.id === invoiceId);
   const text = reason.trim().replace(/\s+/g, " ").slice(0, 300);
-  if (!invoice || invoice.cancelledAt || !text) return state;
+  if (!invoice || invoice.cancelledAt || !text || !canApprove(state)) return state;
   const [id, base] = nextId(state, "cn");
   const issuedAt = now.slice(0, 10);
   const creditNotes = base.creditNotes ?? [];
@@ -1603,6 +1690,31 @@ export function cancelInvoice(state: ErpState, invoiceId: string, reason: string
   const note: CreditNote = { id, number, invoiceId, projectId: invoice.projectId, customerId: invoice.customerId, currency: invoice.currency, subtotal: -invoice.subtotal, tax: -invoice.tax, total: -invoice.total, reason: text, issuedAt };
   const next = { ...base, creditNotes: [...creditNotes, note], invoices: touch(base.invoices, invoiceId, (item) => ({ ...item, cancelledAt: now, cancelReason: text, creditNoteId: id })) };
   return log(next, now, "finance", `Invoice ${invoice.number} cancelled with credit note ${number}: ${text}`, invoice.projectId || null);
+}
+
+/**
+ * Rule breaches in stored or imported demo data, as readable sentences. Empty when the data follows the rules.
+ * Used to refuse an imported backup and to reset old browser data that predates the current rules.
+ */
+export function stateProblems(state: ErpState): string[] {
+  const problems: string[] = [];
+  for (const order of state.productionOrders ?? []) {
+    for (const op of operationProgress(state, order)) if (op.booked > op.incoming) problems.push(`${order.number}: Op ${op.seq} has ${op.booked} parts booked but only ${op.incoming} arrived.`);
+    if (isProductionComplete(order.status)) {
+      const blocker = completionBlocker(state, order.id);
+      if (blocker) problems.push(`${order.number} is marked completed, but ${blocker.charAt(0).toLowerCase()}${blocker.slice(1)}`);
+    }
+  }
+  for (const dispatch of state.dispatches ?? []) {
+    const report = (state.inspectionReports ?? []).find((item) => item.projectId === dispatch.projectId);
+    if (!report?.passed) problems.push(`Delivery note ${dispatch.number} was issued without a passed inspection.`);
+  }
+  for (const invoice of state.invoices ?? []) {
+    if (invoice.projectId && !(state.dispatches ?? []).some((item) => item.projectId === invoice.projectId) && state.projects.some((item) => item.id === invoice.projectId)) problems.push(`Invoice ${invoice.number} was issued before dispatch.`);
+  }
+  const numbers = (state.invoices ?? []).map((item) => item.number);
+  for (const number of new Set(numbers.filter((item, index) => numbers.indexOf(item) !== index))) problems.push(`Invoice number ${number} is used more than once.`);
+  return problems;
 }
 
 /* ============================== Persistence ============================== */
@@ -1627,7 +1739,7 @@ export function parseStoredState(raw: string | null): ErpState {
         customFields: Array.isArray(stored.customFields) ? stored.customFields : [],
         docTypes: Array.isArray(stored.docTypes) ? stored.docTypes : [],
       };
-      return { ...base, ...parsed, settings } as ErpState;
+      return { ...base, ...parsed, settings, rulesVersion: parsed.rulesVersion } as ErpState;
     }
   } catch {
     /* fall through */
@@ -1671,11 +1783,25 @@ export function upsertSupplier(state: ErpState, name: string, now = new Date().t
 /** Removes a project and everything that only belongs to it. Customers, parts and shared documents stay. */
 /** Why a project cannot be deleted, or null. Delivery notes and invoices are issued records and are kept. */
 export function deleteProjectBlocker(state: ErpState, projectId: string): string | null {
+  const orders = state.productionOrders.filter((item) => item.projectId === projectId);
+  const worked = orders.some((order) => order.materialIssuedAt) || (state.opLogs ?? []).some((entry) => entry.projectId === projectId) || (state.activeOps ?? []).some((item) => orders.some((order) => order.id === item.orderId));
+  const inspected = state.inspectionReports.some((item) => item.projectId === projectId);
   const invoices = state.invoices.filter((item) => item.projectId === projectId);
   const dispatches = state.dispatches.filter((item) => item.projectId === projectId);
   if (invoices.length) return `This project has invoice ${invoices.map((item) => item.number).join(", ")}. Issued invoices are kept for your records; cancel an invoice with a credit note instead of deleting the project.`;
   if (dispatches.length) return `This project was dispatched with delivery note ${dispatches.map((item) => item.number).join(", ")}. Dispatched projects are kept for traceability.`;
+  if (inspected) return "This project has inspection records. They are kept for traceability; archive the project instead.";
+  if (worked) return "This project has production work (operations booked or material issued). Archive it instead, so the records stay.";
   return null;
+}
+
+/** Archives a project instead of deleting it: records stay, the project is marked with the date and reason. */
+export function archiveProject(state: ErpState, projectId: string, reason: string, now: string): ErpState {
+  const project = state.projects.find((item) => item.id === projectId);
+  const text = reason.trim().replace(/\s+/g, " ").slice(0, 300);
+  if (!project || project.archivedAt || text.length < 5) return state;
+  const next = { ...state, projects: touch(state.projects, projectId, (item) => ({ ...item, archivedAt: now, archiveReason: text })) };
+  return log(next, now, "projects", `Project ${project.code} archived: ${text}`, projectId);
 }
 
 export function deleteProject(state: ErpState, projectId: string, now: string): ErpState {
@@ -1733,10 +1859,17 @@ export function saveSupplier(state: ErpState, id: string | null, input: { name: 
   return log(next, now, "suppliers", `Supplier ${name} saved`, null);
 }
 
-export function saveRawMaterial(state: ErpState, id: string | null, input: { name: string; unit: string; stock: number; reorderLevel: number; unitCost: number | null; supplierId: string | null; custom?: CustomValues }, now: string): ErpState {
+/**
+ * Saves a raw material. Changing its stock by hand is an adjustment: when people are set up it needs an owner or admin and a reason
+ * (receipts come from purchasing, issues from production). Unit cost and reorder level can be changed by anyone.
+ */
+export function saveRawMaterial(state: ErpState, id: string | null, input: { name: string; unit: string; stock: number; reorderLevel: number; unitCost: number | null; supplierId: string | null; custom?: CustomValues }, now: string, adjustmentReason = ""): ErpState {
   const name = input.name.trim();
   if (!name || !(input.stock >= 0) || !(input.reorderLevel >= 0) || (input.unitCost !== null && !(input.unitCost >= 0))) return state;
   const existing = id && !id.startsWith("virtual:") ? state.rawMaterials.find((item) => item.id === id) : null;
+  const stockChange = round2(input.stock - (existing?.stock ?? 0));
+  const reason = adjustmentReason.trim().replace(/\s+/g, " ").slice(0, 300);
+  if (stockChange !== 0 && (state.employees ?? []).length && (!approver(state) || reason.length < 5)) return state;
   if (state.rawMaterials.some((item) => item.id !== existing?.id && norm(item.name) === norm(name))) return state;
   const record = { name, unit: input.unit, stock: round2(input.stock), reorderLevel: round2(input.reorderLevel), unitCost: input.unitCost === null ? null : round2(input.unitCost), supplierId: input.supplierId };
   let next = state;
@@ -1748,7 +1881,7 @@ export function saveRawMaterial(state: ErpState, id: string | null, input: { nam
     next = { ...next, rawMaterials: [...next.rawMaterials, { id: newId, ...record, custom: input.custom }] };
   }
   if (oldName && norm(oldName) !== norm(name)) next = { ...next, materialRequirements: next.materialRequirements.map((req) => norm(req.material) === norm(oldName) ? { ...req, material: name } : req) };
-  return log(next, now, "materials", `Raw material ${name} saved`, null);
+  return log(next, now, "materials", stockChange !== 0 ? `Raw material ${name}: stock ${existing?.stock ?? 0} → ${round2(input.stock)} ${input.unit}${reason ? ` (${reason})` : ""}` : `Raw material ${name} saved`, null);
 }
 
 export function rawMaterialFor(state: ErpState, name: string) {
@@ -1784,7 +1917,7 @@ export function supplierStats(state: ErpState, supplier: Supplier) {
 
 export function markInvoicePaid(state: ErpState, invoiceId: string, paid: boolean, now: string): ErpState {
   const invoice = state.invoices.find((item) => item.id === invoiceId);
-  if (!invoice || Boolean(invoice.paidAt) === paid) return state;
+  if (!invoice || invoice.cancelledAt || Boolean(invoice.paidAt) === paid) return state;
   const next = { ...state, invoices: touch(state.invoices, invoiceId, (item) => ({ ...item, paidAt: paid ? now.slice(0, 10) : undefined })) };
   return log(next, now, "finance", `Invoice ${invoice.number} marked ${paid ? "paid" : "unpaid"}`, invoice.projectId);
 }

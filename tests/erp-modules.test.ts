@@ -50,7 +50,7 @@ test("shop floor: operations start and end in sequence and write a complete log"
   assert.match(startBlocker(state, order.id, ana.id) ?? "", /not approved/, "release gate");
   state = setCurrentUser(state, ana.id);
   state = approveDocument(state, projectRecords(state, projectId).documents[0].id, NOW);
-  state = saveRawMaterial(state, null, { name: "Steel bar", unit: "kg", stock: 5, reorderLevel: 0, unitCost: 2, supplierId: null }, NOW);
+  state = saveRawMaterial(state, null, { name: "Steel bar", unit: "kg", stock: 5, reorderLevel: 0, unitCost: 2, supplierId: null }, NOW, "Opening stock for the test");
 
   state = startOperation(state, order.id, ana.id, "2026-10-29T06:00:00.000Z");
   assert.equal(state.productionOrders[0].status, "Running");

@@ -3,7 +3,7 @@
  * Illustrative business logic for the demo, not an accounting or payroll system.
  */
 import {
-  addDays, createProjectFromDraft, firstInvalidStep, formatMoney, log, newDraft, nextId, norm, numberFor, requirementCost, round2, suggestProjectCode, touch,
+  addDays, createProjectFromDraft, firstInvalidStep, formatMoney, jobCost, log, newDraft, nextId, norm, numberFor, requirementCost, round2, suggestProjectCode, touch,
   type Bill, type BillCategory, type Currency, type ErpState, type Payslip, type ProjectDraft, type QuoteLine, type QuoteStatus, type Quotation,
 } from "./model.ts";
 import { labourCost } from "./shopfloor.ts";
@@ -204,11 +204,18 @@ export function projectCosting(state: ErpState, projectId: string) {
   const currency = order?.currency ?? state.settings.defaultCurrency;
   const lines = state.lineItems.filter((line) => line.projectId === projectId);
   const orderValue = order?.value ?? round2(lines.reduce((sum, line) => sum + (line.unitPrice ?? 0) * line.quantity, 0));
-  const material = round2(state.materialRequirements.filter((req) => req.projectId === projectId).reduce((sum, req) => sum + (requirementCost(state, req) ?? 0), 0));
+  // Closed jobs count with the material cost and exchange rates frozen when they closed.
+  const orders = state.productionOrders.filter((item) => item.projectId === projectId);
+  const closed = orders.filter((item) => item.costSnapshot);
+  const closedLines = new Set(closed.map((item) => item.lineItemId));
+  const material = round2(closed.reduce((sum, item) => sum + jobCost(state, item.id).material, 0)
+    + state.materialRequirements.filter((req) => req.projectId === projectId && !(req.lineItemId && closedLines.has(req.lineItemId))).reduce((sum, req) => sum + (requirementCost(state, req) ?? 0), 0));
   const labour = labourCost(state, projectId);
-  const external = round2(state.bills.filter((bill) => bill.projectId === projectId && bill.category !== "Raw material").reduce((sum, bill) => sum + toBase(state, bill.net, bill.currency), 0));
+  const frozenFx = orders.length > 0 && closed.length === orders.length ? closed[0].costSnapshot?.fx : undefined;
+  const base = (amount: number, from: Currency) => (frozenFx ? toBase({ ...state, settings: { ...state.settings, fx: frozenFx } }, amount, from) : toBase(state, amount, from));
+  const external = round2(state.bills.filter((bill) => bill.projectId === projectId && bill.category !== "Raw material").reduce((sum, bill) => sum + base(bill.net, bill.currency), 0));
   const cost = round2(material + labour + external);
-  const value = toBase(state, orderValue, currency);
+  const value = base(orderValue, currency);
   return { currency: state.settings.defaultCurrency, orderValue: value, material, labour, external, cost, margin: round2(value - cost), marginPct: value > 0 ? Math.round(((value - cost) / value) * 100) : null };
 }
 

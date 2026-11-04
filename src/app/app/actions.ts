@@ -47,8 +47,7 @@ export async function addContactAction(_previous: FormState, form: FormData): Pr
     .insert({ company_id: companyId, name, email, is_customer: kind !== "supplier", is_supplier: kind !== "customer", address, tax_id: taxId })
     .select("id").single();
   if (error || !data) return { error: "The contact could not be saved. You may only have read access to this company." };
-  const label = kind === "both" ? "Customer and supplier" : kind === "customer" ? "Customer" : "Supplier";
-  await supabase.from("activity_log").insert({ company_id: companyId, module: "contacts", action: "create", entity_type: "contact", entity_id: data.id, summary: `${label} ${name} added` });
+  // The activity entry is written by the database (trigger contacts_activity); clients cannot write activity.
   revalidatePath("/app");
   return { ok: `${name} saved.` };
 }

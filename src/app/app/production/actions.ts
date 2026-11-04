@@ -180,8 +180,9 @@ export async function receiveMaterialAction(_: FormState, form: FormData): Promi
     if (created.error) return failure(created.error, "The material could not be created.");
     material = created.data;
   }
-  const { error } = await supabase.from("stock_moves").insert({ company_id: companyId, item_id: material!.id, warehouse_id: store!.id, quantity, reason: "receipt", note: text(form, "note", 200) });
-  return error ? failure(error, "The receipt could not be booked.") : done(`${quantity} ${unit} ${sku} received.`);
+  const lot = text(form, "lot", 60);
+  const { error } = await supabase.from("stock_moves").insert({ company_id: companyId, item_id: material!.id, warehouse_id: store!.id, quantity, reason: "receipt", note: text(form, "note", 200), lot, certificate: text(form, "certificate", 80) });
+  return error ? failure(error, "The receipt could not be booked.") : done(`${quantity} ${unit} ${sku} received${lot ? ` (heat/batch ${lot}; it follows the material to the job)` : ""}.`);
 }
 
 export async function createOrderAction(_: FormState, form: FormData): Promise<FormState> {
@@ -226,7 +227,14 @@ export async function startOperationAction(_: FormState, form: FormData): Promis
   const seq = text(form, "seq", 6);
   if (!orderId) return { error: "Something went wrong. Reload the page and try again." };
   if (!personId) return { error: "Choose who you are first." };
+  const pin = text(form, "pin", 8);
   const supabase = await session();
+  // Your own linked operator needs no PIN; anyone else on a shared terminal confirms with that operator's PIN.
+  if (pin) {
+    const { data, error } = await supabase.rpc("start_operation_pin", { target_order: orderId, person: personId, op_seq: seq ? Number(seq) : null, pin });
+    if (error) return failure(error, "The operation could not start.");
+    return data ? done("Operation started.") : { error: "The PIN was not accepted: it is wrong, not set, or locked for 15 minutes after 5 wrong tries." };
+  }
   const { error } = await supabase.rpc("start_operation", { target_order: orderId, person: personId, op_seq: seq ? Number(seq) : null });
   return error ? failure(error, "The operation could not start.") : done("Operation started.");
 }
@@ -237,9 +245,15 @@ export async function endOperationAction(_: FormState, form: FormData): Promise<
   const scrap = whole(form, "scrap");
   if (!activeId) return { error: "Something went wrong. Reload the page and try again." };
   if (!(good >= 0) || !(scrap >= 0)) return { error: "Enter whole numbers of 0 or more." };
+  const pin = text(form, "pin", 8);
   const supabase = await session();
-  const { data, error } = await supabase.rpc("end_operation", { active: activeId, good, scrap, notes: text(form, "notes", 300) });
-  return error ? failure(error, "The operation could not be booked.") : done(data === "Completed" ? "Booked. Every operation is done: the order is completed." : "Booked.");
+  const notes = text(form, "notes", 300);
+  const { data, error } = pin
+    ? await supabase.rpc("end_operation_pin", { active: activeId, good, scrap, notes, pin })
+    : await supabase.rpc("end_operation", { active: activeId, good, scrap, notes });
+  if (error) return failure(error, "The operation could not be booked.");
+  if (pin && data === null) return { error: "The PIN was not accepted: it is wrong, not set, or locked for 15 minutes after 5 wrong tries." };
+  return done(data === "Completed" ? "Booked. Every operation is done: the order is completed." : "Booked.");
 }
 
 export async function linkLotAction(_: FormState, form: FormData): Promise<FormState> {
@@ -277,4 +291,59 @@ export async function resolveReviewAction(_: FormState, form: FormData): Promise
   const supabase = await session();
   const { error } = await supabase.rpc("resolve_inspection", { inspection_id: inspectionId, decision, reason });
   return error ? failure(error, "The review could not be resolved.") : done(`Review resolved as ${decision}. The original result is kept.`);
+}
+
+/* ---------- Owner and admin controls (each enforced again by the database) ---------- */
+
+export async function adjustStockAction(_: FormState, form: FormData): Promise<FormState> {
+  const itemId = id(form, "itemId");
+  const amount = decimal(form, "amount");
+  const reason = text(form, "reason", 300);
+  if (!itemId || !Number.isFinite(amount) || amount === 0) return { error: "Choose the material and a quantity to add (positive) or remove (negative)." };
+  if (reason.length < 5) return { error: "Give a reason of at least a few words." };
+  const supabase = await session();
+  const { data: store } = await supabase.from("warehouses").select("id").eq("company_id", text(form, "companyId", 40)).eq("code", "MAIN").maybeSingle();
+  if (!store) return { error: "There is no main store yet." };
+  const { error } = await supabase.rpc("adjust_stock", { target_item: itemId, target_warehouse: store.id, amount, reason });
+  return error ? failure(error, "The adjustment was not booked.") : done("Stock adjusted. The reason is in the activity and audit history.");
+}
+
+export async function changeMaterialAction(_: FormState, form: FormData): Promise<FormState> {
+  const materialId = id(form, "orderMaterialId");
+  const quantity = decimal(form, "quantity");
+  const reason = text(form, "reason", 300);
+  if (!materialId || !(quantity > 0)) return { error: "Enter the new quantity." };
+  if (reason.length < 5) return { error: "Give a reason of at least a few words." };
+  const supabase = await session();
+  const { error } = await supabase.rpc("change_order_material", { order_material_id: materialId, new_quantity: quantity, reason });
+  return error ? failure(error, "The material was not changed.") : done("Material changed; the difference was booked in stock.");
+}
+
+export async function correctLotAction(_: FormState, form: FormData): Promise<FormState> {
+  const orderId = id(form, "orderId");
+  const reason = text(form, "reason", 300);
+  if (!orderId) return { error: "Something went wrong. Reload the page and try again." };
+  if (reason.length < 5) return { error: "Give a reason of at least a few words." };
+  const supabase = await session();
+  const { error } = await supabase.rpc("correct_material_lot", { target_order: orderId, material_name: text(form, "material", 120), heat_no: text(form, "heat", 60), certificate_no: text(form, "certificate", 80), reason });
+  return error ? failure(error, "The lot was not corrected.") : done("Lot corrected. The old value stays in the audit history.");
+}
+
+export async function setPinAction(_: FormState, form: FormData): Promise<FormState> {
+  const personId = id(form, "personId");
+  const pin = text(form, "pin", 8);
+  if (!personId || !/^\d{4,8}$/.test(pin)) return { error: "A PIN has 4 to 8 digits." };
+  const supabase = await session();
+  const { error } = await supabase.rpc("set_person_pin", { person: personId, pin });
+  return error ? failure(error, "The PIN was not set.") : done("PIN set. Tell the operator in person; it is never shown again.");
+}
+
+/** Links an operator record to the signed-in owner's or admin's own sign-in (the database refuses anyone else). */
+export async function linkMeAction(_: FormState, form: FormData): Promise<FormState> {
+  const personId = id(form, "personId");
+  if (!personId) return { error: "Something went wrong. Reload the page and try again." };
+  const { supabase, user } = await currentUser();
+  if (!user) redirect("/app/login");
+  const { error } = await supabase.from("people").update({ user_id: user.id }).eq("id", personId);
+  return error ? failure(error, "The sign-in was not linked. Only owners and admins link people.") : done("Linked to your sign-in: you can book as this operator without a PIN.");
 }

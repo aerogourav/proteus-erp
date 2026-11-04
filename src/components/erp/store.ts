@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { createInitialState, parseStoredState, STORAGE_KEY, type ErpState, type Industry } from "@/lib/erp/model";
+import { createInitialState, log, parseStoredState, RULES_VERSION, stateProblems, STORAGE_KEY, type ErpState, type Industry } from "@/lib/erp/model";
 import { createDemoState } from "@/lib/erp/seed";
 import { createIndustryDemoState } from "@/lib/erp/demo-companies";
 import { guideSteps, stepIndex } from "@/components/erp/guide-steps";
@@ -21,9 +21,24 @@ function read(): ErpState {
     if (raw === null) {
       cache = createDemoState(new Date().toISOString());
       try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cache)); } catch { /* keep in memory */ }
-    } else cache = migrateGuide(parseStoredState(raw));
+    } else cache = upgradeRules(migrateGuide(parseStoredState(raw)));
   } catch { cache = createInitialState(); }
   return cache;
+}
+
+/**
+ * Browser data saved before the current rules: kept when it already follows them, otherwise replaced by a fresh demo
+ * (with a note in the activity log), so returning visitors never see completed jobs or shipments the rules would refuse.
+ */
+function upgradeRules(state: ErpState): ErpState {
+  if (state.rulesVersion === RULES_VERSION) return state;
+  const now = new Date().toISOString();
+  const problems = stateProblems(state);
+  const next = problems.length
+    ? log(createDemoState(now), now, "settings", `Your earlier demo data was reset because it did not follow the current rules (${problems.length} issue${problems.length === 1 ? "" : "s"}, for example: ${problems[0]})`, null)
+    : { ...state, rulesVersion: RULES_VERSION };
+  try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* keep in memory */ }
+  return next;
 }
 
 /** Progress saved by the earlier single-part flow used different step numbers: resume at the first operational step. */

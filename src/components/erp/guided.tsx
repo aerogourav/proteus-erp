@@ -602,10 +602,10 @@ function WorkStep({ current, step, state }: { current: GuideStep; step: number; 
         return <li key={order.id}>
           <Factory size={18} />
           <span><b>{order.number}</b><small>{order.quantity} × {lineLabel(order.lineItemId)} · {order.status}</small>{gate ? <small className="erp-error">{gate}</small> : finish ? <small>{finish}</small> : null}</span>
-          {!closed && <button type="button" className="erp-btn erp-btn-sm" disabled={Boolean(gate) || !signedIn || busy} onClick={() => run((value) => recordRemainingOperations(value, order.id, now))}>Book all operations</button>}
+          {!closed && <button type="button" className="erp-btn erp-btn-sm" disabled={Boolean(gate) || !signedIn || busy} onClick={() => run((value) => recordRemainingOperations(value, order.id, now))}>Demo shortcut: book all operations</button>}
         </li>;
       })}</ul>
-      <p className="erp-faint">“Book all operations” records each routing operation for {signedIn ? signedIn.name : "the person signed in"} through the same shop-floor rules, so an order only completes with real bookings. Use the Shop floor tab to book partial quantities, scrap or several operators.{!signedIn ? " Choose who you are on the Shop floor first." : ""}</p>
+      <p className="erp-faint">The demo shortcut books each routing operation for {signedIn ? signedIn.name : "the person signed in"} through the same shop-floor rules and marks every entry as synthetic. It exists only in the demo, never in the real workspace. Use the Shop floor tab to book partial quantities, scrap or several operators.{!signedIn ? " Choose who you are on the Shop floor first." : ""}</p>
     </>;
   }
 

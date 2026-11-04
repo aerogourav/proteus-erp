@@ -54,3 +54,5 @@
 .app-form-plan > button { grid-column: 1 / -1; justify-self: start; }
 .app-inspect-plan { grid-template-columns: minmax(0, 2fr) 1fr 1fr 1fr 1fr; }
 @media (max-width: 860px) { .app-form-plan, .app-inspect-plan { grid-template-columns: 1fr; } }
+.app-audit-row { grid-template-columns: 170px minmax(0, 1fr) 120px minmax(0, 2fr); }
+.app-audit-row > span:last-child { overflow-wrap: anywhere; font-size: 12.5px; }

@@ -99,32 +99,38 @@ test("pay data is visible to admins only", async () => {
   assert.equal(await as(C, () => count("select * from public.people_pay")), 0);
 });
 
-test("document numbers are sequential per company and kind", async () => {
+test("document numbers are sequential per company and kind, and assigned only by the database", async () => {
   const year = new Date().getFullYear();
-  const first = await as(A, () => one<{ n: string }>("select public.next_number($1, 'quote', 'QT') as n", [companyA]));
-  const second = await as(A, () => one<{ n: string }>("select public.next_number($1, 'quote', 'QT') as n", [companyA]));
-  const otherCompany = await as(B, () => one<{ n: string }>("select public.next_number($1, 'quote', 'QT') as n", [companyB]));
+  // Since migration 20261107000000 numbers are assigned by triggers; nobody calls the numbering functions directly.
+  const contactA = (await as(A, () => one<{ id: string }>("insert into public.contacts (company_id, name, is_customer) values ($1, 'Number test A', true) returning id", [companyA])))!.id;
+  const contactB = (await as(B, () => one<{ id: string }>("insert into public.contacts (company_id, name, is_customer) values ($1, 'Number test B', true) returning id", [companyB])))!.id;
+  const first = await as(A, () => one<{ n: string }>("insert into public.sales_documents (company_id, kind, number, contact_id) values ($1, 'quote', '', $2) returning number as n", [companyA, contactA]));
+  const second = await as(A, () => one<{ n: string }>("insert into public.sales_documents (company_id, kind, number, contact_id) values ($1, 'quote', '', $2) returning number as n", [companyA, contactA]));
+  const otherCompany = await as(B, () => one<{ n: string }>("insert into public.sales_documents (company_id, kind, number, contact_id) values ($1, 'quote', '', $2) returning number as n", [companyB, contactB]));
   assert.equal(first!.n, `QT-${year}-0001`);
   assert.equal(second!.n, `QT-${year}-0002`);
   assert.equal(otherCompany!.n, `QT-${year}-0001`);
-  await as(B, () => fails("select public.next_number($1, 'quote', 'QT')", [companyA]));
+  await as(A, () => fails("select public.next_number($1, 'quote', 'QT')", [companyA]));
 });
 
-test("the activity log is append-only and always names the real user", async () => {
-  await as(A, () => db.query("insert into public.activity_log (company_id, module, action, summary, actor) values ($1, 'sales', 'create', 'Quote created', $2)", [companyA, B]));
-  const row = await as(A, () => one<{ actor: string }>("select actor from public.activity_log where company_id = $1", [companyA]));
+test("the activity log is written only by the database and always names the real user", async () => {
+  // Since migration 20261107000000 clients cannot insert activity at all; functions and triggers write it.
+  await as(A, () => fails("insert into public.activity_log (company_id, module, action, summary, actor) values ($1, 'sales', 'create', 'Quote created', $2)", [companyA, B]));
+  await as(A, () => db.query("insert into public.contacts (company_id, name, is_customer) values ($1, 'Activity test customer', true)", [companyA]));
+  const row = await as(A, () => one<{ actor: string }>("select actor from public.activity_log where company_id = $1 and summary like '%Activity test customer%'", [companyA]));
   assert.equal(row!.actor, A);
-  // Refused at the privilege level, before row-level security is even consulted.
   await as(A, () => fails("update public.activity_log set summary = 'rewritten'"));
   await as(A, () => fails("delete from public.activity_log"));
-  assert.equal(await count("select * from public.activity_log where summary = 'Quote created'"), 1);
+  assert.equal(await count("select * from public.activity_log where summary = 'Quote created'"), 0);
 });
 
 test("stock is a ledger and stock levels respect company isolation", async () => {
   await as(A, async () => {
     const item = (await one<{ id: string }>("insert into public.items (company_id, kind, sku, name, unit, track_stock) values ($1, 'material', 'AL-7075-70', 'EN AW-7075 bar Ø70', 'm', true) returning id", [companyA]))!.id;
     const wh = (await one<{ id: string }>("insert into public.warehouses (company_id, code, name) values ($1, 'MAIN', 'Main store') returning id", [companyA]))!.id;
-    await db.query("insert into public.stock_moves (company_id, item_id, warehouse_id, quantity, reason) values ($1, $2, $3, 12, 'receipt'), ($1, $2, $3, -4.5, 'issue')", [companyA, item, wh]);
+    await db.query("insert into public.stock_moves (company_id, item_id, warehouse_id, quantity, reason) values ($1, $2, $3, 12, 'receipt')", [companyA, item, wh]);
+    await fails("insert into public.stock_moves (company_id, item_id, warehouse_id, quantity, reason) values ($1, $2, $3, -4.5, 'issue')", [companyA, item, wh]);
+    await db.query("select public.adjust_stock($1, $2, -4.5, 'Stock count after inventory')", [item, wh]);
     const level = await one<{ on_hand: string }>("select on_hand from public.stock_levels where item_id = $1", [item]);
     assert.equal(Number(level!.on_hand), 7.5);
     await fails("update public.stock_moves set quantity = 100");

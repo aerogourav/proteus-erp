@@ -21,7 +21,7 @@ import {
   RULES, UNITS, advanceProcurement, createProductionOrder, deleteProject, dispatchProject, formatDate, rawMaterialFor,
   addInspectionRequirement, removeInspectionRequirement, setProductionStatus, updateCustomer, updateInspectionRequirement, updateMaterial,
   updatePart, updateProductionOrder, updateProject, updatePurchaseOrder, isProductionComplete, setCustomValues, formatMoney, isActiveOrder, lineEngineeringReady, lineMaterialReady, orderOperationalState,
-  partNumber, projectStage, readiness, revisionLabel, approver, resolveInspection, completionBlocker, deleteProjectBlocker, jobCost, linkMaterialLot, releaseGate,
+  partNumber, projectStage, readiness, revisionLabel, approver, resolveInspection, changeReleasedMaterial, dispatchDrawingBlockers, overrideDispatch, archiveProject, correctMaterialLot, completionBlocker, deleteProjectBlocker, jobCost, linkMaterialLot, releaseGate,
   type ErpState, type Project, type ProductionOrder,
 } from "@/lib/erp/model";
 import { addDemoProjects, hasDemoProjects } from "@/lib/erp/seed";
@@ -115,6 +115,7 @@ export function ProjectsModule() {
         <div className="erp-head-actions" style={{ marginTop: 18, justifyContent: "flex-end" }}>
           <button type="button" className="erp-btn erp-btn-ghost" onClick={() => setDeleting(null)}>{blocker ? "Close" : "Cancel"}</button>
           {!blocker && <button type="button" className="erp-btn erp-btn-danger" onClick={() => { commit((value) => deleteProject(value, deleting.id, nowIso())); toast(`${deleting.code} deleted.`, { tone: "info" }); setDeleting(null); }}><Trash2 size={14} /> Delete project</button>}
+          {blocker && !deleting.archivedAt && <button type="button" className="erp-btn erp-btn-primary" onClick={() => { const reason = window.prompt("Why is this project archived?") ?? ""; if (commit((value) => archiveProject(value, deleting.id, reason, nowIso()))) toast(`${deleting.code} archived.`, { tone: "info" }); else toast("Give a reason of at least a few words.", { tone: "bad" }); setDeleting(null); }}>Archive instead</button>}
         </div>
       </Modal>;
     })()}
@@ -299,7 +300,8 @@ export function MaterialsModule() {
         <span className="erp-head-actions">
           {record?.status === "Not ordered" && <button type="button" className="erp-btn erp-btn-primary erp-btn-sm" onClick={() => orderFor(req)}><Mail size={13} /> Order by email</button>}
           {record?.status === "Ordered" && !order && <button type="button" className="erp-btn erp-btn-sm" onClick={() => commit((current) => advanceProcurement(current, record.id, nowIso()))}>Mark received</button>}
-          <EditButton onClick={() => editor.open({ title: `Edit ${req.material}`, fields: [{ key: "material", label: "Material", required: true }, { key: "quantity", label: "Quantity", type: "number", required: true }, { key: "unit", label: "Unit", type: "select", options: [...UNITS] }, { key: "supplier", label: "Supplier (optional)" }], initial: { material: req.material, quantity: String(req.quantity), unit: req.unit, supplier: record?.supplier ?? "" }, onSave: (v) => save((value) => updateMaterial(value, req.id, { material: v.material, quantity: num(v.quantity), unit: v.unit, supplier: v.supplier }, nowIso())) })} /></span>
+          <EditButton onClick={() => editor.open({ title: `Edit ${req.material}`, fields: [{ key: "material", label: "Material", required: true }, { key: "quantity", label: "Quantity", type: "number", required: true }, { key: "unit", label: "Unit", type: "select", options: [...UNITS] }, { key: "supplier", label: "Supplier (optional)" }], initial: { material: req.material, quantity: String(req.quantity), unit: req.unit, supplier: record?.supplier ?? "" }, onSave: (v) => save((value) => updateMaterial(value, req.id, { material: v.material, quantity: num(v.quantity), unit: v.unit, supplier: v.supplier }, nowIso())) })} />
+          {approver(state) && state.productionOrders.some((po) => po.materialIssuedAt && (req.lineItemId === po.lineItemId || (req.lineItemId === null && req.projectId === po.projectId))) && <button type="button" className="erp-btn erp-btn-ghost erp-btn-sm" onClick={() => editor.open({ title: `Change released ${req.material}`, fields: [{ key: "quantity", label: "New quantity", type: "number", required: true }, { key: "reason", label: "Reason (required)", required: true, help: "Released material changes are logged with your name; the difference is taken from or returned to stock." }], initial: { quantity: String(req.quantity), reason: "" }, onSave: (v) => save((value) => changeReleasedMaterial(value, req.id, num(v.quantity), v.reason, nowIso())) })}>Change after release</button>}</span>
       </div>;
     })}
   </Rows> : <EmptyState title="No material requirements" text="They come from the material of each part in a project." />}</section>
@@ -356,7 +358,7 @@ export function ProductionModule() {
             <span>{partNumber(state, order.partId)} rev {revisionLabel(state, order.revisionId)}<CustomValuesView state={state} entity="productionOrder" custom={order.custom} />{(order.startDate || order.notes) && <small>{[order.startDate ? `Start ${formatDate(order.startDate)}` : "", order.notes ?? ""].filter(Boolean).join(" · ")}</small>}{order.materialLots?.map((lot) => <small key={lot.material}>Lot: {lot.material} · heat/batch {lot.heat}{lot.certificate ? ` · cert. ${lot.certificate}` : ""}</small>)}</span><span>{order.quantity}</span><ProductionStatusCell state={state} order={order} />
             <span className="erp-head-actions">
               <EditButton onClick={() => editor.open({ title: `Edit ${order.number}`, fields: [{ key: "quantity", label: "Quantity to produce", type: "number", required: true }, { key: "startDate", label: "Planned start", type: "date" }, { key: "notes", label: "Details for the shop floor" }, ...customEditFields(state, "productionOrder")], initial: { quantity: String(order.quantity), startDate: order.startDate ?? "", notes: order.notes ?? "", ...customInitial(state, "productionOrder", order.custom) }, onSave: (v) => save((value) => setCustomValues(updateProductionOrder(value, order.id, { quantity: num(v.quantity), startDate: v.startDate, notes: v.notes, status: order.status }, nowIso()), "productionOrder", order.id, pickCustom(v))) })} />
-              <button type="button" className="erp-btn erp-btn-ghost erp-btn-sm" onClick={() => { const lot = order.materialLots?.[0]; const materials = state.materialRequirements.filter((req) => req.lineItemId === order.lineItemId).map((req) => req.material); editor.open({ title: `Material lot for ${order.number}`, fields: [{ key: "material", label: "Material", required: true, list: materials }, { key: "heat", label: "Heat number or batch", required: true }, { key: "certificate", label: "Certificate number (optional)", help: "For example the 3.1 mill certificate number" }], initial: { material: lot?.material ?? materials[0] ?? "", heat: lot?.heat ?? "", certificate: lot?.certificate ?? "" }, onSave: (v) => save((value) => linkMaterialLot(value, order.id, { material: v.material, heat: v.heat, certificate: v.certificate }, nowIso())) }); }}>Lot</button>
+              <button type="button" className="erp-btn erp-btn-ghost erp-btn-sm" onClick={() => { const lot = order.materialLots?.[0]; const materials = state.materialRequirements.filter((req) => req.lineItemId === order.lineItemId).map((req) => req.material); editor.open({ title: `Material lot for ${order.number}`, fields: [{ key: "material", label: "Material", required: true, list: materials }, { key: "heat", label: "Heat number or batch", required: true }, { key: "certificate", label: "Certificate number (optional)", help: "For example the 3.1 mill certificate number" }, ...(isProductionComplete(order.status) ? [{ key: "reason", label: "Reason for the correction (required)", required: true, help: "The job is closed: only owners and admins correct its lots, and the old value stays in the activity log." }] : [])], initial: { material: lot?.material ?? materials[0] ?? "", heat: lot?.heat ?? "", certificate: lot?.certificate ?? "" }, onSave: (v) => save((value) => isProductionComplete(order.status) ? correctMaterialLot(value, order.id, { material: v.material, heat: v.heat, certificate: v.certificate }, v.reason ?? "", nowIso()) : linkMaterialLot(value, order.id, { material: v.material, heat: v.heat, certificate: v.certificate }, nowIso())) }); }}>Lot</button>
               <button type="button" className="erp-btn erp-btn-ghost erp-btn-sm" onClick={() => setOutput({ projectId: order.projectId, kind: "production", productionOrderId: order.id })}><Printer size={13} /> Order</button>
             </span>
           </div>;
@@ -433,6 +435,7 @@ export function DispatchModule() {
   const hydrated = useHydrated();
   const filter = useProjectFilter(state);
   const [output, setOutput] = useState<OutputState>(null);
+  const editor = useEditor();
   const head = <PageHead eyebrow="Operations" title="Dispatch" description="Delivery readiness for each order. An order cannot be dispatched until production is complete and inspection has passed." />;
   if (!hydrated) return <>{head}<Loading /></>;
   if (!state.purchaseOrders.length) return <>{head}<NoProjects what="orders to dispatch" /></>;
@@ -453,9 +456,10 @@ export function DispatchModule() {
             {dispatched ? <button type="button" className="erp-btn erp-btn-sm" onClick={() => setOutput({ projectId: order.projectId, kind: "dispatch" })}><Printer size={14} /> Dispatch note {dispatched.number}</button>
               : canDispatch ? <button type="button" className="erp-btn erp-btn-primary erp-btn-sm" onClick={() => commit((current) => dispatchProject(current, order.projectId, nowIso()))}>Dispatch order</button> : null}
             {!dispatched && !canDispatch && project && <Link className="erp-btn erp-btn-ghost erp-btn-sm" href={`/demo/projects/${project.id}`}>See what’s missing</Link>}
+            {!dispatched && project && approver(state) && dispatchDrawingBlockers(state, project.id).length > 0 && <button type="button" className="erp-btn erp-btn-danger erp-btn-sm" onClick={() => editor.open({ title: `Release dispatch · ${order.number}`, fields: [{ key: "reason", label: "Reason (required)", required: true, help: "Dispatch despite the drawing problem shown. Saved with your name." }], initial: { reason: "" }, onSave: (v) => save((value) => overrideDispatch(value, project.id, v.reason, nowIso())) })}>Release despite drawing check</button>}
           </div>
         </div>
       </section>;
     })}
-  </div>{output && <OutputDialog state={state} projectId={output.projectId} kind={output.kind} onClose={() => setOutput(null)} />}</>;
+  </div>{output && <OutputDialog state={state} projectId={output.projectId} kind={output.kind} onClose={() => setOutput(null)} />}{editor.dialog}</>;
 }

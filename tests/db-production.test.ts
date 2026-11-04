@@ -49,7 +49,9 @@ before(async () => {
     warehouse = (await one<{ id: string }>("insert into public.warehouses (company_id, code, name) values ($1, 'MAIN', 'Main store') returning id", [company]))!.id;
     steel = (await one<{ id: string }>("insert into public.items (company_id, kind, sku, name, unit, track_stock) values ($1, 'material', 'STEEL-20', 'Steel bar Ø20', 'kg', true) returning id", [company]))!.id;
     lena = (await one<{ id: string }>("insert into public.people (company_id, code, name) values ($1, 'E-1', 'Lena Admin') returning id", [company]))!.id;
-    ben = (await one<{ id: string }>("insert into public.people (company_id, code, name) values ($1, 'E-2', 'Ben Op') returning id", [company]))!.id;
+    // Since migration 20261107000000 bookings need the operator's own sign-in or their PIN: Ben is the member's sign-in, Lena uses a PIN.
+    ben = (await one<{ id: string }>("insert into public.people (company_id, code, name, user_id) values ($1, 'E-2', 'Ben Op', $2) returning id", [company, MEMBER]))!.id;
+    await db.query("select public.set_person_pin($1, '2468')", [lena]);
     await db.query("insert into public.people_pay (person_id, company_id, pay_type, hourly_rate) values ($1, $2, 'hourly', 30)", [ben, company]);
   });
 });
@@ -88,7 +90,7 @@ test("starting with material short is refused; once in stock, the first start is
   const j = await job("MAT-1");
   await approve(j.drawing);
   const before = await one<{ on_hand: string }>("select coalesce(sum(quantity), 0) as on_hand from public.stock_moves where item_id = $1", [steel]);
-  if (Number(before!.on_hand) >= 5) await as(OWNER, () => db.query("insert into public.stock_moves (company_id, item_id, warehouse_id, quantity, reason) values ($1, $2, $3, $4, 'adjustment')", [company, steel, warehouse, -Number(before!.on_hand) + 2]));
+  if (Number(before!.on_hand) >= 5) await as(OWNER, () => db.query("select public.adjust_stock($1, $2, $3, 'Test: leave 2 kg')", [steel, warehouse, -Number(before!.on_hand) + 2]));
   await as(MEMBER, () => refuses("select public.start_operation($1, $2, null)", [j.order, ben], /STEEL-20: 2 of 5 kg in stock/));
   await stock(10);
   await as(MEMBER, async () => { await end((await start(j.order, ben))!.id, 10); });
@@ -134,10 +136,10 @@ test("partial bookings and parallel operators on one operation", async () => {
   await stock(5);
   await as(MEMBER, async () => {
     const benOp = (await start(j.order, ben))!.id;
-    const lenaOp = (await start(j.order, lena, 10))!.id;
+    const lenaOp = (await one<{ id: string }>("select public.start_operation_pin($1, $2, 10, '2468') as id", [j.order, lena]))!.id;
     await end(benOp, 6);
-    await refuses("select public.end_operation($1, 5, 0, '')", [lenaOp], /Only 4 parts/);
-    await end(lenaOp, 4);
+    await refuses("select public.end_operation_pin($1, 5, 0, '', '2468')", [lenaOp], /Only 4 parts/);
+    await db.query("select public.end_operation_pin($1, 4, 0, '', '2468')", [lenaOp]);
     const split = (await start(j.order, ben, 20))!.id;
     assert.equal((await end(split, 3))!.status, "Running", "3 of 10 at Op 20: still running");
   });
@@ -194,7 +196,7 @@ test("company B cannot read or act on company A's production records", async () 
     assert.equal((await db.query("select * from public.operation_logs")).rows.length, 0);
     assert.equal((await db.query("select * from public.inspections")).rows.length, 0);
     assert.equal((await db.query("select * from public.order_progress($1)", [j.order])).rows.length, 0, "progress of a foreign order is empty");
-    await refuses("select public.start_operation($1, $2, null)", [j.order, ben], /not allowed/);
+    await refuses("select public.start_operation($1, $2, null)", [j.order, ben], /not allowed|not linked to your sign-in/);
     await refuses("select public.set_order_status($1, 'On hold')", [j.order], /not allowed/);
     await refuses("select public.override_release($1, 'not my company')", [j.order], /only an owner or admin/);
   });

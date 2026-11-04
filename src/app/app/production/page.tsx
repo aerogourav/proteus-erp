@@ -9,6 +9,7 @@ import { ActionForm, DrawingForm, InspectionForm, type PlanRow } from "@/compone
 import {
   addOperationAction, addPartAction, addPersonAction, addPlanAction, approveDrawingAction, createOrderAction, endOperationAction, linkLotAction, overrideAction,
   receiveMaterialAction, resolveReviewAction, setStatusAction, startOperationAction, supersedeDrawingAction,
+  adjustStockAction, changeMaterialAction, correctLotAction, linkMeAction, setPinAction,
 } from "@/app/app/production/actions";
 import { pageMetadata } from "@/lib/seo";
 import { loadWorkspace } from "@/lib/supabase/workspace";
@@ -19,7 +20,8 @@ type Part = { id: string; sku: string; name: string; revision: string | null };
 type Material = { id: string; sku: string; name: string; unit: string };
 type Drawing = { id: string; number: string; revision: string; status: string; name: string; linked_id: string | null; storage_path: string; content_sha256: string | null; approved_sha256: string | null; superseded_reason: string | null };
 type Operation = { item_id: string; seq: number; name: string; work_center: string; setup_min: number; run_min_per_pc: number };
-type Person = { id: string; code: string; name: string; active: boolean };
+type Person = { id: string; code: string; name: string; active: boolean; user_id: string | null };
+type OrderMaterial = { id: string; order_id: string; item_id: string; quantity: number };
 type Order = { id: string; number: string; item_id: string; revision: string; quantity: number; status: string; notes: string; release_override: { reason: string } | null; cost_snapshot: { labour: number } | null };
 type Progress = { seq: number; name: string; incoming: number; booked: number; remaining: number; done: boolean; running: number };
 type Active = { id: string; order_id: string; seq: number; person_id: string; started_at: string };
@@ -43,19 +45,20 @@ async function Production() {
   const isAdmin = role === "owner" || role === "admin";
   const c = company.id;
 
-  const [parts, materials, levels, drawings, operations, people, orders, actives, inspections, lots, activity, plans] = await Promise.all([
+  const [parts, materials, levels, drawings, operations, people, orders, actives, inspections, lots, activity, plans, orderMaterials] = await Promise.all([
     supabase.from("items").select("id, sku, name, revision").eq("company_id", c).eq("kind", "part").order("sku"),
     supabase.from("items").select("id, sku, name, unit").eq("company_id", c).eq("kind", "material").order("sku"),
     supabase.from("stock_levels").select("item_id, on_hand").eq("company_id", c),
     supabase.from("files").select("id, number, revision, status, name, linked_id, storage_path, content_sha256, approved_sha256, superseded_reason").eq("company_id", c).eq("doc_type", "Drawing").order("created_at", { ascending: false }),
     supabase.from("routing_operations").select("item_id, seq, name, work_center, setup_min, run_min_per_pc").eq("company_id", c).order("seq"),
-    supabase.from("people").select("id, code, name, active").eq("company_id", c).order("code"),
+    supabase.from("people").select("id, code, name, active, user_id").eq("company_id", c).order("code"),
     supabase.from("production_orders").select("id, number, item_id, revision, quantity, status, notes, release_override, cost_snapshot").eq("company_id", c).order("created_at", { ascending: false }).limit(50),
     supabase.from("active_operations").select("id, order_id, seq, person_id, started_at").eq("company_id", c),
     supabase.from("inspections").select("id, order_id, characteristic, observed, unit, passed, tolerance, outcome, resolved_decision, resolution_reason, round, inspected_by, spec").eq("company_id", c).order("id"),
     supabase.from("material_lots").select("order_id, material, heat, certificate").eq("company_id", c),
     supabase.from("activity_log").select("id, at, summary").eq("company_id", c).in("module", ["production", "shopfloor", "quality", "documents"]).order("at", { ascending: false }).limit(12),
     supabase.from("inspection_plans").select("id, item_id, revision, characteristic, kind, lower_limit, upper_limit, unit, required_gauge, sample_size, spec_text").eq("company_id", c).order("position").order("characteristic"),
+    supabase.from("order_materials").select("id, order_id, item_id, quantity").eq("company_id", c),
   ]);
   if (orders.error) return <><Top email={user.email} name={company.name} /><p className="erp-error" role="alert">Production records could not be loaded. If the production migration (20261105000000_production.sql) has not been run on this database yet, run it first.</p></>;
 
@@ -69,6 +72,8 @@ async function Production() {
   const A = (actives.data ?? []) as Active[];
   const I = (inspections.data ?? []) as Inspection[];
   const L = (lots.data ?? []) as Lot[];
+  const OM = (orderMaterials.data ?? []) as OrderMaterial[];
+  const material = (itemId: string) => M.find((item) => item.id === itemId);
   const PL = (plans.data ?? []) as Plan[];
   const planFor = (itemId: string, revision: string) => PL.filter((row) => row.item_id === itemId && row.revision.toUpperCase() === revision.toUpperCase());
   // Approval counts only while the stored file still has the fingerprint it was approved with: re-hashed here from Storage.
@@ -147,21 +152,34 @@ async function Production() {
                 <div className="erp-field"><label htmlFor={`g-${item.id}`}>Good</label><input id={`g-${item.id}`} name="good" className="erp-input" inputMode="numeric" defaultValue={check?.progress.find((op) => op.seq === item.seq)?.remaining ?? ""} required /></div>
                 <div className="erp-field"><label htmlFor={`s-${item.id}`}>Scrap</label><input id={`s-${item.id}`} name="scrap" className="erp-input" inputMode="numeric" defaultValue="0" required /></div>
                 <div className="erp-field"><label htmlFor={`n-${item.id}`}>Notes</label><input id={`n-${item.id}`} name="notes" className="erp-input" maxLength={300} /></div>
+                {person(item.person_id)?.user_id !== user.id && <div className="erp-field"><label htmlFor={`pin-e-${item.id}`}>Operator PIN</label><input id={`pin-e-${item.id}`} name="pin" className="erp-input" inputMode="numeric" autoComplete="off" type="password" maxLength={8} required /></div>}
               </ActionForm>)}
-              {People.length > 0 && check && check.progress.some((op) => !op.done && op.remaining > 0) && <ActionForm action={startOperationAction} submit="Start operation" className="app-inline-form app-form-4">
+              {People.length > 0 && check && check.progress.some((op) => !op.done && op.remaining > 0) && <ActionForm action={startOperationAction} submit="Start operation" className="app-inline-form app-form-5">
                 <input type="hidden" name="orderId" value={order.id} />
                 <div className="erp-field"><label htmlFor={`p-${order.id}`}>Who</label><select id={`p-${order.id}`} name="personId" className="erp-select" required defaultValue=""><option value="">Choose…</option>{People.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.code}</option>)}</select></div>
                 <div className="erp-field"><label htmlFor={`o-${order.id}`}>Operation</label><select id={`o-${order.id}`} name="seq" className="erp-select">{check.progress.filter((op) => !op.done && op.remaining > 0).map((op) => <option key={op.seq} value={op.seq}>Op {op.seq} {op.name} · {op.remaining} waiting</option>)}</select></div>
+                <div className="erp-field"><label htmlFor={`pin-s-${order.id}`}>Operator PIN <span className="erp-faint">(not needed for yourself)</span></label><input id={`pin-s-${order.id}`} name="pin" className="erp-input" inputMode="numeric" autoComplete="off" type="password" maxLength={8} /></div>
               </ActionForm>}
             </div>}
 
             {canWrite && <details className="app-more"><summary>Material lot and inspection</summary>
-              <ActionForm action={linkLotAction} submit="Link lot" className="app-inline-form app-form-4">
+              {done ? isAdmin && <ActionForm action={correctLotAction} submit="Correct lot" tone="danger" className="app-inline-form app-form-5">
+                <input type="hidden" name="orderId" value={order.id} />
+                <div className="erp-field"><label htmlFor={`cm-${order.id}`}>Material</label><input id={`cm-${order.id}`} name="material" className="erp-input" required maxLength={120} /></div>
+                <div className="erp-field"><label htmlFor={`ch-${order.id}`}>Heat number or batch</label><input id={`ch-${order.id}`} name="heat" className="erp-input" required maxLength={60} /></div>
+                <div className="erp-field"><label htmlFor={`cc-${order.id}`}>Certificate</label><input id={`cc-${order.id}`} name="certificate" className="erp-input" maxLength={80} /></div>
+                <div className="erp-field"><label htmlFor={`cr-${order.id}`}>Reason</label><input id={`cr-${order.id}`} name="reason" className="erp-input" required minLength={5} maxLength={300} /></div>
+              </ActionForm> : <ActionForm action={linkLotAction} submit="Link lot" className="app-inline-form app-form-4">
                 {hidden}<input type="hidden" name="orderId" value={order.id} />
                 <div className="erp-field"><label htmlFor={`lm-${order.id}`}>Material</label><input id={`lm-${order.id}`} name="material" className="erp-input" required maxLength={120} /></div>
                 <div className="erp-field"><label htmlFor={`lh-${order.id}`}>Heat number or batch</label><input id={`lh-${order.id}`} name="heat" className="erp-input" required maxLength={60} /></div>
                 <div className="erp-field"><label htmlFor={`lc-${order.id}`}>Certificate (optional)</label><input id={`lc-${order.id}`} name="certificate" className="erp-input" maxLength={80} /></div>
-              </ActionForm>
+              </ActionForm>}
+              {isAdmin && !done && order.status !== "Planned" && OM.filter((row) => row.order_id === order.id).map((row) => <ActionForm key={row.id} action={changeMaterialAction} submit={`Change ${material(row.item_id)?.sku ?? "material"}`} tone="ghost" className="app-inline-form app-form-3">
+                <input type="hidden" name="orderMaterialId" value={row.id} />
+                <div className="erp-field"><label htmlFor={`mq-${row.id}`}>{material(row.item_id)?.sku} quantity (now {row.quantity})</label><input id={`mq-${row.id}`} name="quantity" className="erp-input" inputMode="decimal" required /></div>
+                <div className="erp-field"><label htmlFor={`mr-${row.id}`}>Reason</label><input id={`mr-${row.id}`} name="reason" className="erp-input" required minLength={5} maxLength={300} /></div>
+              </ActionForm>)}
               {done ? <InspectionForm orderId={order.id} plan={planFor(order.item_id, order.revision)} /> : <p className="erp-faint">The inspection is recorded once every operation is booked.</p>}
             </details>}
           </article>;
@@ -223,13 +241,25 @@ async function Production() {
           <div className="erp-field"><label htmlFor="rm-name">Name</label><input id="rm-name" name="name" className="erp-input" maxLength={160} /></div>
           <div className="erp-field"><label htmlFor="rm-unit">Unit</label><input id="rm-unit" name="unit" className="erp-input" maxLength={8} defaultValue="kg" /></div>
           <div className="erp-field"><label htmlFor="rm-qty">Quantity</label><input id="rm-qty" name="quantity" className="erp-input" inputMode="decimal" required /></div>
+          <div className="erp-field"><label htmlFor="rm-lot">Heat number or batch</label><input id="rm-lot" name="lot" className="erp-input" maxLength={60} /></div>
+          <div className="erp-field"><label htmlFor="rm-cert">Certificate</label><input id="rm-cert" name="certificate" className="erp-input" maxLength={80} /></div>
+        </ActionForm>}
+        {isAdmin && M.length > 0 && <ActionForm action={adjustStockAction} submit="Adjust stock" tone="ghost" className="app-inline-form app-form-4">{hidden}
+          <div className="erp-field"><label htmlFor="adj-item">Material</label><select id="adj-item" name="itemId" className="erp-select">{M.map((item) => <option key={item.id} value={item.id}>{item.sku}</option>)}</select></div>
+          <div className="erp-field"><label htmlFor="adj-amount">Add (+) or remove (−)</label><input id="adj-amount" name="amount" className="erp-input" inputMode="decimal" required /></div>
+          <div className="erp-field"><label htmlFor="adj-reason">Reason</label><input id="adj-reason" name="reason" className="erp-input" required minLength={5} maxLength={300} /></div>
         </ActionForm>}
         <ul className="app-list">{M.map((item) => <li key={item.id}><b>{item.sku}</b> · {item.name}<small>{stock.get(item.id) ?? 0} {item.unit} in stock</small></li>)}</ul>
         {canWrite && <ActionForm action={addPersonAction} submit="Add person" className="app-inline-form app-form-3">{hidden}
           <div className="erp-field"><label htmlFor="pp-code">Employee ID</label><input id="pp-code" name="code" className="erp-input" required maxLength={16} /></div>
           <div className="erp-field"><label htmlFor="pp-name">Name</label><input id="pp-name" name="name" className="erp-input" required maxLength={120} /></div>
         </ActionForm>}
-        <ul className="app-list">{People.map((item) => <li key={item.id}><b>{item.code}</b> · {item.name}</li>)}</ul>
+        <ul className="app-list">{People.map((item) => <li key={item.id}><b>{item.code}</b> · {item.name}{item.user_id === user.id ? <small>linked to your sign-in</small> : null}
+          {isAdmin && <span className="app-doc">
+            {!item.user_id && <ActionForm action={linkMeAction} submit="Link to my sign-in" tone="ghost" className="app-mini-form"><input type="hidden" name="personId" value={item.id} /></ActionForm>}
+            <ActionForm action={setPinAction} submit="Set PIN" tone="ghost" className="app-mini-form"><input type="hidden" name="personId" value={item.id} /><input name="pin" className="erp-input" aria-label={`New PIN for ${item.code}`} placeholder="4–8 digits" inputMode="numeric" autoComplete="off" type="password" maxLength={8} required /></ActionForm>
+          </span>}
+        </li>)}</ul>
         <ol className="erp-activity">{((activity.data ?? []) as { id: number; at: string; summary: string }[]).map((event) => <li key={event.id}><time dateTime={event.at}>{time(event.at)}</time><span>{event.summary}</span></li>)}</ol>
       </section>
     </div>
@@ -240,6 +270,7 @@ function Top({ email, name }: { email?: string; name: string }) {
   return <header className="app-top">
     <Link className="erp-brand" href="/app"><BohMark size={32} /><span><b>BOH</b> ERP</span></Link>
     <Link className="erp-btn erp-btn-sm erp-btn-ghost" href="/app"><ArrowLeft size={14} /> {name}</Link>
+    <Link className="erp-btn erp-btn-sm erp-btn-ghost" href="/app/audit">Audit history</Link>
     {email && <div className="app-top-user"><span>{email}</span></div>}
   </header>;
 }

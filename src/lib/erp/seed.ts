@@ -77,7 +77,8 @@ export function addDemoProjects(input: ErpState, now: string): ErpState {
     { name: "S355 steel plate 20 mm", unit: "kg", stock: 40, reorderLevel: 30, unitCost: 1.35, supplier: "Northline Metals GmbH" },
     { name: "EN AW-6082-T6 block 120 × 80 mm", unit: "kg", stock: 8, reorderLevel: 25, unitCost: 6.1, supplier: "Northline Metals GmbH" },
   ];
-  for (const material of materials) state = saveRawMaterial(state, null, { name: material.name, unit: material.unit, stock: material.stock, reorderLevel: material.reorderLevel, unitCost: material.unitCost, supplierId: supplierId(material.supplier) }, at(50, "09:30"));
+  as("E-1001");
+  for (const material of materials) state = saveRawMaterial(state, null, { name: material.name, unit: material.unit, stock: material.stock, reorderLevel: material.reorderLevel, unitCost: material.unitCost, supplierId: supplierId(material.supplier) }, at(50, "09:30"), "Opening stock of the demo company");
 
   /* ---------- Project 2 first (it is older): pump flange, delivered and invoiced ---------- */
   const codeFor = (wanted: string) => (state.projects.some((project) => project.code === wanted) ? suggestProjectCode(state, today.slice(0, 4)) : wanted);

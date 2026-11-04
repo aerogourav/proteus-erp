@@ -117,12 +117,17 @@ test("P12: issued invoices are numbered at issue, locked, and cancelled only wit
 });
 
 test("numbering: yearly sequences from the document date, inside the transaction, gap-free on rollback", async () => {
-  const next = await draftInvoice(MEMBER, "2027-01-05");
+  // Since migration 20261107000000 invoices cannot be dated in the future, so this uses today's date; the year rule is
+  // checked with document_number() below, called the way the database's own functions call it.
+  const today = new Date().toISOString().slice(0, 10);
+  const year = today.slice(0, 4);
+  const issuedBefore = Number((await one<{ n: string }>("select count(*) as n from public.sales_documents where company_id = $1 and kind = 'invoice' and status <> 'Draft' and extract(year from issue_date) = $2", [companyA, Number(year)]))!.n);
+  const next = await draftInvoice(MEMBER, today);
   await as(MEMBER, () => db.query("select public.issue_sales_document($1)", [next.id]));
-  assert.equal((await one<{ number: string }>("select number from public.sales_documents where id = $1", [next.id]))!.number, "INV-2027-0001", "a new year starts at 0001");
+  assert.equal((await one<{ number: string }>("select number from public.sales_documents where id = $1", [next.id]))!.number, `INV-${year}-${String(issuedBefore + 1).padStart(4, "0")}`);
 
-  const second = await draftInvoice(MEMBER, "2027-01-06");
-  const third = await draftInvoice(MEMBER, "2027-01-06");
+  const second = await draftInvoice(MEMBER, today);
+  const third = await draftInvoice(MEMBER, today);
   await as(MEMBER, async () => {
     await db.exec("begin");
     await db.query("select public.issue_sales_document($1)", [second.id]);
@@ -135,10 +140,13 @@ test("numbering: yearly sequences from the document date, inside the transaction
     await db.exec("commit");
   });
   const numbers = (await db.query<{ number: string }>("select number from public.sales_documents where id in ($1, $2) order by number", [second.id, third.id])).rows.map((row) => row.number);
-  assert.deepEqual(numbers, ["INV-2027-0002", "INV-2027-0003"], "the rolled-back issue did not use up a number");
-  const quote = await as(MEMBER, () => one<{ n: string }>("select public.document_number($1, 'quote', 'QT', '2028-02-01') as n", [companyA]));
-  assert.equal(quote!.n, "QT-2028-0001");
-  await as(OUTSIDER, () => fails("select public.document_number($1, 'quote', 'QT', '2028-02-01')", [companyA]));
+  assert.deepEqual(numbers, [`INV-${year}-${String(issuedBefore + 2).padStart(4, "0")}`, `INV-${year}-${String(issuedBefore + 3).padStart(4, "0")}`], "the rolled-back issue did not use up a number");
+  // As the database's own functions call it: the owner role, with the signed-in user's identity.
+  await db.exec(`select set_config('request.jwt.claim.sub', '${MEMBER}', false)`);
+  const quote = await one<{ n: string }>("select public.document_number($1, 'quote', 'QT', '2028-02-01') as n", [companyA]);
+  await db.exec("select set_config('request.jwt.claim.sub', '', false)");
+  assert.equal(quote!.n, "QT-2028-0001", "a new year starts at 0001");
+  await as(MEMBER, () => fails("select public.document_number($1, 'quote', 'QT', '2028-02-01')", [companyA]));
 });
 
 test("P13: audit history is written by triggers, cannot be changed, and stays inside the company", async () => {

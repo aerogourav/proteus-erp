@@ -207,7 +207,8 @@ export function endOperation(state: ErpState, activeId: string, input: EndInput,
 }
 
 /**
- * Guided demo shortcut: books every remaining operation for the signed-in person, one log entry each, through the same
+ * Guided demo shortcut (never in /app): books every remaining operation for the signed-in person, one log entry each, marked
+ * synthetic so it is never mistaken for a terminal booking, through the same
  * start/end rules. Refused (nothing changes) while any operation on the order is running or the release gate blocks.
  */
 export function recordRemainingOperations(state: ErpState, orderId: string, now: string): ErpState {
@@ -226,7 +227,9 @@ export function recordRemainingOperations(state: ErpState, orderId: string, now:
     if (started === next) return state;
     const active = started.activeOps.find((item) => item.orderId === orderId && item.employeeId === employeeId)!;
     time += Math.max(1, Math.round(plannedMinutes(op, op.remaining))) * 60000;
-    next = endOperation(started, active.id, { qtyGood: op.remaining, qtyScrap: 0, notes: "Recorded in one step from the guided demo" }, new Date(Math.min(time, Date.parse(now))).toISOString());
+    next = endOperation(started, active.id, { qtyGood: op.remaining, qtyScrap: 0, notes: "Demo shortcut: synthetic booking, not recorded at a terminal" }, new Date(Math.min(time, Date.parse(now))).toISOString());
+    const booked = next.opLogs[next.opLogs.length - 1];
+    if (booked && booked.orderId === orderId) next = { ...next, opLogs: next.opLogs.map((entry) => entry.id === booked.id ? { ...entry, synthetic: true } : entry) };
   }
   return next;
 }
@@ -263,7 +266,7 @@ export function labourCost(state: ErpState, projectId?: string) {
   const closed = state.productionOrders.filter((order) => order.costSnapshot);
   const closedIds = new Set(closed.map((order) => order.id));
   const live = state.opLogs.filter((entry) => (!projectId || entry.projectId === projectId) && !closedIds.has(entry.orderId)).reduce((sum, entry) => sum + labourCostOf(state, entry), 0);
-  const frozen = closed.filter((order) => !projectId || order.projectId === projectId).reduce((sum, order) => sum + jobCost(state, order.id).labour, 0);
+  const frozen = closed.filter((order) => !projectId || order.projectId === projectId).reduce((sum, order) => { const cost = jobCost(state, order.id); return sum + cost.labour + cost.overhead; }, 0);
   return round2(live + frozen);
 }
 

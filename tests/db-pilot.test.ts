@@ -29,7 +29,7 @@ before(async () => {
     await db.query("insert into public.memberships (company_id, user_id, role) values ($1, $2, 'admin'), ($1, $3, 'member')", [company, ADMIN, MEMBER]);
     warehouse = (await h.one<{ id: string }>("insert into public.warehouses (company_id, code, name) values ($1, 'MAIN', 'Main store') returning id", [company]))!.id;
     steel = (await h.one<{ id: string }>("insert into public.items (company_id, kind, sku, name, unit, track_stock) values ($1, 'material', 'STEEL', 'Steel', 'kg', true) returning id", [company]))!.id;
-    ben = (await h.one<{ id: string }>("insert into public.people (company_id, code, name) values ($1, 'E-2', 'Ben Op') returning id", [company]))!.id;
+    ben = (await h.one<{ id: string }>("insert into public.people (company_id, code, name, user_id) values ($1, 'E-2', 'Ben Op', $2) returning id", [company, MEMBER]))!.id;
     await db.query("insert into public.stock_moves (company_id, item_id, warehouse_id, quantity, reason) values ($1, $2, $3, 1000, 'receipt')", [company, steel, warehouse]);
   });
 });
@@ -164,7 +164,7 @@ test("N6: the demo purge works even with shop-floor logs and people", async () =
     const wh = (await h.one<{ id: string }>("insert into public.warehouses (company_id, code, name) values ($1, 'MAIN', 'Main') returning id", [demo]))!.id;
     const mat = (await h.one<{ id: string }>("insert into public.items (company_id, kind, sku, name) values ($1, 'material', 'M', 'M') returning id", [demo]))!.id;
     await db.query("insert into public.stock_moves (company_id, item_id, warehouse_id, quantity, reason) values ($1, $2, $3, 10, 'receipt')", [demo, mat, wh]);
-    const person = (await h.one<{ id: string }>("insert into public.people (company_id, code, name) values ($1, 'E-9', 'Demo Op') returning id", [demo]))!.id;
+    const person = (await h.one<{ id: string }>("insert into public.people (company_id, code, name, user_id) values ($1, 'E-9', 'Demo Op', $2) returning id", [demo, OWNER]))!.id;
     const prt = (await h.one<{ id: string }>("insert into public.items (company_id, kind, sku, name) values ($1, 'part', 'P', 'P') returning id", [demo]))!.id;
     await db.query("insert into public.routing_operations (company_id, item_id, seq, name) values ($1, $2, 10, 'Saw')", [demo, prt]);
     const f = (await h.one<{ id: string }>("insert into public.files (company_id, storage_path, name, doc_type, number, revision, status, linked_type, linked_id, content_sha256) values ($1::uuid, $1::text || '/d.pdf', 'd', 'Drawing', 'D', 'A', 'In review', 'item', $2, $3) returning id", [demo, prt, sha256("d")]))!.id;

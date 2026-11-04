@@ -18,7 +18,7 @@ import { clearStoredFiles, downloadBlob } from "@/components/erp/file-store";
 import { Badge, EmptyState, Field, PageHead, ProjectLink, Rule } from "@/components/erp/ui";
 import {
   CURRENCIES, CUSTOM_ENTITIES, DOC_TYPES, RULES, UNITS, WIDGET_LABELS, addCustomField, addDocType, customFieldsFor, docTypes, financeSummary, formatDate,
-  formatMoney, generateInvoice, markInvoicePaid, cancelInvoice, moveTab, moveWidget, parseStoredState, rawMaterialRows, rawMaterialStats, readiness, removeCustomField, removeDocType,
+  formatMoney, generateInvoice, markInvoicePaid, cancelInvoice, stateProblems, moveTab, moveWidget, parseStoredState, rawMaterialRows, rawMaterialStats, readiness, removeCustomField, removeDocType,
   resetLayout, saveRawMaterial, saveSupplier, supplierRows, supplierStats, updateSettings, updateTab, updateUi, updateWidget, upsertSupplier,
   type Currency, type CustomEntity, type CustomFieldType, type ErpState, type RawMaterial, type Supplier, type UiSettings,
 } from "@/lib/erp/model";
@@ -77,6 +77,7 @@ function openMaterial(state: ErpState, open: ReturnType<typeof useEditor>["open"
     fields: [
       { key: "name", label: "Material", required: true }, { key: "unit", label: "Unit", type: "select", options: [...UNITS] },
       { key: "stock", label: "Stock on hand", type: "number", required: true }, { key: "reorderLevel", label: "Reorder level", type: "number", help: "A warning shows when stock falls below this." },
+      { key: "stockReason", label: "Reason for a stock change", help: "Changing stock by hand is an adjustment: owners and admins only, with a reason. Receipts come from purchasing." },
       { key: "unitCost", label: `Unit cost (${state.settings.defaultCurrency}, optional)`, type: "number" },
       { key: "supplier", label: "Preferred supplier (optional)", list: suppliers.map((item) => item.name), help: "Pick or type a supplier; a new name creates the supplier." },
       ...customEditFields(state, "rawMaterial"),
@@ -85,7 +86,7 @@ function openMaterial(state: ErpState, open: ReturnType<typeof useEditor>["open"
     onSave: (v) => save((value) => {
       let next = v.supplier.trim() ? upsertSupplier(value, v.supplier) : value;
       const supplierId = v.supplier.trim() ? next.suppliers.find((item) => item.name.toLowerCase() === v.supplier.trim().toLowerCase())?.id ?? null : null;
-      next = saveRawMaterial(next, material?.id ?? null, { name: v.name, unit: v.unit, stock: num(v.stock || "0"), reorderLevel: num(v.reorderLevel || "0"), unitCost: v.unitCost.trim() ? num(v.unitCost) : null, supplierId, custom: pickCustom(v) }, nowIso());
+      next = saveRawMaterial(next, material?.id ?? null, { name: v.name, unit: v.unit, stock: num(v.stock || "0"), reorderLevel: num(v.reorderLevel || "0"), unitCost: v.unitCost.trim() ? num(v.unitCost) : null, supplierId, custom: pickCustom(v) }, nowIso(), v.stockReason ?? "");
       return next.rawMaterials === value.rawMaterials && next.materialRequirements === value.materialRequirements ? value : next;
     }),
   });
@@ -366,6 +367,8 @@ export function ConfigurationModule() {
             const parsed = JSON.parse(await file.text());
             const restored = parseStoredState(JSON.stringify(parsed?.state ?? parsed));
             if (!restored.projects.length && !restored.employees.length && !restored.emails.length) { setImportMessage("That file has no BOH ERP data."); return; }
+            const problems = stateProblems(restored);
+            if (problems.length) { setImportMessage(`Not restored: the backup breaks the current rules (${problems.slice(0, 2).join(" ")}${problems.length > 2 ? ` and ${problems.length - 2} more` : ""}).`); return; }
             replaceState(restored);
             setImportMessage(`Backup restored: ${restored.projects.length} projects, ${restored.opLogs.length} log entries, ${restored.emails.length} emails.`);
           } catch { setImportMessage("That file could not be read as a BOH ERP backup."); }
