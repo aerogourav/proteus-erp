@@ -53,7 +53,7 @@ const today = [
 
 const planned = [
   "Invite-only cloud workspace for pilot shops (in testing, not yet open)",
-  "Screens for roles, permissions and the audit history in the cloud workspace (the database already records the history)",
+  "Screens for roles and permissions in the cloud workspace (an audit history screen is in testing)",
   "Export of invoices to DATEV or a specialist e-invoicing provider",
   "Reusable industry templates",
   "AI that turns a plain-language request into a configuration you review and approve",
@@ -75,7 +75,6 @@ const pilot = [
   ["After 2 weeks", "We review the results together and send a short written summary. You decide: stop at no cost, and we close your access and delete the pilot records we have no legal duty to keep; or continue with a paid implementation agreed in writing beforehand."],
 ] as const;
 
-const tbc = "To be confirmed";
 
 export default function Home() {
   return <div className="b-site">
@@ -229,9 +228,10 @@ export default function Home() {
           <dl className="b-legal-table b-who-facts">
             <dt>Founder</dt><dd><b data-no-translate>Gourav Mehta</b><br /><small data-no-translate>M.Sc. Engineering and Management of Space Systems, Hochschule Bremen (Germany)</small><br /><small data-no-translate>M.Sc. Satellite Technologies, Gdansk University of Technology (Poland)</small></dd>
             <dt>Advisor</dt><dd><b data-no-translate>Kajinder Srivastava</b><br /><small>Startup advisor</small><br /><small data-no-translate>Founder | Co-founder &amp; Business Head, Danphe Private Limited (Aerospace &amp; Defence)</small></dd>
-            <dt>Company</dt><dd data-no-translate={legal.companyName ? true : undefined}>{[legal.companyName, legal.legalForm].filter(Boolean).join(" ") || tbc}</dd>
-            <dt>Represented by</dt><dd data-no-translate={legal.representative ? true : undefined}>{legal.representative || tbc}</dd>
-            <dt>Location</dt><dd data-no-translate={legal.postalCity ? true : undefined}>{legal.postalCity || tbc}</dd>
+            {/* Shown only once real values exist (W1/W2); the Impressum lists what is still to be confirmed. */}
+            {legal.companyName && <><dt>Company</dt><dd data-no-translate>{[legal.companyName, legal.legalForm].filter(Boolean).join(" ")}</dd></>}
+            {legal.representative && <><dt>Represented by</dt><dd data-no-translate>{legal.representative}</dd></>}
+            {legal.postalCity && <><dt>Location</dt><dd data-no-translate>{legal.postalCity}</dd></>}
             <dt>Contact</dt><dd>{legal.email ? <a href={`mailto:${legal.email}`} data-no-translate>{legal.email}</a> : <Link href="/contact">Contact form</Link>}</dd>
           </dl>
         </div>

@@ -571,6 +571,7 @@ export const deSiteTranslations: [string, string][] = [
   ["Continue", "Fortsetzen"],
   ["Next operation", "Nächster Arbeitsgang"],
   ["Running now", "Läuft gerade"],
+  ["Screens for roles and permissions in the cloud workspace (an audit history screen is in testing)", "Ansichten für Rollen und Berechtigungen im Cloud-Arbeitsbereich (eine Ansicht der Änderungshistorie wird getestet)"],
   ["Screens for roles, permissions and the audit history in the cloud workspace (the database already records the history)", "Ansichten für Rollen, Berechtigungen und die Änderungshistorie im Cloud-Arbeitsbereich (die Datenbank zeichnet die Historie bereits auf)"],
   // Pilot closure promise and inspection review (2026-11-04)
   ["We review the results together and send a short written summary. You decide: stop at no cost, and we close your access and delete the pilot records we have no legal duty to keep; or continue with a paid implementation agreed in writing beforehand.", "Wir besprechen die Ergebnisse gemeinsam und senden eine kurze schriftliche Zusammenfassung. Sie entscheiden: kostenlos aufhören – wir schließen Ihren Zugang und löschen die Pilotdaten, die wir nicht gesetzlich aufbewahren müssen – oder mit einer vorher schriftlich vereinbarten, kostenpflichtigen Einführung weitermachen."],
