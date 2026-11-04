@@ -10,10 +10,19 @@ Legend: **[code]** enforced in this repository and covered by tests · **[you]**
 - [code] Row-level security on every business table: a user only sees companies they are a member of (`tests/db-security.test.ts`, `tests/db-controls.test.ts`, `tests/db-production.test.ts`).
 - [code] Roles owner / admin / member / viewer. Only owners and admins approve drawings, override the release check, cancel invoices and read pay data.
 - [code] The sign-in form does not create accounts (invite-only).
+- [code] Creating a company in `/app` is invite-only at the application layer too, independent of the Supabase sign-up setting: only emails in the server variable `BOH_COMPANY_CREATORS` may create one; with no list set, nobody can (`src/lib/erp/access.ts`, `tests/access.test.ts`). Demo companies can only be created by the server (`tests/db-pilot.test.ts`).
+- [you] Set `BOH_COMPANY_CREATORS` in Vercel (Production) to the emails you invite as pilot owners, before deploying this branch. Changing Vercel variables needs your approval.
+- [code] Shop-floor bookings need a signed-in user linked to the operator, or that operator's PIN; 5 wrong PINs lock it for 15 minutes (`tests/db-finance.test.ts`).
 - [you] Supabase → Authentication → turn off "Allow new users to sign up". Without it, someone could still create an account through the Supabase API (they would see no company data).
 - [you] Invite pilot users from Supabase → Authentication → Users → "Invite user", then add their membership.
 - [you] Turn on two-factor authentication for your GitHub, Vercel, Supabase and email accounts.
-- [open] Two-factor sign-in for app users.
+- [open] Two-factor sign-in for app users. **Agreed plan** (not built yet):
+  1. Turn on TOTP in Supabase → Authentication → Multi-factor (free, no new account).
+  2. Add an "Set up authenticator app" page in `/app` using `supabase.auth.mfa.enroll` / `challenge` / `verify`.
+  3. Require AAL2 for owners and admins: the `/app` layout redirects to the MFA step when `getAuthenticatorAssuranceLevel()` is below `aal2`,
+     and a migration adds `(auth.jwt() ->> 'aal') = 'aal2'` to `is_admin()` so approvals, overrides and releases need it in the database too.
+  4. Members and viewers: optional for the pilot, required before paying customers.
+  Until then: pilot owners use a long unique password from a password manager, and only invited users can sign in.
 
 ## Data integrity
 
@@ -31,14 +40,15 @@ Legend: **[code]** enforced in this repository and covered by tests · **[you]**
 ## Files
 
 - [code] Private Storage bucket `company-files`; policies allow access only inside the company's own folder.
-- [open] Virus scanning of uploaded files. Until then: pilots use anonymised or non-confidential files only.
-- [open] File size and type limits in the bucket settings. **[you]** Set a size limit (for example 20 MB) in Supabase → Storage → company-files.
+- [code] Drawings are hashed (SHA-256) on upload; an approval is bound to that hash and re-checked before release and on the job page. Stored files cannot be overwritten, and drawings or non-draft files cannot be deleted (`tests/db-pilot.test.ts`).
+- [code] File limits: the migration `20261106000000_pilot_blockers.sql` sets the bucket to 20 MB and an allowed list of types (PDF, images, DXF/DWG/STEP/IGES, CSV, Office files); the upload form checks the same before sending.
+- [open] Virus scanning. Not practical without a paid scanning service or a server process outside Vercel's limits. **Decision: confidential files stay blocked** — pilots use anonymised or non-confidential files only, and the app says so on the job release page. Revisit before paying customers (for example a Supabase Edge Function calling a scanning API, files kept in a quarantine folder until clean).
 
 ## Logging and monitoring
 
 - [code] Server errors are logged without headers, cookies, query strings or form data (`src/instrumentation.ts`).
 - [you] Check Vercel logs for `boh-error` after each pilot day.
-- [open] Alerting.
+- [code] Optional alerting: if the server variable `ALERT_WEBHOOK_URL` (https only) is set, each server error is also posted there as a short summary without query strings, headers or form data (`src/instrumentation.ts`, `tests/access.test.ts`). **[you]** Create an incoming webhook in Slack or Teams and add it in Vercel (needs your approval).
 
 ## Before any customer enters real data
 

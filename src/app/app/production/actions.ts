@@ -347,3 +347,23 @@ export async function linkMeAction(_: FormState, form: FormData): Promise<FormSt
   const { error } = await supabase.from("people").update({ user_id: user.id }).eq("id", personId);
   return error ? failure(error, "The sign-in was not linked. Only owners and admins link people.") : done("Linked to your sign-in: you can book as this operator without a PIN.");
 }
+
+/* ---------- Dispatch (P11): the database checks completion, the passed inspection and the drawing again ---------- */
+
+export async function dispatchAction(_: FormState, form: FormData): Promise<FormState> {
+  const orderId = id(form, "orderId");
+  if (!orderId) return { error: "Something went wrong. Reload the page and try again." };
+  const supabase = await session();
+  const { data, error } = await supabase.rpc("dispatch_order", { target_order: orderId, note: text(form, "note", 300) });
+  return error ? failure(error, "The parts were not dispatched.") : done(`Dispatched with delivery note ${data}.`);
+}
+
+export async function releaseDispatchAction(_: FormState, form: FormData): Promise<FormState> {
+  const orderId = id(form, "orderId");
+  const reason = text(form, "reason", 300);
+  if (!orderId) return { error: "Something went wrong. Reload the page and try again." };
+  if (reason.length < 5) return { error: "Give a reason of at least a few words. It is saved with your name." };
+  const supabase = await session();
+  const { error } = await supabase.rpc("release_dispatch", { target_order: orderId, reason });
+  return error ? failure(error, "The dispatch was not released.") : done("Dispatch released for the drawing problems shown. The reason is in the activity log.");
+}

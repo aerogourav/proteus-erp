@@ -50,7 +50,8 @@ history can never be deleted, whether or not it is flagged as a demo. Demo sandb
   so check them after every pilot day or when a user reports a problem.
 - Database errors raised by the rule functions (for example "Only 4 parts can be booked at Op 20") are expected answers,
   shown to the user, not incidents.
-- Not in place: alerting. Add an error-reporting service (for example Sentry) when a paying customer uses the app; that needs an account you create.
+- Alerting (optional): set `ALERT_WEBHOOK_URL` in Vercel to a Slack or Teams incoming webhook (https). Each server error is then posted there as one short line.
+  A full error-reporting service (for example Sentry) can come later; it needs an account you create.
 
 ## Backup and restore (manual steps for the owner)
 
@@ -68,6 +69,14 @@ npx supabase db dump --db-url "$SUPABASE_DB_URL" --data-only -f backup/data.sql
   keep it in your password manager, never in the repository or in chat.
 - Store the files encrypted (for example an encrypted disk or a password-protected archive) outside the repository.
 - Files in Storage (`company-files`) are not part of the dump. Download them from Supabase → Storage when a pilot uses real files.
+
+Before applying a migration to the hosted project:
+
+1. Take both dumps above and check they are not empty (`wc -l backup/*.sql`).
+2. Write down the latest applied migration (Supabase → Database → Migrations, or `select version from supabase_migrations.schema_migrations order by 1 desc limit 3`).
+3. Apply the new migration, then run the read-only checks listed with it.
+4. If something is wrong: new migrations here only add tables, columns, triggers and functions. Roll back by restoring the dumps into a fresh project
+   (steps below) and pointing Vercel at it, or by a reviewed "down" script for that migration. Never delete rows to undo a migration.
 
 Restore drill (once before the first pilot, then every quarter):
 

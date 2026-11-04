@@ -9,7 +9,7 @@ import { ActionForm, DrawingForm, InspectionForm, type PlanRow } from "@/compone
 import {
   addOperationAction, addPartAction, addPersonAction, addPlanAction, approveDrawingAction, createOrderAction, endOperationAction, linkLotAction, overrideAction,
   receiveMaterialAction, resolveReviewAction, setStatusAction, startOperationAction, supersedeDrawingAction,
-  adjustStockAction, changeMaterialAction, correctLotAction, linkMeAction, setPinAction,
+  adjustStockAction, changeMaterialAction, correctLotAction, linkMeAction, setPinAction, dispatchAction, releaseDispatchAction,
 } from "@/app/app/production/actions";
 import { pageMetadata } from "@/lib/seo";
 import { loadWorkspace } from "@/lib/supabase/workspace";
@@ -28,6 +28,7 @@ type Active = { id: string; order_id: string; seq: number; person_id: string; st
 type Inspection = { id: number; order_id: string; characteristic: string; observed: string; unit: string; passed: boolean; tolerance: string; outcome: string | null; resolved_decision: string | null; resolution_reason: string | null; round: number; inspected_by: string | null; spec: string };
 type Plan = PlanRow & { item_id: string; revision: string };
 type Lot = { order_id: string; material: string; heat: string; certificate: string };
+type Dispatch = { id: string; order_id: string; number: string; quantity: number; note: string; dispatched_at: string };
 
 const time = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" }).format(new Date(iso));
 
@@ -45,7 +46,7 @@ async function Production() {
   const isAdmin = role === "owner" || role === "admin";
   const c = company.id;
 
-  const [parts, materials, levels, drawings, operations, people, orders, actives, inspections, lots, activity, plans, orderMaterials] = await Promise.all([
+  const [parts, materials, levels, drawings, operations, people, orders, actives, inspections, lots, activity, plans, orderMaterials, dispatches] = await Promise.all([
     supabase.from("items").select("id, sku, name, revision").eq("company_id", c).eq("kind", "part").order("sku"),
     supabase.from("items").select("id, sku, name, unit").eq("company_id", c).eq("kind", "material").order("sku"),
     supabase.from("stock_levels").select("item_id, on_hand").eq("company_id", c),
@@ -56,9 +57,10 @@ async function Production() {
     supabase.from("active_operations").select("id, order_id, seq, person_id, started_at").eq("company_id", c),
     supabase.from("inspections").select("id, order_id, characteristic, observed, unit, passed, tolerance, outcome, resolved_decision, resolution_reason, round, inspected_by, spec").eq("company_id", c).order("id"),
     supabase.from("material_lots").select("order_id, material, heat, certificate").eq("company_id", c),
-    supabase.from("activity_log").select("id, at, summary").eq("company_id", c).in("module", ["production", "shopfloor", "quality", "documents"]).order("at", { ascending: false }).limit(12),
+    supabase.from("activity_log").select("id, at, summary").eq("company_id", c).in("module", ["production", "shopfloor", "quality", "documents", "dispatch"]).order("at", { ascending: false }).limit(12),
     supabase.from("inspection_plans").select("id, item_id, revision, characteristic, kind, lower_limit, upper_limit, unit, required_gauge, sample_size, spec_text").eq("company_id", c).order("position").order("characteristic"),
     supabase.from("order_materials").select("id, order_id, item_id, quantity").eq("company_id", c),
+    supabase.from("dispatches").select("id, order_id, number, quantity, note, dispatched_at").eq("company_id", c).order("dispatched_at"),
   ]);
   if (orders.error) return <><Top email={user.email} name={company.name} /><p className="erp-error" role="alert">Production records could not be loaded. If the production migration (20261105000000_production.sql) has not been run on this database yet, run it first.</p></>;
 
@@ -73,6 +75,7 @@ async function Production() {
   const I = (inspections.data ?? []) as Inspection[];
   const L = (lots.data ?? []) as Lot[];
   const OM = (orderMaterials.data ?? []) as OrderMaterial[];
+  const DN = (dispatches.data ?? []) as Dispatch[];
   const material = (itemId: string) => M.find((item) => item.id === itemId);
   const PL = (plans.data ?? []) as Plan[];
   const planFor = (itemId: string, revision: string) => PL.filter((row) => row.item_id === itemId && row.revision.toUpperCase() === revision.toUpperCase());
@@ -94,6 +97,14 @@ async function Production() {
       supabase.rpc("completion_blocker", { target_order: order.id }),
     ]);
     return [order.id, { progress: (progress.data ?? []) as Progress[], gate: (gate.data as string | null) ?? null, finish: (finish.data as string | null) ?? null }] as const;
+  })));
+  // Dispatch checks for completed orders, from the same database function dispatch_order() enforces.
+  const shipping = new Map(await Promise.all(Orders.filter((order) => order.status === "Completed").map(async (order) => {
+    const [blockers, drawing] = await Promise.all([
+      supabase.rpc("dispatch_blockers", { target_order: order.id }),
+      supabase.rpc("dispatch_drawing_blockers", { target_order: order.id }),
+    ]);
+    return [order.id, { blockers: (blockers.data ?? []) as string[], drawing: (drawing.data ?? []) as string[] }] as const;
   })));
 
   const hidden = <input type="hidden" name="companyId" value={c} />;
@@ -119,6 +130,9 @@ async function Production() {
           const running = A.filter((item) => item.order_id === order.id);
           const done = order.status === "Completed";
           const results = I.filter((item) => item.order_id === order.id);
+          const ship = shipping.get(order.id);
+          const shipped = DN.filter((item) => item.order_id === order.id);
+          const drawingOnly = ship ? ship.blockers.filter((b) => ship.drawing.includes(b)) : [];
           return <article key={order.id} className="app-order">
             <header><div><strong>{order.number}</strong><small>{sku(order.item_id)} rev {order.revision} · {order.quantity} pcs{order.notes ? ` · ${order.notes}` : ""}</small></div><span className={`erp-badge ${done ? "erp-badge-ok" : order.status === "On hold" ? "erp-badge-warn" : "erp-badge-info"}`}>{order.status}</span></header>
             {check && <ol className="erp-opstrip" aria-label={`Operations of ${order.number}`}>{check.progress.map((op) => <li key={op.seq} className={op.done ? "is-done" : op.running ? "is-running" : op.booked ? "is-partial" : ""} title={`${op.booked} of ${op.incoming} booked`}><b>{op.seq}</b><span>{op.name}</span><small>{op.booked}/{op.incoming}</small></li>)}</ol>}
@@ -137,6 +151,13 @@ async function Production() {
                   : <small className="erp-faint"> · another owner or admin must resolve this review</small>)}
               </li>;
             })}</ul>}
+
+            {shipped.map((item) => <p key={item.id} className="erp-faint">Dispatched: {item.quantity} pcs with <b>{item.number}</b> · {time(item.dispatched_at)}{item.note ? ` · ${item.note}` : ""}</p>)}
+            {done && ship && ship.blockers.length > 0 && !(shipped.length && ship.blockers.length === 1 && /already been dispatched/.test(ship.blockers[0])) && <p className="erp-gate" role="status"><b>Dispatch check:</b> {ship.blockers.join(" ")}</p>}
+            {canWrite && done && ship && <div className="app-order-actions">
+              {ship.blockers.length === 0 && <ActionForm action={dispatchAction} submit="Dispatch with delivery note" className="app-mini-form app-grow"><input type="hidden" name="orderId" value={order.id} /><input name="note" className="erp-input" aria-label="Dispatch note" placeholder="Note, e.g. pallet or carrier (optional)" maxLength={300} /></ActionForm>}
+              {isAdmin && drawingOnly.length > 0 && <ActionForm action={releaseDispatchAction} submit="Release dispatch with reason" tone="danger" className="app-mini-form app-grow"><input type="hidden" name="orderId" value={order.id} /><input name="reason" className="erp-input" aria-label="Reason for releasing the dispatch" placeholder="Reason (saved with your name)" minLength={5} maxLength={300} required /></ActionForm>}
+            </div>}
 
             {canWrite && !done && <div className="app-order-actions">
               {order.status === "Planned" && <ActionForm action={setStatusAction} submit="Release" className="app-mini-form"><input type="hidden" name="orderId" value={order.id} /><input type="hidden" name="status" value="Running" /></ActionForm>}

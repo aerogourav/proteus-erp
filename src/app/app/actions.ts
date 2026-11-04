@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { canCreateCompany, creatorList } from "@/lib/erp/access";
 import { INDUSTRIES } from "@/lib/supabase/config";
 import { currentUser } from "@/lib/supabase/server";
 
@@ -22,6 +23,8 @@ export async function createCompanyAction(_previous: FormState, form: FormData):
   if (!INDUSTRIES.some((item) => item.key === industry)) return { error: "Choose the industry closest to your business." };
   const { supabase, user } = await currentUser();
   if (!user) redirect("/app/login");
+  // Invite-only, independent of the Supabase sign-up setting (P14). See src/lib/erp/access.ts.
+  if (!canCreateCompany(user.email, creatorList(process.env.BOH_COMPANY_CREATORS))) return { error: "Creating a company is by invitation during the pilot. Ask the company owner to add you, or contact us to join the pilot waitlist." };
   const { error } = await supabase.rpc("create_company", { company_name: name, company_industry: industry });
   if (error) return { error: "The company could not be created. Please try again." };
   revalidatePath("/app");

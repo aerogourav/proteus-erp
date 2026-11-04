@@ -15,7 +15,7 @@ const TABLE_LABEL: Record<string, string> = {
   companies: "Company", memberships: "Member", people: "Person", people_pay: "Pay", contacts: "Customer or supplier", items: "Part or material", warehouses: "Store",
   projects: "Project", sales_documents: "Sales document", sales_lines: "Sales line", purchase_documents: "Purchase document", purchase_lines: "Purchase line", payments: "Payment",
   files: "File", routing_operations: "Routing", production_orders: "Production order", order_materials: "Order material", material_lots: "Material lot",
-  operation_logs: "Shop-floor booking", inspections: "Inspection", inspection_plans: "Inspection plan", stock_moves: "Stock move",
+  operation_logs: "Shop-floor booking", inspections: "Inspection", inspection_plans: "Inspection plan", stock_moves: "Stock move", dispatches: "Dispatch", company_closures: "Closure request",
 };
 const time = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Europe/Berlin" }).format(new Date(iso));
 
