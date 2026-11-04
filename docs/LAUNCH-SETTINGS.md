@@ -40,7 +40,7 @@ The form stores a lead in Supabase and/or emails it through Resend. Either one i
 ### Sending one test inquiry (do this yourself)
 
 1. Open `/contact?offer=pilot` on the live site.
-2. Choose "Free 2-week pilot run", fill in your own name and email, company "TEST – please ignore", and a short message.
+2. Choose "Free 2-week pilot run" (the "Join the pilot waitlist" buttons open it), fill in your own name and email, company "TEST – please ignore", and a short message.
 3. Wait at least 3 seconds after the page loads, then press "Send message".
 4. Expected: a green "Thank you, your message was received" message.
 5. Check Supabase → Table Editor → `leads` (newest row; `offer` = `pilot` after the migration) and/or your inbox.
@@ -52,8 +52,12 @@ A red message means nothing was stored or sent; it says why (rate limit, missing
 
 The sign-in form no longer creates accounts. To make that binding on the server too:
 
-1. Supabase → Authentication → Sign In / Providers → turn off "Allow new users to sign up".
+1. Supabase → Authentication → Sign In / Providers → turn off "Allow new users to sign up". **Done and verified on 2026-11-03.**
 2. Invite pilot users from Supabase → Authentication → Users → "Invite user".
+3. Set `BOH_COMPANY_CREATORS` (server-only, comma-separated emails) in Vercel → Production before deploying the hardening branch.
+   Only these people can create a company in `/app`; everyone else is added to an existing company by its owner or admin.
+   With the variable empty, nobody can create a company (it fails closed), even if sign-ups are switched on by mistake.
+4. Optional: `ALERT_WEBHOOK_URL` (https, a Slack or Teams incoming webhook) to receive a short note for each server error.
 
 ## Gmail in the demo inbox
 
@@ -64,3 +68,8 @@ Hidden unless `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is set. See `docs/GMAIL-SETUP.md`.
 On 2026-11-03 the three migrations `20261103000000_lead_offer.sql`, `20261104000000_controls.sql` and `20261105000000_production.sql`
 were run on the `boh-erp` Supabase project (each checked against the repository file by SHA-256 before running). A read-only
 check afterwards confirmed all three, the private `company-files` bucket and its 4 policies. No existing rows were changed.
+
+The hardening migrations `20261106000000_pilot_blockers.sql`, `20261107000000_finance_material.sql` and
+`20261108000000_dispatch_review.sql` are **not** applied on the hosted project. They need a backup first and your approval
+(plan, risks, rollback and read-only checks are in the hardening report). Deploying the hardening branch before they run
+would break `/app` pages that call the new functions; the website and demo are not affected.

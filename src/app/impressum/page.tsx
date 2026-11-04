@@ -1,6 +1,6 @@
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
-import { legal, legalComplete } from "@/lib/legal";
+import { founder, legal, legalComplete } from "@/lib/legal";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata("Impressum", "Legal information about the provider of the BOH ERP website.", "/impressum", { indexable: false });
@@ -10,13 +10,15 @@ const missing = "To be confirmed";
 export default function ImpressumPage() {
   const rows: [string, string][] = [
     ["Provider", [legal.companyName, legal.legalForm].filter(Boolean).join(" ") || missing],
+    ["Founder", founder.name],
     ["Represented by", legal.representative || missing],
     ["Address", [legal.street, legal.postalCity, legal.street || legal.postalCity ? legal.country : ""].filter(Boolean).join(", ") || missing],
     ["Email", legal.email || missing],
-    ["Phone", legal.phone || missing],
     ["Register entry", legal.register || missing],
     ["VAT ID", legal.vatId || missing],
   ];
+  // Optional fields are shown only when provided.
+  if (legal.phone) rows.splice(4, 0, ["Phone", legal.phone]);
 
   return <div className="b-site"><SiteHeader /><main id="top" className="b-page"><div className="b-wrap b-prose">
     <span className="b-kicker">Legal notice</span>

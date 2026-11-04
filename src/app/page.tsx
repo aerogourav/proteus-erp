@@ -91,7 +91,7 @@ export default function Home() {
               <Link className="b-btn b-btn-primary" href="/contact?offer=call">Book a free workflow call <ArrowRight size={18} /></Link>
               <Link className="b-btn b-btn-ghost" href="/contact?offer=walkthrough"><PlayCircle size={18} /> Free demo walkthrough</Link>
             </div>
-            <p className="b-hero-pilot"><Link href="/#offers">Free 2-week pilot run: {PILOT_PLACES} places <ArrowRight size={15} /></Link></p>
+            <p className="b-hero-pilot"><Link href="/contact?offer=pilot">Join the pilot waitlist for a free 2-week pilot run <ArrowRight size={15} /></Link></p>
             <span className="b-tagline" data-no-translate>BUILD. OPERATE. HARMONISE.</span>
           </div>
           <figure className="b-shot b-shot-hero">
@@ -136,13 +136,13 @@ export default function Home() {
               <div><dt>What we need</dt><dd>{offer.weNeed}</dd></div>
             </dl>
             <p className="b-offer-free">Free · no obligation</p>
-            <Link className={`b-btn ${offer.key === "pilot" ? "b-btn-primary" : "b-btn-dark"}`} href={`/contact?offer=${offer.key}`}>{offer.key === "call" ? "Book a free workflow call" : offer.key === "walkthrough" ? "Ask for a walkthrough" : "Apply for the pilot"} <ArrowRight size={17} /></Link>
+            <Link className={`b-btn ${offer.key === "pilot" ? "b-btn-primary" : "b-btn-dark"}`} href={`/contact?offer=${offer.key}`}>{offer.key === "call" ? "Book a free workflow call" : offer.key === "walkthrough" ? "Ask for a walkthrough" : "Join the pilot waitlist"} <ArrowRight size={17} /></Link>
           </article>)}</div>
 
           <div className="b-pilot b-reveal" aria-labelledby="pilot-title">
             <div className="b-pilot-head">
               <h3 id="pilot-title">The free 2-week pilot run in detail</h3>
-              <p>{PILOT_PLACES} places at a time. The pilot uses early-stage software and is not a production-ready ERP: keep your current process running alongside it.</p>
+              <p>{PILOT_PLACES} places at a time. Pilots start once our pilot readiness checks pass; until then you join the waitlist. The pilot uses early-stage software and is not a production-ready ERP: keep your current process running alongside it.</p>
             </div>
             <dl className="b-pilot-grid">{pilot.map(([title, body]) => <div key={title}><dt>{title}</dt><dd>{body}</dd></div>)}</dl>
           </div>
@@ -224,8 +224,11 @@ export default function Home() {
             <span className="b-kicker">Who we are</span>
             <h2 className="b-h2" id="who-title">A small, early-stage team building BOH ERP.</h2>
             <p className="b-lead">We are starting with job release and shop-floor work for small manufacturers, and we are looking for our first pilot shops. We will tell you plainly what works today and what doesn’t yet.</p>
+            <p className="b-lead">BOH ERP is founded by Gourav Mehta and advised by Kajinder Srivastava. The legal company details are still being set up and are shown here once confirmed.</p>
           </div>
           <dl className="b-legal-table b-who-facts">
+            <dt>Founder</dt><dd><b data-no-translate>Gourav Mehta</b><br /><small data-no-translate>M.Sc. Engineering and Management of Space Systems, Hochschule Bremen (Germany)</small><br /><small data-no-translate>M.Sc. Satellite Technologies, Gdansk University of Technology (Poland)</small></dd>
+            <dt>Advisor</dt><dd><b data-no-translate>Kajinder Srivastava</b><br /><small>Startup advisor</small><br /><small data-no-translate>Founder | Co-founder &amp; Business Head, Danphe Private Limited (Aerospace &amp; Defence)</small></dd>
             <dt>Company</dt><dd data-no-translate={legal.companyName ? true : undefined}>{[legal.companyName, legal.legalForm].filter(Boolean).join(" ") || tbc}</dd>
             <dt>Represented by</dt><dd data-no-translate={legal.representative ? true : undefined}>{legal.representative || tbc}</dd>
             <dt>Location</dt><dd data-no-translate={legal.postalCity ? true : undefined}>{legal.postalCity || tbc}</dd>
@@ -249,7 +252,7 @@ export default function Home() {
           </div>
           <div className="b-hero-actions" style={{ marginTop: 0 }}>
             <Link className="b-btn b-btn-primary" href="/contact?offer=call">Book a free workflow call <ArrowRight size={18} /></Link>
-            <Link className="b-btn b-btn-ghost" href="/contact?offer=pilot">Apply for the free pilot</Link>
+            <Link className="b-btn b-btn-ghost" href="/contact?offer=pilot">Join the pilot waitlist</Link>
           </div>
         </div>
       </section>
