@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { FormState } from "@/app/app/actions";
+import { createHash } from "node:crypto";
+import { parseSpec } from "@/lib/erp/model";
 import { currentUser } from "@/lib/supabase/server";
 
 /**
@@ -57,30 +59,91 @@ export async function addPersonAction(_: FormState, form: FormData): Promise<For
   return error ? failure(error, "The person could not be saved.") : done(`${name} added.`);
 }
 
+/** SHA-256 of a stored object, computed on the server from the bytes in Storage (never trusted from the browser). */
+async function storedSha256(supabase: Awaited<ReturnType<typeof session>>, path: string) {
+  const { data, error } = await supabase.storage.from("company-files").download(path);
+  if (error || !data) return null;
+  return createHash("sha256").update(Buffer.from(await data.arrayBuffer())).digest("hex");
+}
+
+/**
+ * Adds a drawing version for review. The file is required: the browser uploads it to a new path (never overwriting),
+ * the server hashes the stored bytes, and that fingerprint is recorded. A changed file is a new version and a new record.
+ */
 export async function addDrawingAction(_: FormState, form: FormData): Promise<FormState> {
   const companyId = id(form, "companyId");
   const partId = id(form, "partId");
   const number = text(form, "number", 40).toUpperCase();
   const revision = text(form, "revision", 8).toUpperCase();
-  const uploaded = text(form, "storagePath", 400);
+  const path = text(form, "storagePath", 400);
+  const browserHash = text(form, "sha256", 64).toLowerCase();
   if (!companyId || !partId || !number || !/^[A-Z0-9]{1,8}$/.test(revision)) return { error: "Choose the part and enter drawing number and revision." };
-  // Without an uploaded file the record still names the drawing; the path stays inside the company's folder.
-  const storagePath = uploaded.startsWith(`${companyId}/`) ? uploaded : `${companyId}/drawings/${crypto.randomUUID()}-${number}_${revision}`;
+  if (!path.startsWith(`${companyId}/drawings/`)) return { error: "Choose the drawing file. A drawing can only be approved with its file." };
   const supabase = await session();
+  const serverHash = await storedSha256(supabase, path);
+  if (!serverHash) return { error: "The uploaded file could not be read back. Upload it again." };
+  if (browserHash && browserHash !== serverHash) return { error: "The stored file differs from the one you chose. Upload it again." };
   const { error } = await supabase.from("files").insert({
-    company_id: companyId, storage_path: storagePath, name: text(form, "fileName", 200) || `${number} rev ${revision} (no file attached)`,
+    company_id: companyId, storage_path: path, name: text(form, "fileName", 200) || `${number}_${revision}`,
     mime: text(form, "mime", 120) || "application/octet-stream", size_bytes: Math.max(0, whole(form, "size") || 0),
-    doc_type: "Drawing", number, revision, status: "In review", linked_type: "item", linked_id: partId,
+    doc_type: "Drawing", number, revision, status: "In review", linked_type: "item", linked_id: partId, content_sha256: serverHash,
   });
-  return error ? failure(error, "The drawing could not be saved.") : done(`Drawing ${number} rev ${revision} added for review.`);
+  return error ? failure(error, "The drawing could not be saved.") : done(`Drawing ${number} rev ${revision} added for review (SHA-256 ${serverHash.slice(0, 12)}…).`);
 }
 
+/** Approves a drawing after re-hashing the stored file on the server; the database binds the approval to that fingerprint. */
 export async function approveDrawingAction(_: FormState, form: FormData): Promise<FormState> {
   const fileId = id(form, "fileId");
   if (!fileId) return { error: "Something went wrong. Reload the page and try again." };
   const supabase = await session();
-  const { error } = await supabase.rpc("approve_file", { file_id: fileId });
-  return error ? failure(error, "The drawing could not be approved.") : done("Drawing approved.");
+  const { data: file } = await supabase.from("files").select("storage_path").eq("id", fileId).maybeSingle();
+  if (!file) return { error: "The drawing was not found." };
+  const verified = await storedSha256(supabase, file.storage_path);
+  if (!verified) return { error: "The stored file could not be read, so it cannot be approved." };
+  const { error } = await supabase.rpc("approve_file", { file_id: fileId, verified_sha256: verified });
+  return error ? failure(error, "The drawing could not be approved.") : done("Drawing approved. The approval is bound to this exact file.");
+}
+
+export async function supersedeDrawingAction(_: FormState, form: FormData): Promise<FormState> {
+  const fileId = id(form, "fileId");
+  const reason = text(form, "reason", 300);
+  if (!fileId || reason.length < 5) return { error: "Give a reason of at least a few words. It is saved with your name." };
+  const supabase = await session();
+  const { error } = await supabase.rpc("supersede_file", { file_id: fileId, reason });
+  return error ? failure(error, "The drawing could not be superseded.") : done("Drawing superseded. The reason is in the activity log.");
+}
+
+/**
+ * Adds a characteristic to the inspection plan of a part revision (owners and admins). Limits are stored explicitly:
+ * typed lower/upper limits win; otherwise the entry helper reads them from the specification. ISO fits are never guessed.
+ */
+export async function addPlanAction(_: FormState, form: FormData): Promise<FormState> {
+  const companyId = id(form, "companyId");
+  const partId = id(form, "partId");
+  const revision = text(form, "revision", 8).toUpperCase();
+  const characteristic = text(form, "characteristic", 80);
+  const kind = text(form, "kind", 10) === "attribute" ? "attribute" : "numeric";
+  const spec = text(form, "spec", 60);
+  const sample = whole(form, "sample") || 1;
+  if (!companyId || !partId || !revision || !characteristic || !(sample >= 1)) return { error: "Choose the part, revision and characteristic, and a sample size of 1 or more." };
+  const typed = (key: string) => { const raw = text(form, key, 20); return raw === "" ? null : Number(raw.replace(",", ".")); };
+  let lower = kind === "numeric" ? typed("lower") : null;
+  let upper = kind === "numeric" ? typed("upper") : null;
+  let nominal: number | null = null;
+  if ((lower !== null && !Number.isFinite(lower)) || (upper !== null && !Number.isFinite(upper))) return { error: "Limits must be numbers." };
+  if (kind === "numeric" && lower === null && upper === null && spec) {
+    const parsed = parseSpec(spec);
+    if (parsed) ({ lower, upper, nominal } = parsed);
+  }
+  const supabase = await session();
+  const { error } = await supabase.from("inspection_plans").insert({
+    company_id: companyId, item_id: partId, revision, characteristic, kind, nominal, lower_limit: lower, upper_limit: upper,
+    unit: text(form, "unit", 10), required_gauge: text(form, "gauge", 40), sample_size: sample, spec_text: spec,
+  });
+  if (error) return failure(error, "The plan characteristic could not be saved. Only owners and admins edit inspection plans.");
+  return done(kind === "numeric" && lower === null && upper === null
+    ? `${characteristic} added without usable limits: results will need review. Enter explicit limits to judge them automatically.`
+    : `${characteristic} added to the inspection plan.`);
 }
 
 export async function addOperationAction(_: FormState, form: FormData): Promise<FormState> {
@@ -190,15 +253,28 @@ export async function linkLotAction(_: FormState, form: FormData): Promise<FormS
   return error ? failure(error, "The lot could not be linked.") : done(`Heat/batch ${heat} linked.`);
 }
 
+/** Records one result per plan characteristic. The specification and limits come from the server-stored plan. */
 export async function recordInspectionAction(_: FormState, form: FormData): Promise<FormState> {
   const orderId = id(form, "orderId");
   if (!orderId) return { error: "Something went wrong. Reload the page and try again." };
-  const rows = [0, 1, 2].map((index) => ({
-    characteristic: text(form, `characteristic${index}`, 80), spec: text(form, `spec${index}`, 60), unit: text(form, `unit${index}`, 10),
-    observed: text(form, `observed${index}`, 40), result: text(form, `result${index}`, 4), sample_size: whole(form, `sample${index}`) || 0, gauge_id: text(form, `gauge${index}`, 40),
-  })).filter((row) => row.characteristic || row.observed);
-  if (!rows.length) return { error: "Add at least one characteristic with its measured value." };
+  const planIds = form.getAll("planId").map(String).filter((value) => UUID.test(value));
+  if (!planIds.length) return { error: "This part revision has no inspection plan yet." };
+  const rows = planIds.map((planId) => ({
+    plan_id: planId, observed: text(form, `observed-${planId}`, 40), result: text(form, `result-${planId}`, 4),
+    sample_size: whole(form, `sample-${planId}`) || 0, gauge_id: text(form, `gauge-${planId}`, 40),
+  }));
   const supabase = await session();
   const { data, error } = await supabase.rpc("record_inspection", { target_order: orderId, results: rows });
-  return error ? failure(error, "The inspection could not be recorded.") : done(data ? "Inspection recorded: passed." : "Inspection recorded: failed. Values outside the tolerance count as failed.");
+  return error ? failure(error, "The inspection could not be recorded.") : done(data ? "Inspection recorded: passed." : "Inspection recorded: not passed. Failed results block dispatch; results that need review wait for an owner or admin.");
+}
+
+export async function resolveReviewAction(_: FormState, form: FormData): Promise<FormState> {
+  const inspectionId = Number(text(form, "inspectionId", 20));
+  const decision = text(form, "decision", 4);
+  const reason = text(form, "reason", 300);
+  if (!Number.isInteger(inspectionId) || !["pass", "fail"].includes(decision)) return { error: "Choose pass or fail." };
+  if (reason.length < 5) return { error: "Give a reason of at least a few words." };
+  const supabase = await session();
+  const { error } = await supabase.rpc("resolve_inspection", { inspection_id: inspectionId, decision, reason });
+  return error ? failure(error, "The review could not be resolved.") : done(`Review resolved as ${decision}. The original result is kept.`);
 }

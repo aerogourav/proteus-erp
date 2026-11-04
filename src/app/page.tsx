@@ -62,7 +62,7 @@ const planned = [
 const faqs = [
   ["Is BOH ERP ready to use today?", "Not yet as a production system. Today there is an interactive demo with synthetic data, and an invite-only workspace that is still being prepared. We are looking for first pilot shops to shape the production version with us."],
   ["Is the free pilot a production-ready ERP?", "No. The pilot tests one workflow on one production cell with anonymised or non-confidential data. Keep your current process running alongside it. At the end you get a short written result and decide whether to continue."],
-  ["What happens after the 2-week pilot?", "We review the agreed success criteria with you. You can stop at no cost, and we delete the pilot data. If you want to continue, we agree scope and price in writing first. Nothing renews or is billed automatically."],
+  ["What happens after the 2-week pilot?", "We review the agreed success criteria with you. You can stop at no cost: we close your access and delete the pilot records we have no legal duty to keep, through a documented process. If you want to continue, we agree scope and price in writing first. Nothing renews or is billed automatically."],
   ["Who is it for?", "Small manufacturers and job shops that have outgrown spreadsheets: machining, fabrication and assembly with drawings, revisions and routings. The same core also runs e-commerce and SaaS demos as part of our long-term platform."],
   ["What does it cost after the pilot?", "A one-time implementation fee plus a monthly subscription. Both depend on the scope of your workflows and are agreed in writing before any paid work starts."],
   ["Does it use AI?", "Not yet. The current checks are clear, rule-based logic. AI-assisted configuration is on our roadmap, and any change it proposes will always need human approval."],
@@ -72,7 +72,7 @@ const pilot = [
   ["Scope", "One workflow, usually job release and shop-floor booking, on one production cell. Bills of material, capacity planning and accounting are not part of the pilot."],
   ["Data rules", "Anonymised or non-confidential job data only. No confidential drawings or customer personal data until data processing terms are signed and the hosted workspace has passed its security checks."],
   ["Success criteria", "Agreed with you at the start. For example: every job released in the cell has its approved drawing revision and material confirmed, and every operation is booked with good and scrap quantities."],
-  ["After 2 weeks", "We review the results together and send a short written summary. You decide: stop at no cost and we delete the pilot data, or continue with a paid implementation agreed in writing beforehand."],
+  ["After 2 weeks", "We review the results together and send a short written summary. You decide: stop at no cost, and we close your access and delete the pilot records we have no legal duty to keep; or continue with a paid implementation agreed in writing beforehand."],
 ] as const;
 
 const tbc = "To be confirmed";

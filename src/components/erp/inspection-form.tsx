@@ -42,7 +42,7 @@ export function InspectionForm({ projectId, onSaved }: { projectId: string; onSa
             </div>
             <div className="erp-inspect-row erp-inspect-extra">
               <span />
-              <input className="erp-input" aria-label={`Parts measured for ${req.name}`} inputMode="numeric" placeholder="Parts measured" value={value.sampleSize ? String(value.sampleSize) : ""} onChange={(event) => set({ sampleSize: Number(event.target.value.replace(/[^0-9]/g, "")) || 0 })} />
+              <input className="erp-input" aria-label={`Parts measured for ${req.name}`} inputMode="numeric" placeholder={`Parts measured (min ${Math.max(1, req.sampleSize ?? 1)})`} value={value.sampleSize ? String(value.sampleSize) : ""} onChange={(event) => set({ sampleSize: Number(event.target.value.replace(/[^0-9]/g, "")) || 0 })} />
               <input className="erp-input" aria-label={`Gauge ID for ${req.name}`} placeholder="Gauge ID (optional)" value={value.gaugeId} onChange={(event) => set({ gaugeId: event.target.value })} />
             </div>
             {tolerance === "out" && <p className="erp-error" role="alert">{value.observed.trim()} is outside {req.spec}{req.unit ? ` ${req.unit}` : ""}. This parameter will be recorded as failed.</p>}

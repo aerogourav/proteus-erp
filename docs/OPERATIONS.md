@@ -18,17 +18,29 @@ It is not a legal opinion: retention periods must be confirmed with your tax adv
 - **Files in Storage** live in the private bucket `company-files` under `<company_id>/…`. Members read, members (not viewers) upload,
   admins delete. Other companies cannot list or read them.
 
-## Retention process: closing a company account
+## Pilot closure and deletion (operator process)
 
-Because deletion is blocked once records exist, an account is closed like this:
+Decided 2026-11-04: pilot companies are deleted through this documented operator process, including their audit history,
+after legal and tax advice. Deletion is promised only for records with no legal duty to keep them.
 
-1. The customer asks in writing to close the account.
-2. Export their data for them (Supabase dashboard → Table Editor → filter by `company_id`, or a SQL export).
-3. Remove the members (`memberships`) so nobody can sign in to the company any more. The records stay.
-4. Keep issued invoices, credit notes and the audit history for the legal retention period your tax adviser confirms
-   (in Germany commonly up to 10 years for accounting records).
-5. After that period, an operator deletes the company in the Supabase SQL editor as the database owner, where the app's guard does not apply.
-   Write down who did it, when and why.
+1. **Request.** The company owner asks in writing, or in the app with `request_company_closure(company, reason)`.
+   This writes a `company_closures` row (state `requested`) and an activity entry. Nothing is deleted.
+2. **Export.** Give the customer their data (Supabase → Table Editor, filter by `company_id`, or a SQL export).
+3. **Close access.** In the Supabase SQL editor, as the database owner:
+   `select public.operator_close_access('<company-id>', '<why, on whose request>');`
+   This removes every membership. Records stay. Logged as `access_closed`.
+4. **Delete what has no legal duty to be kept.** If the company has no issued invoices or credit notes:
+   `select public.operator_delete_company('<company-id>', '<exact company name>', false, '<reason and advice>');`
+   It deletes all records and the company's audit history and logs `deleted` with record counts.
+   With issued invoices this call is refused: those records stay for the legal retention period (in Germany commonly up to
+   10 years for accounting records; confirm with your tax adviser).
+5. **After the retention period**, on written advice:
+   `select public.operator_delete_company('<company-id>', '<exact company name>', true, '<advice reference>');`
+6. The `company_closures` rows (company name, reason, counts, no business data) are kept as evidence.
+
+These operator functions cannot be called from the app or the API. From the app, a company with issued documents or
+history can never be deleted, whether or not it is flagged as a demo. Demo sandboxes are created only by the server
+(service role) and purged by `purge_expired_demos()`.
 
 ## Error monitoring
 

@@ -4,7 +4,7 @@ import { startTransition, useActionState, useState, type FormEvent, type ReactNo
 import type { FormState } from "@/app/app/actions";
 import { addDrawingAction, recordInspectionAction } from "@/app/app/production/actions";
 import { supabaseBrowser } from "@/lib/supabase/browser";
-import { toleranceCheck } from "@/lib/erp/model";
+import { limitOutcome } from "@/lib/erp/model";
 
 type Action = (state: FormState, form: FormData) => Promise<FormState>;
 
@@ -24,7 +24,21 @@ export function ActionForm({ action, submit, children, className = "app-inline-f
   </form>;
 }
 
-/** Adds a drawing revision for review. A chosen file goes straight from the browser into the company's private Storage folder. */
+/** Content types the private bucket accepts (see migration 20261106000000), chosen from the file extension. */
+const MIME_BY_EXTENSION: Record<string, string> = {
+  pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", svg: "image/svg+xml",
+  dxf: "image/vnd.dxf", dwg: "image/vnd.dwg", step: "model/step", stp: "model/step", igs: "model/iges", iges: "model/iges", stl: "model/stl",
+};
+
+async function sha256Hex(file: File) {
+  const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Adds a drawing version for review. The file is required and goes to a new, never-overwritten path in the company's
+ * private Storage folder. The browser's SHA-256 is checked again by the server against the stored bytes.
+ */
 export function DrawingForm({ companyId, parts }: { companyId: string; parts: { id: string; sku: string; revision: string | null }[] }) {
   const [state, run, pending] = useActionState(addDrawingAction, {});
   const [upload, setUpload] = useState("");
@@ -33,13 +47,17 @@ export function DrawingForm({ companyId, parts }: { companyId: string; parts: { 
     const form = new FormData(event.currentTarget);
     const file = form.get("file");
     form.delete("file");
-    if (file instanceof File && file.size > 0) {
-      setUpload("Uploading the file…");
-      const path = `${companyId}/drawings/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]+/g, "_")}`;
-      const { error } = await supabaseBrowser().storage.from("company-files").upload(path, file, { contentType: file.type || undefined });
-      if (error) { setUpload(`The file could not be uploaded (${error.message}). Save the drawing without a file, or try again.`); return; }
-      form.set("storagePath", path); form.set("fileName", file.name); form.set("size", String(file.size)); form.set("mime", file.type);
-    }
+    if (!(file instanceof File) || file.size === 0) { setUpload("Choose the drawing file (PDF, image, DXF/DWG, STEP, IGES or STL)."); return; }
+    const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+    const mime = MIME_BY_EXTENSION[extension];
+    if (!mime) { setUpload("This file type is not accepted. Use PDF, PNG, JPG, SVG, DXF, DWG, STEP, IGES or STL."); return; }
+    if (file.size > 20 * 1024 * 1024) { setUpload("Files can be up to 20 MB."); return; }
+    setUpload("Uploading the file…");
+    const hash = await sha256Hex(file);
+    const path = `${companyId}/drawings/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]+/g, "_")}`;
+    const { error } = await supabaseBrowser().storage.from("company-files").upload(path, file, { contentType: mime, upsert: false });
+    if (error) { setUpload(`The file could not be uploaded (${error.message}).`); return; }
+    form.set("storagePath", path); form.set("fileName", file.name); form.set("size", String(file.size)); form.set("mime", mime); form.set("sha256", hash);
     setUpload("");
     startTransition(() => run(form));
   }
@@ -48,29 +66,36 @@ export function DrawingForm({ companyId, parts }: { companyId: string; parts: { 
     <div className="erp-field"><label htmlFor="dr-part">Part</label><select id="dr-part" name="partId" className="erp-select" required>{parts.map((part) => <option key={part.id} value={part.id}>{part.sku}</option>)}</select></div>
     <div className="erp-field"><label htmlFor="dr-number">Drawing number</label><input id="dr-number" name="number" className="erp-input" required maxLength={40} /></div>
     <div className="erp-field"><label htmlFor="dr-rev">Revision</label><input id="dr-rev" name="revision" className="erp-input" required maxLength={8} /></div>
-    <div className="erp-field"><label htmlFor="dr-file">File <span className="erp-faint">(optional)</span></label><input id="dr-file" name="file" type="file" className="erp-input" /></div>
-    <button type="submit" className="erp-btn erp-btn-sm erp-btn-primary" disabled={pending || Boolean(upload)}>{pending ? "Saving…" : "Add for review"}</button>
-    <div className="app-form-status">{upload ? <p className="erp-faint" role="status">{upload}</p> : <Status state={state} />}</div>
+    <div className="erp-field"><label htmlFor="dr-file">File</label><input id="dr-file" name="file" type="file" className="erp-input" required accept=".pdf,.png,.jpg,.jpeg,.svg,.dxf,.dwg,.step,.stp,.igs,.iges,.stl" /></div>
+    <button type="submit" className="erp-btn erp-btn-sm erp-btn-primary" disabled={pending || upload === "Uploading the file…"}>{pending ? "Saving…" : "Add for review"}</button>
+    <div className="app-form-status">{upload ? <p className={upload.startsWith("Uploading") ? "erp-faint" : "erp-error"} role="status">{upload}</p> : <Status state={state} />}</div>
   </form>;
 }
 
-/** Records an inspection of a completed order: up to three characteristics, each with an explicit result and sample size. */
-export function InspectionForm({ orderId }: { orderId: string }) {
+export type PlanRow = { id: string; characteristic: string; kind: string; lower_limit: number | null; upper_limit: number | null; unit: string; required_gauge: string; sample_size: number; spec_text: string };
+
+const limitsText = (row: PlanRow) => row.kind !== "numeric" ? "pass / fail" : row.lower_limit != null && row.upper_limit != null ? `${row.lower_limit} – ${row.upper_limit}` : row.upper_limit != null ? `max ${row.upper_limit}` : row.lower_limit != null ? `min ${row.lower_limit}` : "no limits: needs review";
+
+/** Records an inspection of a completed order against its stored plan: every characteristic once, with result, sample size and gauge. */
+export function InspectionForm({ orderId, plan }: { orderId: string; plan: PlanRow[] }) {
   const [state, run, pending] = useActionState(recordInspectionAction, {});
-  const [rows, setRows] = useState([0, 1, 2].map(() => ({ spec: "", observed: "" })));
+  const [values, setValues] = useState<Record<string, string>>({});
+  if (!plan.length) return <p className="erp-faint">No inspection plan for this part revision yet. An owner or admin adds it under “Parts, drawings and routings”.</p>;
   return <form className="erp-stack app-inspect" action={run}>
     <input type="hidden" name="orderId" value={orderId} />
-    {rows.map((row, index) => {
-      const outside = row.spec && row.observed && toleranceCheck(row.spec, row.observed) === "out";
-      return <div key={index} className="app-inspect-row">
-        <input className="erp-input" name={`characteristic${index}`} aria-label={`Characteristic ${index + 1}`} placeholder={index === 0 ? "Characteristic, e.g. Outer width" : "Characteristic (optional)"} maxLength={80} />
-        <input className="erp-input" name={`spec${index}`} aria-label={`Specification ${index + 1}`} placeholder="Spec, e.g. 120.00 ± 0.05" maxLength={60} onChange={(event) => setRows(rows.map((item, i) => i === index ? { ...item, spec: event.target.value } : item))} />
-        <input className="erp-input" name={`unit${index}`} aria-label={`Unit ${index + 1}`} placeholder="Unit" maxLength={10} />
-        <input className="erp-input" name={`observed${index}`} aria-label={`Measured value ${index + 1}`} placeholder="Measured" maxLength={40} onChange={(event) => setRows(rows.map((item, i) => i === index ? { ...item, observed: event.target.value } : item))} />
-        <select className="erp-select" name={`result${index}`} aria-label={`Result ${index + 1}`} defaultValue=""><option value="">Result…</option><option value="pass">Pass</option><option value="fail">Fail</option></select>
-        <input className="erp-input" name={`sample${index}`} aria-label={`Parts measured ${index + 1}`} placeholder="Parts measured" inputMode="numeric" maxLength={5} />
-        <input className="erp-input" name={`gauge${index}`} aria-label={`Gauge ID ${index + 1}`} placeholder="Gauge ID" maxLength={40} />
-        {outside && <p className="erp-error app-inspect-note">{row.observed} is outside {row.spec}: it will be recorded as failed.</p>}
+    {plan.map((row) => {
+      const value = values[row.id] ?? "";
+      const outcome = row.kind === "numeric" && value.trim() ? limitOutcome(value, row.lower_limit, row.upper_limit) : null;
+      return <div key={row.id} className="app-inspect-row app-inspect-plan">
+        <input type="hidden" name="planId" value={row.id} />
+        <span><b>{row.characteristic}</b><small>{row.spec_text || limitsText(row)}{row.unit ? ` ${row.unit}` : ""} · {limitsText(row)} · at least {row.sample_size} part{row.sample_size === 1 ? "" : "s"}{row.required_gauge ? ` · gauge ${row.required_gauge}` : ""}</small></span>
+        <input className="erp-input" name={`observed-${row.id}`} aria-label={`Measured ${row.characteristic}`} placeholder={row.kind === "numeric" ? "Value (number)" : "Observation"} maxLength={40} required onChange={(event) => setValues({ ...values, [row.id]: event.target.value })} />
+        <select className="erp-select" name={`result-${row.id}`} aria-label={`Result ${row.characteristic}`} defaultValue="" required><option value="">Result…</option><option value="pass">Pass</option><option value="fail">Fail</option></select>
+        <input className="erp-input" name={`sample-${row.id}`} aria-label={`Parts measured ${row.characteristic}`} placeholder={`Parts (min ${row.sample_size})`} inputMode="numeric" maxLength={5} required />
+        <input className="erp-input" name={`gauge-${row.id}`} aria-label={`Gauge ${row.characteristic}`} placeholder={row.required_gauge || "Gauge ID"} maxLength={40} required={Boolean(row.required_gauge)} />
+        {outcome === "invalid" && <p className="erp-error app-inspect-note">Enter a plain number, for example 120.02.</p>}
+        {outcome === "fail" && <p className="erp-error app-inspect-note">{value} is outside the limits: it will be recorded as failed.</p>}
+        {outcome === "needs_review" && <p className="erp-faint app-inspect-note">No usable limits: this result will need review by an owner or admin.</p>}
       </div>;
     })}
     <div><button type="submit" className="erp-btn erp-btn-sm erp-btn-primary" disabled={pending}>{pending ? "Saving…" : "Record inspection"}</button></div>

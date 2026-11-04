@@ -65,23 +65,23 @@ async function draftInvoice(user: string, issueDate = "2026-11-03") {
   });
 }
 
-test("P12: a member cannot approve a drawing; approve_file() is the only way and stamps the approver", async () => {
+test("P12: a member cannot approve a drawing; approve_file(file, verified fingerprint) is the only way and stamps the approver", async () => {
   const file = (await as(MEMBER, () => one<{ id: string; created_by: string }>(
-    "insert into public.files (company_id, storage_path, name, doc_type, number, revision, status, created_by) values ($1::uuid, $1::text || '/DRW-1_A.pdf', 'DRW-1_A.pdf', 'Drawing', 'DRW-1', 'A', 'In review', $2) returning id, created_by", [companyA, OWNER])))!;
+    "insert into public.files (company_id, storage_path, name, doc_type, number, revision, status, created_by, content_sha256) values ($1::uuid, $1::text || '/DRW-1_A.pdf', 'DRW-1_A.pdf', 'Drawing', 'DRW-1', 'A', 'In review', $2, encode(sha256(convert_to($3::text, 'UTF8')), 'hex')) returning id, created_by", [companyA, OWNER, 'DRW-1 A bytes'])))!;
+  const fingerprint = (await one<{ h: string }>("select content_sha256 as h from public.files where id = $1", [file.id]))!.h;
   assert.equal(file.created_by, MEMBER, "created_by comes from the signed-in user, not the client");
   await as(MEMBER, () => fails("insert into public.files (company_id, storage_path, name, status, approved_at) values ($1::uuid, $1::text || '/x.pdf', 'x.pdf', 'Approved', now())", [companyA]));
-  await as(MEMBER, () => fails("select public.approve_file($1)", [file.id]));
+  await as(MEMBER, () => fails("select public.approve_file($1, $2)", [file.id, fingerprint]));
   await as(MEMBER, () => fails("update public.files set status = 'Approved', approved_at = now(), approved_by = $2 where id = $1", [file.id, OWNER]));
   await as(OWNER, () => fails("update public.files set status = 'Approved', approved_at = now() where id = $1", [file.id]));
-  await as(OUTSIDER, () => fails("select public.approve_file($1)", [file.id]));
-  await as(OWNER, () => db.query("select public.approve_file($1)", [file.id]));
+  await as(OUTSIDER, () => fails("select public.approve_file($1, $2)", [file.id, fingerprint]));
+  await as(OWNER, () => db.query("select public.approve_file($1, $2)", [file.id, fingerprint]));
   const approved = await one<{ status: string; approved_by: string }>("select status, approved_by from public.files where id = $1", [file.id]);
   assert.deepEqual(approved, { status: "Approved", approved_by: OWNER });
   await as(MEMBER, () => fails("update public.files set approved_by = $2 where id = $1", [file.id, MEMBER]));
-  // A new revision of an approved file goes back to review.
-  await as(MEMBER, () => db.query("update public.files set revision = 'B' where id = $1", [file.id]));
-  const revised = await one<{ status: string; approved_by: string | null }>("select status, approved_by from public.files where id = $1", [file.id]);
-  assert.deepEqual(revised, { status: "In review", approved_by: null });
+  // A file version is immutable: a new revision is a new record (since migration 20261106000000).
+  await as(MEMBER, () => fails("update public.files set revision = 'B' where id = $1", [file.id]));
+  assert.equal((await one<{ status: string }>("select status from public.files where id = $1", [file.id]))!.status, "Approved");
 });
 
 test("P12: issued invoices are numbered at issue, locked, and cancelled only with a credit note", async () => {
@@ -165,11 +165,14 @@ test("P13: a company with issued records or history cannot be deleted; demo sand
   await as(OWNER, () => fails("delete from public.companies where id = $1", [companyA]));
   assert.equal(await count("select * from public.companies where id = $1", [companyA]), 1);
   assert.ok(await count("select * from public.audit_history where company_id = $1", [companyA]) > 0);
-  const demo = (await as(OWNER, () => one<{ id: string }>("select public.create_company('Demo', 'manufacturing', true) as id")))!.id;
+  // Demo sandboxes are created by the server only (since migration 20261106000000).
+  await as(OWNER, () => fails("select public.create_company('Demo', 'manufacturing', true)"));
+  const demo = (await one<{ id: string }>("insert into public.companies (name, industry, is_demo, expires_at) values ('Demo', 'manufacturing', true, now() + interval '7 days') returning id"))!.id;
+  await db.query("insert into public.memberships (company_id, user_id, role) values ($1, $2, 'owner')", [demo, OWNER]);
   await as(OWNER, () => db.query("insert into public.contacts (company_id, name) values ($1, 'Demo customer')", [demo]));
   await db.query("update public.companies set expires_at = now() - interval '1 minute' where id = $1", [demo]);
   assert.equal((await one<{ n: number }>("select public.purge_expired_demos() as n"))!.n, 1);
-  assert.equal(await count("select * from public.audit_history where company_id = $1 and action = 'delete'", [demo]) > 0, true, "the purge itself is recorded");
+  assert.equal(await count("select * from public.audit_history where company_id = $1", [demo]), 0, "a purged sandbox leaves no history behind (since migration 20261106000000)");
 });
 
 test("Storage: company files are readable and writable only inside the company's own folder", async () => {

@@ -123,7 +123,15 @@ export type LineItem = { id: string; projectId: string; purchaseOrderId: string;
 export type Part = { id: string; number: string; description: string; custom?: CustomValues };
 export type PartRevision = { id: string; partId: string; revision: string; createdAt: string };
 export type DocumentRecord = { id: string; number: string; name: string; type: DocType; revision: string; status: DocStatus; source: DocSource; projectIds: string[]; partId: string | null; updatedAt: string; file?: StoredFile; approvedBy?: string; approvedAt?: string };
-export type InspectionRequirement = { id: string; projectId: string; partId: string | null; name: string; spec: string; unit: string; acceptance: string };
+/**
+ * One characteristic of the inspection plan. Limits are explicit: lower/upper (and nominal) are stored when the requirement is
+ * created, from the entry helper parseSpec(). A numeric characteristic without usable limits (for example an ISO fit "Ø40 H8")
+ * is recorded as "needs review", never as pass. sampleSize is the minimum number of parts to measure; gauge, when set, must be used.
+ */
+export type InspectionRequirement = {
+  id: string; projectId: string; partId: string | null; name: string; spec: string; unit: string; acceptance: string;
+  type?: "numeric" | "attribute"; nominal?: number | null; lower?: number | null; upper?: number | null; sampleSize?: number; gauge?: string;
+};
 export type MaterialRequirement = { id: string; projectId: string; lineItemId: string | null; material: string; quantity: number; unit: string };
 export type ProcurementRecord = { id: string; number: string; requirementId: string; supplier: string; status: ProcurementStatus; updatedAt: string };
 export type ProductionOrder = {
@@ -140,9 +148,15 @@ export type ReleaseOverride = { by: string; byId: string; reason: string; at: st
 export type MaterialLot = { material: string; heat: string; certificate: string; linkedAt: string };
 export type CostSnapshot = { labour: number; minutes: number; at: string };
 /** pass is the final verdict: the inspector's explicit result, failed automatically when a number is outside a parseable tolerance. */
-export type InspectionResult = { requirementId: string; observed: string; pass: boolean; result?: "pass" | "fail"; sampleSize?: number; gaugeId?: string; tolerance?: ToleranceResult };
+export type InspectionOutcome = "pass" | "fail" | "needs_review";
+/** A review decision on a "needs review" result. The original outcome is kept next to it. */
+export type InspectionResolution = { decision: "pass" | "fail"; by: string; reason: string; at: string };
+export type InspectionResult = {
+  requirementId: string; observed: string; pass: boolean; result?: "pass" | "fail"; sampleSize?: number; gaugeId?: string; tolerance?: ToleranceResult;
+  outcome?: InspectionOutcome; resolution?: InspectionResolution;
+};
 export type ToleranceResult = "in" | "out" | "unknown";
-export type InspectionReport = { id: string; number: string; projectId: string; productionOrderIds: string[]; results: InspectionResult[]; passed: boolean; createdAt: string };
+export type InspectionReport = { id: string; number: string; projectId: string; productionOrderIds: string[]; results: InspectionResult[]; passed: boolean; createdAt: string; inspectedBy?: string };
 export type DispatchRecord = { id: string; number: string; projectId: string; purchaseOrderId: string; dispatchedAt: string };
 export type InvoiceLine = { description: string; quantity: number; unit: string; unitPrice: number; amount: number };
 export type Invoice = { id: string; number: string; projectId: string; purchaseOrderId: string; customerId: string; currency: Currency; lines: InvoiceLine[]; subtotal: number; taxRate: number; tax: number; total: number; issuedAt: string; dueAt: string; paidAt?: string; cancelledAt?: string; cancelReason?: string; creditNoteId?: string };
@@ -760,7 +774,9 @@ export function readiness(state: ErpState, projectId: string): ProjectReadiness 
   if (!records.inspectionRequirements.length) quality = { state: "blocked", summary: "No inspection requirements", reasons: [{ text: "Inspection requirements are needed before a report can be generated.", action: { kind: "add-inspection", label: "Add requirement" } }] };
   else if (!productionDone) quality = { state: "blocked", summary: "Waiting for production", reasons: [{ text: "The inspection report is generated after all production orders are complete." }] };
   else if (!latestReport) quality = { state: "incomplete", summary: "Report not generated", reasons: [{ text: "Production is complete. Generate the inspection report.", action: { kind: "generate-inspection-report", label: "Generate inspection report" } }] };
-  else quality = latestReport.passed ? { state: "complete", summary: `${latestReport.number} passed`, reasons: [] } : { state: "blocked", summary: `${latestReport.number} failed`, reasons: [{ text: "The last inspection has a failed result. Inspect again after rework.", action: { kind: "generate-inspection-report", label: "Inspect again" } }] };
+  else if (latestReport.passed) quality = { state: "complete", summary: `${latestReport.number} passed`, reasons: [] };
+  else if (latestReport.results.some((result) => effectiveOutcome(result) === "fail")) quality = { state: "blocked", summary: `${latestReport.number} failed`, reasons: [{ text: "The last inspection has a failed result. Inspect again after rework.", action: { kind: "generate-inspection-report", label: "Inspect again" } }] };
+  else quality = { state: "blocked", summary: `${latestReport.number} needs review`, reasons: [{ text: "A result has no usable limit and needs review. An owner or admin who did not inspect it resolves it with a reason." }] };
 
   // Dispatch
   const dispatched = records.dispatches[0] ?? null;
@@ -972,37 +988,85 @@ const firstNumber = (text: string) => {
   return match ? Number(match[0]) : null;
 };
 
+export type Limits = { nominal: number | null; lower: number | null; upper: number | null };
+const NUM = "(-?\\d+(?:\\.\\d+)?)";
+const round6 = (value: number) => Math.round(value * 1e6) / 1e6;
+const FIT = /^[Ø⌀]?\s*\d+(?:\.\d+)?\s*[A-Za-z]{1,2}\d{1,2}$/;
+
 /**
- * Checks a measured value against a specification it can read: "120.00 ± 0.05", "20 +0.1/-0.05", "8–12", "≤ 0.05", "min 3".
- * Fits such as "Ø40 H8" and text specifications return "unknown": the inspector's explicit result decides.
+ * Entry helper: turns a written specification into explicit limits. Handles "120.00 ± 0.05", "20 +0.1/-0.05", "Ø20 +0.1 -0.2",
+ * "min 3, max 5", "0.05 max", "≤ 0.05", "min 3" and "8–12". ISO fits such as "Ø40 H8" or "Ø25 f7" are never guessed: they return null,
+ * so explicit limits must be entered (or the result needs review).
+ */
+export function parseSpec(spec: string): Limits | null {
+  const t = spec.replace(/(\d),(\d)/g, "$1.$2").replace(/\s+/g, " ").trim();
+  const re = (pattern: string, flags = "") => t.match(new RegExp(pattern, flags));
+  let m: RegExpMatchArray | null;
+  if ((m = re(`${NUM} ?± ?${NUM}`))) { const n = Number(m[1]); const d = Number(m[2]); return { nominal: n, lower: round6(n - d), upper: round6(n + d) }; }
+  if ((m = re(`${NUM} ?\\+ ?${NUM} ?/? ?- ?${NUM}`))) { const n = Number(m[1]); return { nominal: n, lower: round6(n - Number(m[3])), upper: round6(n + Number(m[2])) }; }
+  if ((m = re(`min\\.? ?${NUM}[ ,;/]+max\\.? ?${NUM}`, "i")) || (m = re(`${NUM} ?min\\.?[ ,;/]+${NUM} ?max`, "i"))) return { nominal: null, lower: Number(m[1]), upper: Number(m[2]) };
+  if ((m = re(`(?:≤|<=|max\\.?) ?${NUM}`, "i")) || (m = re(`${NUM} ?max\\b`, "i"))) return { nominal: null, lower: null, upper: Number(m[1]) };
+  if ((m = re(`(?:≥|>=|min\\.?) ?${NUM}`, "i")) || (m = re(`${NUM} ?min\\b`, "i"))) return { nominal: null, lower: Number(m[1]), upper: null };
+  if ((m = re(`^[^\\d-]*${NUM} ?(?:–|-|to) ?${NUM}`))) return { nominal: null, lower: Number(m[1]), upper: Number(m[2]) };
+  return null;
+}
+
+/**
+ * The outcome of one measured value against explicit limits: "invalid" when it is not a plain number, "needs_review" when there is
+ * no usable limit, otherwise pass or fail. Shared test cases in tests/fixtures/limit-cases.json keep the database (inspection_outcome) aligned.
+ */
+export function limitOutcome(observed: string, lower: number | null, upper: number | null): InspectionOutcome | "invalid" {
+  const text = observed.trim();
+  if (!/^-?\d+(?:[.,]\d+)?$/.test(text)) return "invalid";
+  const value = Number(text.replace(",", "."));
+  if (lower === null && upper === null) return "needs_review";
+  const eps = 1e-9;
+  return (lower === null || value >= lower - eps) && (upper === null || value <= upper + eps) ? "pass" : "fail";
+}
+
+/** Explicit limits of a requirement: stored ones first, else what the entry helper reads from its specification. */
+export function requirementLimits(req: InspectionRequirement): Limits | null {
+  if (req.lower != null || req.upper != null) return { nominal: req.nominal ?? null, lower: req.lower ?? null, upper: req.upper ?? null };
+  return parseSpec(req.spec);
+}
+
+/** Numeric when it has limits or is written as a dimension with a fit; otherwise an attribute (pass/fail by inspection). */
+export function requirementType(req: InspectionRequirement): "numeric" | "attribute" {
+  if (req.type) return req.type;
+  return requirementLimits(req) || FIT.test(req.spec.replace(/\s+/g, " ").trim()) ? "numeric" : "attribute";
+}
+
+/**
+ * For the inspection form only: whether a typed value is inside a specification it can read.
+ * Recording uses requirementLimits() and limitOutcome(), never this guess.
  */
 export function toleranceCheck(spec: string, observed: string): ToleranceResult {
   const value = firstNumber(observed);
-  if (value === null) return "unknown";
-  const text = spec.replace(/(\d),(\d)/g, "$1.$2").replace(/\s+/g, " ");
-  const num = "(-?\\d+(?:\\.\\d+)?)";
-  let range: [number, number] | null = null;
-  let m: RegExpMatchArray | null;
-  if ((m = text.match(new RegExp(`${num} ?± ?${num}`)))) range = [Number(m[1]) - Number(m[2]), Number(m[1]) + Number(m[2])];
-  else if ((m = text.match(new RegExp(`${num} ?\\+ ?${num} ?/ ?- ?${num}`)))) range = [Number(m[1]) - Number(m[3]), Number(m[1]) + Number(m[2])];
-  else if ((m = text.match(new RegExp(`(?:≤|<=|max\\.?) ?${num}`, "i")))) range = [-Infinity, Number(m[1])];
-  else if ((m = text.match(new RegExp(`(?:≥|>=|min\\.?) ?${num}`, "i")))) range = [Number(m[1]), Infinity];
-  else if ((m = text.match(new RegExp(`^[^\\d-]*${num} ?(?:–|-|to) ?${num}`)))) range = [Number(m[1]), Number(m[2])];
-  if (!range) return "unknown";
-  const eps = 1e-9;
-  return value >= range[0] - eps && value <= range[1] + eps ? "in" : "out";
+  const limits = parseSpec(spec);
+  if (value === null || !limits) return "unknown";
+  const outcome = limitOutcome(String(value), limits.lower, limits.upper);
+  return outcome === "pass" ? "in" : outcome === "fail" ? "out" : "unknown";
 }
 
-/** What is missing before an inspection can be recorded, or null. Every requirement needs a value, an explicit result and a sample size. */
+const stripUnit = (observed: string, unit: string) => (unit && observed.trim().endsWith(unit) ? observed.trim().slice(0, -unit.length).trim() : observed.trim());
+
+/**
+ * What is missing before an inspection can be recorded, or null. Every requirement needs a value, an explicit result,
+ * at least the required sample size, the required gauge, and a plain number for numeric characteristics.
+ */
 export function inspectionInputError(state: ErpState, projectId: string, measured: Record<string, Measurement>): string | null {
   for (const req of state.inspectionRequirements.filter((item) => item.projectId === projectId)) {
     const entry = measured[req.id];
     if (!entry || !entry.observed.trim()) return `Enter the measured value for ${req.name}.`;
     if (entry.result !== "pass" && entry.result !== "fail") return `Choose pass or fail for ${req.name}.`;
-    if (!Number.isInteger(entry.sampleSize) || entry.sampleSize < 1) return `Enter how many parts were measured for ${req.name}.`;
+    if (!Number.isInteger(entry.sampleSize) || entry.sampleSize < Math.max(1, req.sampleSize ?? 1)) return `Measure at least ${Math.max(1, req.sampleSize ?? 1)} part${(req.sampleSize ?? 1) > 1 ? "s" : ""} for ${req.name}.`;
+    if (req.gauge && entry.gaugeId.trim().toUpperCase() !== req.gauge.trim().toUpperCase()) return `Use gauge ${req.gauge} for ${req.name}.`;
+    if (requirementType(req) === "numeric" && limitOutcome(stripUnit(entry.observed, req.unit), null, null) === "invalid") return `Enter a number for ${req.name}.`;
   }
   return null;
 }
+
+const effectiveOutcome = (result: InspectionResult): InspectionOutcome => result.resolution?.decision ?? result.outcome ?? (result.pass ? "pass" : "fail");
 
 export function generateInspectionReport(state: ErpState, projectId: string, now: string, measured: Record<string, Measurement> = {}): ErpState {
   const ready = readiness(state, projectId);
@@ -1016,13 +1080,41 @@ export function generateInspectionReport(state: ErpState, projectId: string, now
   const results: InspectionResult[] = records.inspectionRequirements.map((req) => {
     const entry = measured[req.id];
     const observed = `${entry.observed.trim()}${req.unit && !entry.observed.includes(req.unit) ? ` ${req.unit}` : ""}`;
-    const tolerance = toleranceCheck(req.spec, entry.observed);
     const result = entry.result as "pass" | "fail";
-    return { requirementId: req.id, observed, pass: result === "pass" && tolerance !== "out", result, sampleSize: entry.sampleSize, gaugeId: entry.gaugeId.trim(), tolerance };
+    let outcome: InspectionOutcome = result;
+    let tolerance: ToleranceResult = "unknown";
+    if (requirementType(req) === "numeric") {
+      const limits = requirementLimits(req);
+      const byLimits = limitOutcome(stripUnit(entry.observed, req.unit), limits?.lower ?? null, limits?.upper ?? null);
+      tolerance = byLimits === "pass" ? "in" : byLimits === "fail" ? "out" : "unknown";
+      outcome = byLimits === "fail" || result === "fail" ? "fail" : byLimits === "needs_review" ? "needs_review" : "pass";
+    }
+    return { requirementId: req.id, observed, pass: outcome === "pass", result, outcome, sampleSize: entry.sampleSize, gaugeId: entry.gaugeId.trim(), tolerance };
   });
-  const report: InspectionReport = { id, number, projectId, productionOrderIds: records.productionOrders.map((order) => order.id), results, passed: results.every((result) => result.pass), createdAt: now };
+  const report: InspectionReport = { id, number, projectId, productionOrderIds: records.productionOrders.map((order) => order.id), results, passed: results.every((result) => effectiveOutcome(result) === "pass"), createdAt: now, inspectedBy: currentUserName(state) };
   next = { ...next, inspectionReports: [report, ...next.inspectionReports] };
-  return log(next, now, "quality", `Final inspection ${number} recorded · ${results.filter((result) => result.pass).length} of ${results.length} passed`, projectId);
+  const review = results.filter((result) => result.outcome === "needs_review").length;
+  return log(next, now, "quality", `Final inspection ${number} recorded · ${results.filter((result) => result.pass).length} of ${results.length} passed${review ? ` · ${review} need${review === 1 ? "s" : ""} review` : ""}`, projectId);
+}
+
+/**
+ * Resolves a "needs review" result: owner or admin, with a reason, and not the person who inspected when another owner or admin exists.
+ * The original outcome stays on the result; the decision is stored next to it.
+ */
+export function resolveInspection(state: ErpState, reportId: string, requirementId: string, decision: "pass" | "fail", reason: string, now: string): ErpState {
+  const user = approver(state);
+  const text = reason.trim().replace(/\s+/g, " ").slice(0, 300);
+  const report = state.inspectionReports.find((item) => item.id === reportId);
+  const result = report?.results.find((item) => item.requirementId === requirementId);
+  if (!user || !report || !result || text.length < 5 || result.outcome !== "needs_review" || result.resolution) return state;
+  const by = currentUserName(state) ?? user.name;
+  const eligible = state.employees.filter((item) => item.active && accessOf(item) !== "member").length;
+  if (eligible > 1 && report.inspectedBy === by) return state;
+  const results = report.results.map((item) => item.requirementId === requirementId ? { ...item, resolution: { decision, by, reason: text, at: now }, pass: decision === "pass" } : item);
+  const updated = { ...report, results, passed: results.every((item) => effectiveOutcome(item) === "pass") };
+  const req = state.inspectionRequirements.find((item) => item.id === requirementId);
+  const next = { ...state, inspectionReports: state.inspectionReports.map((item) => item.id === reportId ? updated : item) };
+  return log(next, now, "quality", `${report.number}: ${req?.name ?? "result"} resolved as ${decision} by ${by}: ${text}`, report.projectId);
 }
 
 export function dispatchProject(state: ErpState, projectId: string, now: string): ErpState {
@@ -1189,10 +1281,20 @@ export function updateMaterial(state: ErpState, requirementId: string, input: { 
   return log(next, now, "materials", `Material ${clean(input.material)} updated`, req.projectId);
 }
 
-export function updateInspectionRequirement(state: ErpState, requirementId: string, input: { name: string; spec: string; unit: string }, now: string): ErpState {
+/** Edits a requirement. Explicit limits (lower/upper) win over the specification text; sample size and gauge are optional. */
+export function updateInspectionRequirement(state: ErpState, requirementId: string, input: { name: string; spec: string; unit: string; lower?: number | null; upper?: number | null; sampleSize?: number; gauge?: string }, now: string): ErpState {
   const req = state.inspectionRequirements.find((item) => item.id === requirementId);
   if (!req || !clean(input.name) || !clean(input.spec)) return state;
-  const next = { ...state, inspectionRequirements: touch(state.inspectionRequirements, requirementId, (item) => ({ ...item, name: clean(input.name), spec: clean(input.spec), unit: clean(input.unit) })) };
+  const finite = (value: number | null | undefined) => (value === undefined ? undefined : value === null || !Number.isFinite(value) ? null : value);
+  const lower = finite(input.lower);
+  const upper = finite(input.upper);
+  if (lower != null && upper != null && lower > upper) return state;
+  if (input.sampleSize !== undefined && (!Number.isInteger(input.sampleSize) || input.sampleSize < 1)) return state;
+  const next = { ...state, inspectionRequirements: touch(state.inspectionRequirements, requirementId, (item) => ({
+    ...item, name: clean(input.name), spec: clean(input.spec), unit: clean(input.unit),
+    ...(lower !== undefined ? { lower } : {}), ...(upper !== undefined ? { upper } : {}),
+    ...(input.sampleSize !== undefined ? { sampleSize: input.sampleSize } : {}), ...(input.gauge !== undefined ? { gauge: clean(input.gauge) } : {}),
+  })) };
   return log(next, now, "quality", `Inspection parameter ${clean(input.name)} updated`, req.projectId);
 }
 

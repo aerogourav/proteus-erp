@@ -133,7 +133,10 @@ test("stock is a ledger and stock levels respect company isolation", async () =>
 });
 
 test("expired demo companies are purged with all their data; users cannot trigger the purge", async () => {
-  const demo = (await as(A, () => one<{ id: string }>("select public.create_company('Demo Shop', 'commerce', true) as id")))!.id;
+  // Demo sandboxes are created by the server only (since migration 20261106000000).
+  await as(A, () => fails("select public.create_company('Demo Shop', 'commerce', true)"));
+  const demo = (await one<{ id: string }>("insert into public.companies (name, industry, is_demo, expires_at) values ('Demo Shop', 'commerce', true, now() + interval '7 days') returning id"))!.id;
+  await db.query("insert into public.memberships (company_id, user_id, role) values ($1, $2, 'owner')", [demo, A]);
   await as(A, () => db.query("insert into public.contacts (company_id, name) values ($1, 'Demo customer')", [demo]));
   await as(A, () => fails("select public.purge_expired_demos()"));
   await db.query("update public.companies set expires_at = now() - interval '1 minute' where id = $1", [demo]);

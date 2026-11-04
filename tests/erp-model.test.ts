@@ -228,8 +228,8 @@ test("multi-part order: production details, inspection results, editable quantit
     ],
     inspections: [
       { key: "i1", name: "Length", spec: "100 ± 0.1", unit: "mm", acceptance: "", partKey: "a" },
-      { key: "i2", name: "Hole", spec: "Ø8 H7", unit: "", acceptance: "", partKey: "a" },
-      { key: "i3", name: "Diameter", spec: "20 h6", unit: "mm", acceptance: "", partKey: "b" },
+      { key: "i2", name: "Hole", spec: "8 +0.015/-0", unit: "", acceptance: "", partKey: "a" },
+      { key: "i3", name: "Diameter", spec: "20 +0/-0.013", unit: "mm", acceptance: "", partKey: "b" },
     ],
     materials: [
       { key: "ma", material: "Steel plate", quantity: "3", unit: "kg", supplier: "Northline", status: "Not ordered", lineKey: "a" },
@@ -264,10 +264,10 @@ test("multi-part order: production details, inspection results, editable quantit
   state = produce(state, id);
 
   // A failed result blocks dispatch until inspected again; an out-of-tolerance value cannot pass.
-  state = measure(state, id, { Length: "100.3" }, "pass");
+  state = measure(state, id, { Length: "100.3", Hole: "8.01", Diameter: "19.995" }, "pass");
   assert.equal(projectRecords(state, id).inspectionReports[0].passed, false);
   assert.equal(dispatchProject(state, id, NOW), state);
-  state = measure(state, id, { Length: "100.02" });
+  state = measure(state, id, { Length: "100.02", Hole: "8.01", Diameter: "19.995" });
   assert.equal(projectRecords(state, id).inspectionReports[0].results[0].observed, "100.02 mm");
   state = generateInvoice(dispatchProject(state, id, NOW), id, NOW);
   assert.equal(projectRecords(state, id).invoices[0].subtotal, 160);

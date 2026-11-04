@@ -50,3 +50,7 @@
   .app-form-3, .app-form-4, .app-form-5, .app-form-6, .app-form-7, .app-inspect-row { grid-template-columns: 1fr; }
 }
 .app-span { grid-column: 1 / -1; }
+.app-form-plan { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.app-form-plan > button { grid-column: 1 / -1; justify-self: start; }
+.app-inspect-plan { grid-template-columns: minmax(0, 2fr) 1fr 1fr 1fr 1fr; }
+@media (max-width: 860px) { .app-form-plan, .app-inspect-plan { grid-template-columns: 1fr; } }

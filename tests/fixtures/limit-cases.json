@@ -1,0 +1,17 @@
+[
+  { "observed": "120.03", "lower": 119.95, "upper": 120.05, "outcome": "pass" },
+  { "observed": "999", "lower": 119.95, "upper": 120.05, "outcome": "fail" },
+  { "observed": "120,04", "lower": 119.95, "upper": 120.05, "outcome": "pass" },
+  { "observed": "6", "lower": 3, "upper": 5, "outcome": "fail" },
+  { "observed": "4.2", "lower": 3, "upper": 5, "outcome": "pass" },
+  { "observed": "0.07", "lower": null, "upper": 0.05, "outcome": "fail" },
+  { "observed": "0.05", "lower": null, "upper": 0.05, "outcome": "pass" },
+  { "observed": "2.9", "lower": 3, "upper": null, "outcome": "fail" },
+  { "observed": "999", "lower": null, "upper": null, "outcome": "needs_review" },
+  { "observed": "40.01", "lower": null, "upper": null, "outcome": "needs_review" },
+  { "observed": "abc", "lower": 3, "upper": 5, "outcome": "invalid" },
+  { "observed": "", "lower": 3, "upper": 5, "outcome": "invalid" },
+  { "observed": "4 mm", "lower": 3, "upper": 5, "outcome": "invalid" },
+  { "observed": "1e3", "lower": 3, "upper": 5, "outcome": "invalid" },
+  { "observed": "-0.1", "lower": -0.2, "upper": 0.1, "outcome": "pass" }
+]
