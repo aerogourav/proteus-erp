@@ -293,6 +293,8 @@ a.erp-chip:hover { color: var(--e-accent-ink); border-color: var(--e-info-line);
 .erp-empty .erp-head-actions { justify-content: center; margin-top: 6px; }
 
 /* Real tables */
+.erp-datatable { display: grid; }
+.erp-datatable > .erp-toolbar { margin-bottom: 12px; }
 .erp-table-wrap { overflow-x: auto; }
 .erp-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--fs-table); }
 .erp-table th { position: sticky; top: 0; z-index: 1; height: 36px; padding: 0 12px; color: var(--e-text-3); background: var(--e-surface-2); border-bottom: 1px solid var(--e-border); font-size: 12px; font-weight: 500; text-align: left; white-space: nowrap; }
@@ -305,7 +307,7 @@ a.erp-chip:hover { color: var(--e-accent-ink); border-color: var(--e-info-line);
 .erp-table td.check, .erp-table th.check { width: 40px; padding-right: 0; }
 .erp-sort { display: inline-flex; align-items: center; gap: 4px; padding: 0; color: inherit; background: none; border: 0; font: inherit; cursor: pointer; }
 .erp-sort:hover { color: var(--e-text); }
-.erp-sort[aria-sort] svg { color: var(--e-accent); }
+.erp-sort.is-active svg { color: var(--e-accent); }
 .erp-table-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; padding: 8px 16px; color: var(--e-text-3); border-top: 1px solid var(--e-border); font-size: 12.5px; }
 .erp-pager { display: flex; align-items: center; gap: 4px; }
 .erp-pager span { padding: 0 8px; font-variant-numeric: tabular-nums; }
