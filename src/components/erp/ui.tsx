@@ -40,9 +40,9 @@ export function ReadinessBadge({ state, label }: { state: ReadinessState; label?
 }
 
 export function ReadinessIcon({ state }: { state: ReadinessState }) {
-  if (state === "complete") return <CheckCircle2 size={16} color="var(--e-ok)" aria-hidden="true" />;
-  if (state === "incomplete") return <CircleDashed size={16} color="var(--e-warn)" aria-hidden="true" />;
-  return <AlertTriangle size={16} color="var(--e-bad)" aria-hidden="true" />;
+  if (state === "complete") return <CheckCircle2 size={16} style={{ color: "var(--e-ok)" }} aria-hidden="true" />;
+  if (state === "incomplete") return <CircleDashed size={16} style={{ color: "var(--e-warn)" }} aria-hidden="true" />;
+  return <AlertTriangle size={16} style={{ color: "var(--e-bad)" }} aria-hidden="true" />;
 }
 
 export function Rule({ children }: { children: ReactNode }) {

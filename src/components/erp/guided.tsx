@@ -140,9 +140,9 @@ function Finished({ state }: { state: ErpState }) {
       <h1 id="finished-title">{invoice ? `${r.project?.name} is delivered and invoiced.` : `${r.project?.name} is set up.`}</h1>
       <p className="erp-step-lead">{invoice ? "You entered the order once. Sales, engineering, quality, purchasing, production, dispatch and finance all worked on the same record." : "The open steps below can be done later in their tabs. Everything stays connected to this one project."}</p>
       <ul className="erp-checks" style={{ marginTop: 24, maxWidth: 680 }}>
-        <li><CheckCircle2 size={18} color="#1E7F4E" /> {r.customer?.name} · purchase order {r.purchaseOrders[0]?.number}</li>
-        {r.lineItems.map((line) => <li key={line.id}><CheckCircle2 size={18} color="#1E7F4E" /> {line.quantity} {line.unit} × {partNumber(state, line.partId)} rev {revisionLabel(state, line.revisionId)}</li>)}
-        {dispatched && <li><CheckCircle2 size={18} color="#1E7F4E" /> Dispatched with {r.dispatches[0]?.number}{invoice ? ` · invoice ${invoice.number} · ${formatMoney(invoice.total, invoice.currency)}` : ""}</li>}
+        <li><CheckCircle2 size={18} style={{ color: "var(--e-ok)" }} /> {r.customer?.name} · purchase order {r.purchaseOrders[0]?.number}</li>
+        {r.lineItems.map((line) => <li key={line.id}><CheckCircle2 size={18} style={{ color: "var(--e-ok)" }} /> {line.quantity} {line.unit} × {partNumber(state, line.partId)} rev {revisionLabel(state, line.revisionId)}</li>)}
+        {dispatched && <li><CheckCircle2 size={18} style={{ color: "var(--e-ok)" }} /> Dispatched with {r.dispatches[0]?.number}{invoice ? ` · invoice ${invoice.number} · ${formatMoney(invoice.total, invoice.currency)}` : ""}</li>}
       </ul>
       {(() => {
         const open = [
@@ -153,7 +153,7 @@ function Finished({ state }: { state: ErpState }) {
           unapproved ? { text: `${unapproved} document${unapproved === 1 ? "" : "s"} to approve`, href: `/demo/documents?project=${projectId}` } : null,
           openPurchases ? { text: `${openPurchases} purchase${openPurchases === 1 ? "" : "s"} to order or receive`, href: `/demo/materials?project=${projectId}` } : null,
         ].filter((item): item is { text: string; href: string } => Boolean(item));
-        return open.length > 0 && <div style={{ marginTop: 18 }}><p className="erp-label">Open for later</p><ul className="erp-checks" style={{ maxWidth: 680 }}>{open.map((item) => <li key={item.text}><CircleDashed size={18} color="#8A5A00" /><span style={{ flex: 1 }}>{item.text}</span><Link className="erp-btn erp-btn-sm" href={item.href}>Open tab <ArrowRight size={13} /></Link></li>)}</ul></div>;
+        return open.length > 0 && <div style={{ marginTop: 18 }}><p className="erp-label">Open for later</p><ul className="erp-checks" style={{ maxWidth: 680 }}>{open.map((item) => <li key={item.text}><CircleDashed size={18} style={{ color: "var(--e-warn)" }} /><span style={{ flex: 1 }}>{item.text}</span><Link className="erp-btn erp-btn-sm" href={item.href}>Open tab <ArrowRight size={13} /></Link></li>)}</ul></div>;
       })()}
     </section>
     <section className="erp-card" aria-labelledby="docs-title">
@@ -574,7 +574,7 @@ function WorkStep({ current, step, state }: { current: GuideStep; step: number; 
       setError("");
     };
     body = <>
-      {r.productionOrders.length > 0 && <ul className="erp-checks">{r.productionOrders.map((order) => <li key={order.id}><CheckCircle2 size={18} color="#1E7F4E" /><span style={{ flex: 1 }}><b>{order.number}</b> · {order.quantity} × {lineLabel(order.lineItemId)}{order.startDate ? ` · start ${formatDate(order.startDate)}` : ""}{order.notes ? ` · ${order.notes}` : ""}</span><Badge>{order.status}</Badge></li>)}</ul>}
+      {r.productionOrders.length > 0 && <ul className="erp-checks">{r.productionOrders.map((order) => <li key={order.id}><CheckCircle2 size={18} style={{ color: "var(--e-ok)" }} /><span style={{ flex: 1 }}><b>{order.number}</b> · {order.quantity} × {lineLabel(order.lineItemId)}{order.startDate ? ` · start ${formatDate(order.startDate)}` : ""}{order.notes ? ` · ${order.notes}` : ""}</span><Badge>{order.status}</Badge></li>)}</ul>}
       {selected ? <div className="erp-param">
         <div className="erp-param-head"><b>New production order</b><span className="erp-faint">{open.length} part{open.length === 1 ? "" : "s"} still without an order</span></div>
         <Field id="g-mo-part" label="Part"><select className="erp-select" id="g-mo-part" value={selected.id} onChange={(event) => setForm({ ...form, lineId: event.target.value, quantity: "" })}>{open.map((line) => <option key={line.id} value={line.id}>{lineLabel(line.id)} · ordered {line.quantity} {line.unit}</option>)}</select></Field>
@@ -646,5 +646,5 @@ function WorkStep({ current, step, state }: { current: GuideStep; step: number; 
 }
 
 function Checks({ items }: { items: [string, boolean, string][] }) {
-  return <ul className="erp-checks">{items.map(([text, ok, status]) => <li key={text}>{ok ? <CheckCircle2 size={18} color="#1E7F4E" /> : <CircleDashed size={18} color="#8A5A00" />}<span style={{ flex: 1 }}>{text}</span><span className={`erp-badge ${ok ? "erp-badge-ok" : "erp-badge-warn"}`}>{status}</span></li>)}</ul>;
+  return <ul className="erp-checks">{items.map(([text, ok, status]) => <li key={text}>{ok ? <CheckCircle2 size={18} style={{ color: "var(--e-ok)" }} /> : <CircleDashed size={18} style={{ color: "var(--e-warn)" }} />}<span style={{ flex: 1 }}>{text}</span><span className={`erp-badge ${ok ? "erp-badge-ok" : "erp-badge-warn"}`}>{status}</span></li>)}</ul>;
 }
