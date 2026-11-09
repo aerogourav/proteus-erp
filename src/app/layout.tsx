@@ -4,9 +4,6 @@ import type { ReactNode } from "react";
 // Fonts ship with the site (Fontsource, SIL Open Font License): builds never download from Google,
 // and visitors' browsers load them from this site only.
 import "@fontsource-variable/inter";
-import "@fontsource-variable/space-grotesk";
-import "@fontsource-variable/manrope";
-import "@fontsource-variable/nunito";
 import { siteConfig } from "@/lib/site-config";
 import { LanguageProvider } from "@/components/language-provider";
 import "./globals.css";
