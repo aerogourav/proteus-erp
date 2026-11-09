@@ -5,9 +5,17 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { AlertTriangle, CheckCircle2, CircleDashed, Info } from "lucide-react";
 import type { ReadinessState } from "@/lib/erp/model";
 
-export function PageHead({ eyebrow, title, description, actions }: { eyebrow: string; title: string; description: string; actions?: ReactNode }) {
+/** Page header: breadcrumb (section / page), title, description and the page's primary actions. */
+export function PageHead({ eyebrow, title, description, actions, crumbs }: { eyebrow: string; title: string; description: string; actions?: ReactNode; crumbs?: { label: string; href: string }[] }) {
   return <header className="erp-head">
-    <div><span className="erp-eyebrow">{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>
+    <div>
+      <nav aria-label="Breadcrumb"><ol className="erp-crumbs">
+        {eyebrow !== title && <li>{eyebrow}</li>}
+        {crumbs?.map((crumb) => <li key={crumb.href}><Link href={crumb.href}>{crumb.label}</Link></li>)}
+        <li aria-current="page">{title}</li>
+      </ol></nav>
+      <h1>{title}</h1>{description && <p>{description}</p>}
+    </div>
     {actions && <div className="erp-head-actions">{actions}</div>}
   </header>;
 }
@@ -32,9 +40,9 @@ export function ReadinessBadge({ state, label }: { state: ReadinessState; label?
 }
 
 export function ReadinessIcon({ state }: { state: ReadinessState }) {
-  if (state === "complete") return <CheckCircle2 size={16} color="#1E7F4E" aria-hidden="true" />;
-  if (state === "incomplete") return <CircleDashed size={16} color="#B26B00" aria-hidden="true" />;
-  return <AlertTriangle size={16} color="#B42318" aria-hidden="true" />;
+  if (state === "complete") return <CheckCircle2 size={16} color="var(--e-ok)" aria-hidden="true" />;
+  if (state === "incomplete") return <CircleDashed size={16} color="var(--e-warn)" aria-hidden="true" />;
+  return <AlertTriangle size={16} color="var(--e-bad)" aria-hidden="true" />;
 }
 
 export function Rule({ children }: { children: ReactNode }) {

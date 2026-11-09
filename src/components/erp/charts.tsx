@@ -4,10 +4,10 @@ import { useState, type ReactNode } from "react";
 
 /**
  * Categorical order validated for colour-vision deficiency; always paired with direct labels.
- * Values come from the theme (--chart-1…4 in erp.css / studio.css); the fallbacks are the classic palette.
+ * Values come from the theme (--chart-1…4 in erp.css); the fallbacks match those tokens.
  */
-export const CHART_COLORS = ["var(--chart-1, #E0485F)", "var(--chart-2, #2F6FB0)", "var(--chart-3, #2E9E62)", "var(--chart-4, #C46A1E)"] as const;
-export const CHART_NEUTRAL = "var(--chart-neutral, #B9A9B1)";
+export const CHART_COLORS = ["var(--chart-1, #3E6FC9)", "var(--chart-2, #BA7F24)", "var(--chart-3, #16907F)", "var(--chart-4, #8B62C9)"] as const;
+export const CHART_NEUTRAL = "var(--chart-neutral, #CBD2DC)";
 
 export type Datum = { label: string; value: number; display: string; color?: string; note?: string };
 
