@@ -18,7 +18,7 @@ export function SiteFooter() {
         </nav>
       </div>
       <div className="b-footer-bottom">
-        <span>© 2026 BOH ERP · Deploy test 10 Nov</span>
+        <span>© 2026 BOH ERP</span>
         <span>The demo uses a fictional company and synthetic records.</span>
       </div>
     </div>
