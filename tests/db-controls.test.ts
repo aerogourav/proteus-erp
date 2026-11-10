@@ -57,7 +57,7 @@ before(async () => {
 });
 
 /** A draft invoice with one line, as the member who writes it. */
-async function draftInvoice(user: string, issueDate = "2026-11-03") {
+async function draftInvoice(user: string, issueDate = new Date().toISOString().slice(0, 10)) {
   return as(user, async () => {
     const doc = (await one<{ id: string; number: string }>("insert into public.sales_documents (company_id, kind, number, contact_id, issue_date) values ($1, 'invoice', '', $2, $3) returning id, number", [companyA, customerA, issueDate]))!;
     await db.query("insert into public.sales_lines (company_id, document_id, description, quantity, unit_price, tax_rate) values ($1, $2, 'Bracket', 10, 20, 19)", [companyA, doc.id]);
@@ -85,12 +85,13 @@ test("P12: a member cannot approve a drawing; approve_file(file, verified finger
 });
 
 test("P12: issued invoices are numbered at issue, locked, and cancelled only with a credit note", async () => {
-  const draft = await draftInvoice(MEMBER);
+  const today = new Date().toISOString().slice(0, 10);
+  const draft = await draftInvoice(MEMBER, today);
   assert.match(draft.number, /^DRAFT-/, "drafts do not use up invoice numbers");
   await as(MEMBER, () => fails("update public.sales_documents set status = 'Issued' where id = $1", [draft.id]));
   await as(MEMBER, () => db.query("select public.issue_sales_document($1)", [draft.id]));
   const issued = await one<{ number: string; status: string; total: string; created_by: string }>("select number, status, total, created_by from public.sales_documents where id = $1", [draft.id]);
-  assert.match(issued!.number, /^INV-2026-\d{4}$/);
+  assert.match(issued!.number, new RegExp(`^INV-${today.slice(0, 4)}-\\d{4}$`));
   assert.equal(issued!.status, "Issued");
   assert.equal(Number(issued!.total), 238, "totals are computed from the lines at issue");
   assert.equal(issued!.created_by, MEMBER);
