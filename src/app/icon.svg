@@ -1,15 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9A87EE"/><stop offset="1" stop-color="#5E4AC6"/></linearGradient>
-    <linearGradient id="r" x1="0.2" y1="0.1" x2="0.8" y2="0.9"><stop offset="0" stop-color="#FFC9BC"/><stop offset=".5" stop-color="#F7826B"/><stop offset="1" stop-color="#D9472D"/></linearGradient>
-    <linearGradient id="p" x1="0.2" y1="0.1" x2="0.8" y2="0.9"><stop offset="0" stop-color="#FFF0C2"/><stop offset=".55" stop-color="#F7C75A"/><stop offset="1" stop-color="#DD920F"/></linearGradient>
-    <linearGradient id="g" x1="0.2" y1="0.1" x2="0.8" y2="0.9"><stop offset="0" stop-color="#C2F2DA"/><stop offset=".5" stop-color="#5DCB98"/><stop offset="1" stop-color="#1E8A57"/></linearGradient>
-  </defs>
-  <rect width="100" height="100" rx="24" fill="url(#bg)"/>
-  <path d="M38 25C34 34 28 42 18 49C28 45 40 44 52 47Z" fill="url(#r)"/>
-  <circle cx="53.5" cy="31" r="16" fill="url(#r)"/>
-  <path d="M30 78.5C40 76.5 50 76.5 62.5 83.5C54 77 48 70 43.5 56Z" fill="url(#p)"/>
-  <circle cx="28.5" cy="62.5" r="16" fill="url(#p)"/>
-  <path d="M83.5 56C78 48 74 40 71 29.5C70 39 66 47 58 56Z" fill="url(#g)"/>
-  <circle cx="70.5" cy="66.5" r="16.5" fill="url(#g)"/>
+  <rect width="100" height="100" rx="22" fill="#1B2333"/>
+  <path d="M38 25C34 34 28 42 18 49C28 45 40 44 52 47Z" fill="#6B97F2"/>
+  <circle cx="53.5" cy="31" r="16" fill="#6B97F2"/>
+  <path d="M30 78.5C40 76.5 50 76.5 62.5 83.5C54 77 48 70 43.5 56Z" fill="#D6A45C"/>
+  <circle cx="28.5" cy="62.5" r="16" fill="#D6A45C"/>
+  <path d="M83.5 56C78 48 74 40 71 29.5C70 39 66 47 58 56Z" fill="#4FAE9F"/>
+  <circle cx="70.5" cy="66.5" r="16.5" fill="#4FAE9F"/>
 </svg>

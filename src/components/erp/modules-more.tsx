@@ -248,11 +248,6 @@ export function FinanceModule() {
 
 /* ============================== Configuration ============================== */
 
-const ACCENTS: { key: UiSettings["accent"]; label: string; color: string }[] = [
-  { key: "lavender", label: "Lavender", color: "#7B66DC" }, { key: "coral", label: "Coral", color: "#F2566F" }, { key: "orange", label: "Peach", color: "#FFB27E" }, { key: "green", label: "Green", color: "#2E9E62" },
-  { key: "blue", label: "Blue", color: "#2F6FB0" }, { key: "plum", label: "Plum", color: "#6B3A5E" },
-];
-
 function Choice<T extends string>({ name, value, options, onChange }: { name: string; value: T; options: { key: T; label: string; hint?: string }[]; onChange: (value: T) => void }) {
   return <div className="erp-choice" role="radiogroup" aria-label={name}>{options.map((option) => <button key={option.key} type="button" role="radio" aria-checked={value === option.key} onClick={() => onChange(option.key)}><b>{option.label}</b>{option.hint && <small>{option.hint}</small>}</button>)}</div>;
 }
@@ -269,7 +264,7 @@ export function ConfigurationModule() {
   const [fieldError, setFieldError] = useState("");
   const [docType, setDocType] = useState("");
   const [importMessage, setImportMessage] = useState("");
-  const head = <PageHead eyebrow="Settings" title="Configuration" description="Shape the demo ERP around how you work: look and layout, tabs, dashboard, custom fields, document types and business settings. Changes apply immediately and stay in this browser." />;
+  const head = <PageHead eyebrow="Settings" title="Configuration" description="Shape the demo ERP around how you work: density, tabs, dashboard, custom fields, document types and business settings. Changes apply immediately and stay in this browser." />;
   if (!hydrated) return <>{head}<Loading /></>;
   const ui = state.settings.ui;
   const setUi = (patch: Partial<UiSettings>) => commit((value) => updateUi(value, patch));
@@ -283,18 +278,8 @@ export function ConfigurationModule() {
     <div className="erp-span-2" style={{ gridColumn: "1 / -1" }}><ConfigSection id="cfg-industry" title="Industry" text="Which kind of business the demo runs. Each industry has its own tabs and sample company; switching replaces the demo data in this browser.">
       <IndustryCards />
     </ConfigSection></div>
-    <ConfigSection id="cfg-style" title="Style" text="Colours, spacing and shapes of the demo workspace.">
-      <div className="erp-field"><span className="erp-label">Theme</span><Choice name="Theme" value={ui.theme} onChange={(theme) => setUi(theme === "classic" ? { theme, accent: "coral", sidebar: "dark" } : { theme, accent: "lavender", sidebar: "lavender" })} options={[{ key: "studio", label: "Studio", hint: "Soft lavender, pastel cards" }, { key: "classic", label: "Classic", hint: "Plum and coral" }]} /></div>
-      <div className="erp-field"><span className="erp-label">Accent colour</span>
-        <div className="erp-swatches" role="radiogroup" aria-label="Accent colour">{ACCENTS.map((accent) => <button key={accent.key} type="button" role="radio" aria-checked={ui.accent === accent.key} onClick={() => setUi({ accent: accent.key })}><i style={{ background: accent.color }} />{accent.label}</button>)}</div></div>
-      <div className="erp-field"><span className="erp-label">Density</span><Choice name="Density" value={ui.density} onChange={(density) => setUi({ density })} options={[{ key: "comfortable", label: "Comfortable" }, { key: "compact", label: "Compact", hint: "More rows on screen" }]} /></div>
-      <div className="erp-field"><span className="erp-label">Corners</span><Choice name="Corners" value={ui.corners} onChange={(corners) => setUi({ corners })} options={[{ key: "rounded", label: "Rounded" }, { key: "soft", label: "Soft" }, { key: "sharp", label: "Sharp" }]} /></div>
-      <div className="erp-field"><span className="erp-label">Menu colour</span><Choice name="Menu colour" value={ui.sidebar} onChange={(sidebar) => setUi({ sidebar })} options={[{ key: "lavender", label: "Lavender" }, { key: "dark", label: "Dark plum" }, { key: "light", label: "Light" }]} /></div>
-      <div className="erp-field"><span className="erp-label">Font</span><Choice name="Font" value={ui.font} onChange={(font) => setUi({ font })} options={[{ key: "brand", label: "Brand", hint: ui.theme === "studio" ? "Nunito" : "Space Grotesk + Manrope" }, { key: "system", label: "System", hint: "Your device’s font" }]} /></div>
-    </ConfigSection>
-
-    <ConfigSection id="cfg-layout" title="Orientation" text="Where the menu sits.">
-      <Choice name="Menu position" value={ui.nav} onChange={(nav) => setUi({ nav })} options={[{ key: "left", label: "Left", hint: "Classic sidebar" }, { key: "right", label: "Right", hint: "Sidebar on the right" }, { key: "top", label: "Top", hint: "Horizontal menu bar" }]} />
+    <ConfigSection id="cfg-style" title="Density" text="How much fits on screen. The sidebar can be collapsed to icons with the button next to the logo.">
+      <Choice name="Density" value={ui.density} onChange={(density) => setUi({ density })} options={[{ key: "comfortable", label: "Comfortable", hint: "44 px table rows" }, { key: "compact", label: "Compact", hint: "More rows on screen" }]} />
     </ConfigSection>
 
     <ConfigSection id="cfg-tabs" title="Tabs" text="Rename, hide or reorder the tabs in the menu. Guided demo and Configuration always stay visible.">

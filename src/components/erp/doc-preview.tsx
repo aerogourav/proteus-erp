@@ -71,9 +71,9 @@ export function GeneratedDrawing({ state, doc }: { state: ErpState; doc: Documen
   const part = doc.partId ? state.parts.find((item) => item.id === doc.partId) : null;
   const company = state.settings.companyName;
   return <svg className="erp-preview-sheet" viewBox="0 0 420 297" role="img" aria-label={`Generated placeholder sheet for ${doc.number}`}>
-    <rect x="4" y="4" width="412" height="289" fill="#fff" stroke="#1F0E18" strokeWidth="1" />
-    <rect x="8" y="8" width="404" height="281" fill="none" stroke="#1F0E18" strokeWidth=".4" />
-    <g stroke="#1F0E18" strokeWidth=".8" fill="none">
+    <rect x="4" y="4" width="412" height="289" fill="#fff" stroke="#111827" strokeWidth="1" />
+    <rect x="8" y="8" width="404" height="281" fill="none" stroke="#111827" strokeWidth=".4" />
+    <g stroke="#111827" strokeWidth=".8" fill="none">
       <rect x="60" y="70" width="140" height="90" rx="6" />
       <circle cx="130" cy="115" r="22" />
       {[[78, 88], [182, 88], [78, 142], [182, 142]].map(([x, y]) => <circle key={`${x}-${y}`} cx={x} cy={y} r="5" />)}
@@ -81,12 +81,12 @@ export function GeneratedDrawing({ state, doc }: { state: ErpState; doc: Documen
       <line x1="300" y1="70" x2="300" y2="160" strokeDasharray="8 2 2 2" strokeWidth=".4" />
       <line x1="50" y1="115" x2="210" y2="115" strokeDasharray="8 2 2 2" strokeWidth=".4" />
     </g>
-    <text x="210" y="40" fontSize="9" textAnchor="middle" fill="#B4213F" fontFamily="Helvetica, Arial">No file uploaded · placeholder generated from the record</text>
-    <g fontFamily="Helvetica, Arial" fill="#1F0E18">
-      <rect x="236" y="225" width="176" height="64" fill="none" stroke="#1F0E18" strokeWidth=".6" />
-      <line x1="236" y1="241" x2="412" y2="241" stroke="#1F0E18" strokeWidth=".4" />
-      <line x1="236" y1="257" x2="412" y2="257" stroke="#1F0E18" strokeWidth=".4" />
-      <line x1="236" y1="273" x2="412" y2="273" stroke="#1F0E18" strokeWidth=".4" />
+    <text x="210" y="40" fontSize="9" textAnchor="middle" fill="#B91C1C" fontFamily="Helvetica, Arial">No file uploaded · placeholder generated from the record</text>
+    <g fontFamily="Helvetica, Arial" fill="#111827">
+      <rect x="236" y="225" width="176" height="64" fill="none" stroke="#111827" strokeWidth=".6" />
+      <line x1="236" y1="241" x2="412" y2="241" stroke="#111827" strokeWidth=".4" />
+      <line x1="236" y1="257" x2="412" y2="257" stroke="#111827" strokeWidth=".4" />
+      <line x1="236" y1="273" x2="412" y2="273" stroke="#111827" strokeWidth=".4" />
       <text x="240" y="236" fontSize="7" fontWeight="700">{company}</text>
       <text x="240" y="252" fontSize="7">{doc.name}</text>
       <text x="240" y="268" fontSize="7">{doc.number} · rev {doc.revision} · {doc.type}</text>

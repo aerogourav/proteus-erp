@@ -35,17 +35,22 @@ export function IndustryCards({ highlight, onPicked }: { highlight?: Industry | 
   </div>;
 }
 
+/** The industry picker dialog, opened by the button below or the workspace switcher in the sidebar. */
+export function IndustryPicker({ onClose }: { onClose: () => void }) {
+  return <Modal label="Choose an industry" onClose={onClose} wide>
+    <div className="erp-dialog-panel" style={{ width: "100%" }}>
+      <h2>See BOH ERP for your industry</h2>
+      <p style={{ marginTop: 6 }}>Same platform, set up for a different kind of business, each with its own sample company. Switching replaces the demo data in this browser; export a backup in Configuration first if you want to keep your changes.</p>
+      <div style={{ marginTop: 18 }}><IndustryCards onPicked={onClose} /></div>
+    </div>
+  </Modal>;
+}
+
 /** Compact button that opens the industry picker. */
 export function IndustrySwitch({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false);
   return <>
     <button type="button" className={`erp-btn${compact ? " erp-btn-sm" : ""}`} onClick={() => setOpen(true)}><Shuffle size={14} /> Switch industry</button>
-    {open && <Modal label="Choose an industry" onClose={() => setOpen(false)} wide>
-      <div className="erp-dialog-panel" style={{ width: "100%" }}>
-        <h2>See BOH ERP for your industry</h2>
-        <p style={{ marginTop: 6 }}>Same platform, set up for a different kind of business, each with its own sample company. Switching replaces the demo data in this browser; export a backup in Configuration first if you want to keep your changes.</p>
-        <div style={{ marginTop: 18 }}><IndustryCards onPicked={() => setOpen(false)} /></div>
-      </div>
-    </Modal>}
+    {open && <IndustryPicker onClose={() => setOpen(false)} />}
   </>;
 }
