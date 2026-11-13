@@ -23,7 +23,7 @@ test("an inquiry needs name, company, workflow and a valid email", () => {
 test("the team email names the chosen offer", () => {
   const parsed = parseInquiry({ ...valid, offer: "walkthrough" });
   assert.ok(parsed.ok);
-  assert.match(inquiryText(parsed.inquiry), /^Offer: Free demo walkthrough/);
+  assert.match(inquiryText(parsed.inquiry), /^Offer: Demo walkthrough/);
 });
 
 test("accounting export: issued invoices and credit notes only, with tax data, quoted safely", async () => {

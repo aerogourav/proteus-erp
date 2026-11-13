@@ -14,7 +14,7 @@ export default function LoginPage() {
           ? <Suspense fallback={null}><SignInForm /></Suspense>
           : <p className="erp-hint">Sign-in isn’t available yet.</p>}
       </div>
-      <p className="erp-faint">Not invited yet? <Link className="erp-link" href="/contact?offer=pilot">Ask about the free 2-week pilot</Link> or <Link className="erp-link" href="/demo">try the demo</Link>. No account needed.</p>
+      <p className="erp-faint">Not invited yet? <Link className="erp-link" href="/contact?offer=pilot">Ask about the 2-week pilot</Link> or <Link className="erp-link" href="/demo">try the demo</Link>. No account needed.</p>
     </div>
   </div>;
 }

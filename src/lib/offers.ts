@@ -16,7 +16,7 @@ export type Offer = {
 export const OFFERS: Offer[] = [
   {
     key: "call",
-    title: "Free workflow call",
+    title: "Workflow call",
     length: "30 minutes, video or phone",
     attendees: "You, plus whoever runs the workflow day to day",
     youGet: "An honest view of whether BOH ERP fits one workflow you name, and what a pilot would cover",
@@ -24,7 +24,7 @@ export const OFFERS: Offer[] = [
   },
   {
     key: "walkthrough",
-    title: "Free demo walkthrough",
+    title: "Demo walkthrough",
     length: "45 minutes, screen share",
     attendees: "Your team: owner, planning, shop floor or quality",
     youGet: "A guided tour of the demo following one job from order to invoice, with your questions answered live",
@@ -32,7 +32,7 @@ export const OFFERS: Offer[] = [
   },
   {
     key: "pilot",
-    title: "Free 2-week pilot run",
+    title: "2-week pilot run",
     length: "2 weeks, one workflow on one production cell",
     attendees: "One owner or manager plus the people who use that cell",
     youGet: "Job release set up for your cell, with release checks, shop-floor booking and inspection, plus a short written result",
@@ -60,7 +60,7 @@ const clean = (value: unknown, max: number) => (typeof value === "string" ? valu
 export function parseInquiry(payload: Record<string, unknown>): { ok: true; inquiry: Inquiry } | { ok: false; error: string } {
   const data = Object.fromEntries((Object.keys(INQUIRY_LIMITS) as InquiryField[]).map((field) => [field, clean(payload[field], INQUIRY_LIMITS[field])])) as Record<InquiryField, string>;
   const offer = offerByKey(payload.offer);
-  if (!offer) return { ok: false, error: "Choose which free offer you are interested in." };
+  if (!offer) return { ok: false, error: "Choose what you would like to start with." };
   if (!data.name || !data.company || !data.message) return { ok: false, error: "Fill in your name, company and workflow." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return { ok: false, error: "Enter a valid email address." };
   return { ok: true, inquiry: { ...data, offer: offer.key } };

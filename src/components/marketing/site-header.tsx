@@ -7,7 +7,7 @@ import { BohLogo } from "@/components/brand/boh-logo";
 import { LanguageSwitcher } from "@/components/language-provider";
 
 const links = [
-  { label: "Free offers", href: "/#offers" },
+  { label: "Get started", href: "/#offers" },
   { label: "How it works", href: "/#how-it-works" },
   { label: "Demo", href: "/demo/start" },
   { label: "Tutorials", href: "/tutorials" },
@@ -28,7 +28,7 @@ export function SiteHeader() {
         </nav>
         <div className="b-header-actions">
           <LanguageSwitcher />
-          <Link className="b-btn b-btn-dark b-header-cta" href="/contact?offer=call">Book a free workflow call</Link>
+          <Link className="b-btn b-btn-dark b-header-cta" href="/contact?offer=call">Book a workflow call</Link>
           <button className="b-menu-toggle" type="button" aria-label={open ? "Close navigation" : "Open navigation"} aria-expanded={open} aria-controls="b-mobile-nav" onClick={() => setOpen((value) => !value)}>
             {open ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -36,7 +36,7 @@ export function SiteHeader() {
       </div>
       <nav id="b-mobile-nav" className="b-wrap b-mobile-nav" aria-label="Mobile navigation" hidden={!open}>
         {links.map((link) => <Link key={link.href} href={link.href} onClick={() => setOpen(false)}>{link.label}</Link>)}
-        <Link href="/contact?offer=call" onClick={() => setOpen(false)}>Book a free workflow call</Link>
+        <Link href="/contact?offer=call" onClick={() => setOpen(false)}>Book a workflow call</Link>
       </nav>
     </header>
   );

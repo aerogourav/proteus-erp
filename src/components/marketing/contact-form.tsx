@@ -63,7 +63,7 @@ export function ContactForm({ mode, contactEmail = "", initialOffer = "" }: { mo
 
   return <form className="b-form" onSubmit={submit} noValidate={false}>
     <fieldset className="b-offer-choice">
-      <legend>Which free offer are you interested in?</legend>
+      <legend>What would you like to start with?</legend>
       {OFFERS.map((offer) => <label key={offer.key} className={values.offer === offer.key ? "on" : undefined}>
         <input type="radio" name="offer" value={offer.key} checked={values.offer === offer.key} onChange={() => update("offer", offer.key)} required />
         <span><strong>{offer.title}</strong><small>{offer.length}</small></span>

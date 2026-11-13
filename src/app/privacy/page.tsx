@@ -12,7 +12,7 @@ export default function PrivacyPage() {
   return <div className="b-site"><SiteHeader /><main id="top" className="b-page"><div className="b-wrap b-prose">
     <span className="b-kicker">Privacy notice</span>
     <h1>How this website handles data.</h1>
-    <p>This notice describes the current BOH ERP website, its demo and the free pilot. It will be reviewed before the production product launches.</p>
+    <p>This notice describes the current BOH ERP website, its demo and the pilot. It will be reviewed before the production product launches.</p>
     <p className="b-notice">Draft: this notice has not yet been reviewed by a lawyer.</p>
 
     <h2>Who is responsible</h2>
@@ -27,9 +27,9 @@ export default function PrivacyPage() {
       : <p>We do not use analytics on this website.</p>}
 
     <h2>Contact form</h2>
-    <p>If you send a message, we receive your name, email, company, optional role, the free offer you chose and your message, and use them only to reply and discuss your inquiry. Messages are stored in our database at Supabase (servers in Frankfurt, Germany) and may also be delivered to us by email through the service Resend. If the form opens your own email app instead, the message is sent by your email provider. We delete inquiries that do not lead to a business relationship when they are no longer needed.</p>
+    <p>If you send a message, we receive your name, email, company, optional role, the option you chose and your message, and use them only to reply and discuss your inquiry. Messages are stored in our database at Supabase (servers in Frankfurt, Germany) and may also be delivered to us by email through the service Resend. If the form opens your own email app instead, the message is sent by your email provider. We delete inquiries that do not lead to a business relationship when they are no longer needed.</p>
 
-    <h2>Free 2-week pilot</h2>
+    <h2>2-week pilot</h2>
     <p>During a pilot we only work with anonymised or non-confidential job data that you choose to share. We do not accept confidential drawings or personal data of your customers until data processing terms have been signed and the hosted pilot workspace has passed its security checks. After the pilot we close your access. Pilot records that we have no legal duty to keep are deleted through a documented, logged process; records we must keep by law, such as issued invoices, are kept for the legal period and deleted afterwards.</p>
 
     <h2>Signing in to the app</h2>

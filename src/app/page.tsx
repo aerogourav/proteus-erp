@@ -8,7 +8,7 @@ import { legal } from "@/lib/legal";
 import { OFFERS, PILOT_PLACES } from "@/lib/offers";
 import { pageMetadata } from "@/lib/seo";
 
-export const metadata = pageMetadata("BOH ERP — Job release and shop-floor software for small manufacturers", "BOH ERP connects orders, drawing revisions, material, shop-floor bookings, inspection and dispatch for small manufacturers. Book a free workflow call, a free demo walkthrough or a free 2-week pilot run.", "/");
+export const metadata = pageMetadata("BOH ERP — Job release and shop-floor software for small manufacturers", "BOH ERP connects orders, drawing revisions, material, shop-floor bookings, inspection and dispatch for small manufacturers. Book a workflow call, a demo walkthrough or a 2-week pilot run.", "/");
 
 const problems = [
   ["Work lives in too many places", "Orders, drawings, approvals and status updates are spread across spreadsheets, inboxes and shared folders."],
@@ -23,9 +23,9 @@ const pillars = [
 ] as const;
 
 const steps = [
-  ["Free workflow call", "30 minutes about one process that costs you time or causes errors today. No preparation needed."],
-  ["Free demo walkthrough", "We follow one job through the demo with your team and answer questions live."],
-  ["Free 2-week pilot run", "One workflow on one production cell, with anonymised data and success criteria agreed up front."],
+  ["Workflow call", "30 minutes about one process that costs you time or causes errors today. No preparation needed."],
+  ["Demo walkthrough", "We follow one job through the demo with your team and answer questions live."],
+  ["2-week pilot run", "One workflow on one production cell, with anonymised data and success criteria agreed up front."],
   ["Paid implementation, only if you want it", "If the pilot works, we agree scope, a one-time implementation fee and a monthly subscription in writing before any paid work starts."],
 ] as const;
 
@@ -61,7 +61,7 @@ const planned = [
 
 const faqs = [
   ["Is BOH ERP ready to use today?", "Not yet as a production system. Today there is an interactive demo with synthetic data, and an invite-only workspace that is still being prepared. We are looking for first pilot shops to shape the production version with us."],
-  ["Is the free pilot a production-ready ERP?", "No. The pilot tests one workflow on one production cell with anonymised or non-confidential data. Keep your current process running alongside it. At the end you get a short written result and decide whether to continue."],
+  ["Is the pilot a production-ready ERP?", "No. The pilot tests one workflow on one production cell with anonymised or non-confidential data. Keep your current process running alongside it. At the end you get a short written result and decide whether to continue."],
   ["What happens after the 2-week pilot?", "We review the agreed success criteria with you. You can stop at no cost: we close your access and delete the pilot records we have no legal duty to keep, through a documented process. If you want to continue, we agree scope and price in writing first. Nothing renews or is billed automatically."],
   ["Who is it for?", "Small manufacturers and job shops that have outgrown spreadsheets: machining, fabrication and assembly with drawings, revisions and routings. The same core also runs e-commerce and SaaS demos as part of our long-term platform."],
   ["What does it cost after the pilot?", "A one-time implementation fee plus a monthly subscription. Both depend on the scope of your workflows and are agreed in writing before any paid work starts."],
@@ -87,10 +87,10 @@ export default function Home() {
             <h1 id="hero-title"><span>Your business.</span><span>Your workflows.</span><span className="b-accent-line">Your ERP.</span></h1>
             <p className="b-lead">BOH ERP links customer orders, drawing revisions, material, shop-floor bookings, inspection and dispatch, and stops a job from starting on an unapproved drawing or without its material.</p>
             <div className="b-hero-actions">
-              <Link className="b-btn b-btn-primary" href="/contact?offer=call">Book a free workflow call <ArrowRight size={18} /></Link>
-              <Link className="b-btn b-btn-ghost" href="/contact?offer=walkthrough"><PlayCircle size={18} /> Free demo walkthrough</Link>
+              <Link className="b-btn b-btn-primary" href="/contact?offer=call">Book a workflow call <ArrowRight size={18} /></Link>
+              <Link className="b-btn b-btn-ghost" href="/contact?offer=walkthrough"><PlayCircle size={18} /> Demo walkthrough</Link>
             </div>
-            <p className="b-hero-pilot"><Link href="/contact?offer=pilot">Join the pilot waitlist for a free 2-week pilot run <ArrowRight size={15} /></Link></p>
+            <p className="b-hero-pilot"><Link href="/contact?offer=pilot">Join the pilot waitlist for a 2-week pilot run <ArrowRight size={15} /></Link></p>
             <span className="b-tagline" data-no-translate>BUILD. OPERATE. HARMONISE.</span>
           </div>
           <figure className="b-shot b-shot-hero">
@@ -123,9 +123,9 @@ export default function Home() {
 
       <section className="b-section b-offers-section" id="offers" aria-labelledby="offers-title">
         <div className="b-wrap">
-          <span className="b-kicker">Free offers</span>
-          <h2 className="b-h2" id="offers-title">Three ways to find out if BOH ERP fits. All free, no obligation.</h2>
-          <p className="b-lead">Start small. Any paid next step is agreed in writing before work starts.</p>
+          <span className="b-kicker">Get started</span>
+          <h2 className="b-h2" id="offers-title">Three ways to find out if BOH ERP fits.</h2>
+          <p className="b-lead">Start small. All three cost nothing and commit you to nothing. Any paid next step is agreed in writing before work starts.</p>
           <div className="b-offers">{OFFERS.map((offer) => <article key={offer.key} className={`b-offer b-reveal${offer.key === "pilot" ? " is-pilot" : ""}`}>
             <h3>{offer.title}</h3>
             <dl>
@@ -134,13 +134,13 @@ export default function Home() {
               <div><dt>What you get</dt><dd>{offer.youGet}</dd></div>
               <div><dt>What we need</dt><dd>{offer.weNeed}</dd></div>
             </dl>
-            <p className="b-offer-free">Free · no obligation</p>
-            <Link className={`b-btn ${offer.key === "pilot" ? "b-btn-primary" : "b-btn-dark"}`} href={`/contact?offer=${offer.key}`}>{offer.key === "call" ? "Book a free workflow call" : offer.key === "walkthrough" ? "Ask for a walkthrough" : "Join the pilot waitlist"} <ArrowRight size={17} /></Link>
+            <p className="b-offer-free">No cost · no obligation</p>
+            <Link className={`b-btn ${offer.key === "pilot" ? "b-btn-primary" : "b-btn-dark"}`} href={`/contact?offer=${offer.key}`}>{offer.key === "call" ? "Book a workflow call" : offer.key === "walkthrough" ? "Ask for a walkthrough" : "Join the pilot waitlist"} <ArrowRight size={17} /></Link>
           </article>)}</div>
 
           <div className="b-pilot b-reveal" aria-labelledby="pilot-title">
             <div className="b-pilot-head">
-              <h3 id="pilot-title">The free 2-week pilot run in detail</h3>
+              <h3 id="pilot-title">The 2-week pilot run in detail</h3>
               <p>{PILOT_PLACES} places at a time. Pilots start once our pilot readiness checks pass; until then you join the waitlist. The pilot uses early-stage software and is not a production-ready ERP: keep your current process running alongside it.</p>
             </div>
             <dl className="b-pilot-grid">{pilot.map(([title, body]) => <div key={title}><dt>{title}</dt><dd>{body}</dd></div>)}</dl>
@@ -174,7 +174,7 @@ export default function Home() {
             <h2 className="b-h2" id="demo-title">One job. One source of truth.</h2>
             <p className="b-lead">Follow a job from customer order to invoice in the manufacturing demo. Everything runs in your browser with a fictional company.</p>
             <ol className="b-story" style={{ marginTop: 28 }}>{story.map(([title, body], index) => <li key={title} className="b-reveal"><span className="b-story-num">{index + 1}</span><div><strong>{title}</strong><span>{body}</span></div></li>)}</ol>
-            <div className="b-hero-actions"><Link className="b-btn b-btn-dark" href="/demo/start?industry=manufacturing">Open the manufacturing demo <ArrowRight size={18} /></Link><Link className="b-btn b-btn-ghost" href="/contact?offer=walkthrough">Or get a free walkthrough</Link></div>
+            <div className="b-hero-actions"><Link className="b-btn b-btn-dark" href="/demo/start?industry=manufacturing">Open the manufacturing demo <ArrowRight size={18} /></Link><Link className="b-btn b-btn-ghost" href="/contact?offer=walkthrough">Or get a walkthrough</Link></div>
             <p className="b-hero-pilot"><Link href="/tutorials">Watch the short video tutorials <ArrowRight size={16} /></Link></p>
           </div>
           <figure className="b-shot b-reveal">
@@ -252,7 +252,7 @@ export default function Home() {
             <div><h2 className="b-h2" id="cta-title" style={{ marginBottom: 8 }}>Which workflow slows you down?</h2><p className="b-lead">Tell us about it. We’ll tell you honestly whether BOH ERP can help.</p></div>
           </div>
           <div className="b-hero-actions" style={{ marginTop: 0 }}>
-            <Link className="b-btn b-btn-primary" href="/contact?offer=call">Book a free workflow call <ArrowRight size={18} /></Link>
+            <Link className="b-btn b-btn-primary" href="/contact?offer=call">Book a workflow call <ArrowRight size={18} /></Link>
             <Link className="b-btn b-btn-ghost" href="/contact?offer=pilot">Join the pilot waitlist</Link>
           </div>
         </div>

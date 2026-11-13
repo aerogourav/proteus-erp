@@ -57,7 +57,7 @@ export default function TutorialsPage() {
           </div>
           <div className="b-hero-actions" style={{ marginTop: 0 }}>
             <Link className="b-btn b-btn-primary" href="/demo/start?industry=manufacturing">Open the manufacturing demo <ArrowRight size={18} /></Link>
-            <Link className="b-btn b-btn-ghost" href="/contact?offer=walkthrough">Get a free walkthrough</Link>
+            <Link className="b-btn b-btn-ghost" href="/contact?offer=walkthrough">Get a walkthrough</Link>
           </div>
         </div>
       </section>
