@@ -9,7 +9,7 @@ import { siteConfig } from "@/lib/site-config";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { pageMetadata } from "@/lib/seo";
 
-export const metadata = pageMetadata("Contact", "Ask for a free workflow call, a free demo walkthrough or a free 2-week pilot run of BOH ERP.", "/contact");
+export const metadata = pageMetadata("Contact", "Ask for a workflow call, a demo walkthrough or a 2-week pilot run of BOH ERP.", "/contact");
 
 export default function ContactPage() {
   // Inquiries are saved as leads in Supabase and/or emailed through Resend (see /api/contact).
@@ -21,7 +21,7 @@ export default function ContactPage() {
       <BohMark size={56} smile />
       <span className="b-kicker" style={{ display: "block", marginTop: 20 }}>Contact</span>
       <h1>Tell us which workflow slows you down.</h1>
-      <p className="b-lead">Choose a free workflow call, a free demo walkthrough or a free 2-week pilot run. We’ll reply by email to arrange it. If BOH ERP isn’t a good fit, we’ll tell you.</p>
+      <p className="b-lead">Choose a workflow call, a demo walkthrough or a 2-week pilot run. We’ll reply by email to arrange it. If BOH ERP isn’t a good fit, we’ll tell you.</p>
       <ul className="b-contact-points">
         <li><MessageSquareText size={20} /><span>Every offer is free and without obligation. Any paid next step is agreed in writing before work starts.</span></li>
         <li><Clock3 size={20} /><span>No preparation needed for the call. Bring a spreadsheet or an example if you have one.</span></li>

@@ -48,9 +48,12 @@ export function Overview() {
   const dispatch = r.dispatches[0];
   const invoice = r.invoices[0];
   const finished = Boolean(invoice);
-  const steps = guideSteps(state);
+  // The banner describes the project shown here. Until a project is focused the guide still points at a new, empty
+  // project, so read the step from the shown project instead of mixing the two ("step 1 of 16" on a job in production).
+  const shown = state.guide.projectId === projectId ? state : focusProject(state, projectId);
+  const steps = guideSteps(shown);
   const WORK_STEPS = workStepCount(steps);
-  const step = Math.min(state.guide.step, steps.length - 1);
+  const step = Math.min(shown.guide.step, steps.length - 1);
 
   const kpis = [
     { label: "Order value", value: po?.value != null ? formatMoney(po.value, po.currency) : "—", note: po ? `${po.number}` : "" },
@@ -117,7 +120,7 @@ export function Overview() {
         <Sparkles size={16} />
         <span>{finished ? <><b>Complete.</b> Delivered and invoiced, from one record.</> : <><b>Guided demo:</b> step {Math.max(1, Math.min(step, WORK_STEPS))} of {WORK_STEPS}. Continue to move the project forward.</>}</span>
         <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          {!finished && <GuideLink primary>Continue</GuideLink>}
+          {!finished && <button type="button" className="erp-btn erp-btn-sm erp-btn-primary" onClick={() => { if (state.guide.projectId !== projectId) commit((value) => focusProject(value, projectId)); router.push("/demo"); }}>Continue <ArrowRight size={13} /></button>}
           <Link className="erp-btn erp-btn-sm" href={`/demo/projects/${projectId}`}>Project record</Link>
         </span>
       </div>
