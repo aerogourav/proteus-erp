@@ -1,7 +1,7 @@
 import { ArrowRight, Check, CircleDashed, PlayCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { Bohle, BohleSays } from "@/components/marketing/bohle";
+import { Bohle, BohleWalker } from "@/components/marketing/bohle";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { legal } from "@/lib/legal";
@@ -83,9 +83,7 @@ export default function Home() {
         </div>
       </section>
 
-      <BohleSays pose="wave" side="left">Hi, I’m Bohle. Walk with me and I’ll show you around. First stop: the two-minute film.</BohleSays>
-
-      <section className="b-section b-trail-right" id="film" aria-labelledby="film-title">
+      <section className="b-section" id="film" aria-labelledby="film-title">
         <div className="b-wrap b-film-wrap">
           <span className="b-kicker">BOH ERP in two minutes</span>
           <h2 className="b-h2" id="film-title">From scattered spreadsheets to one connected workflow.</h2>
@@ -107,9 +105,7 @@ export default function Home() {
         </div>
       </section>
 
-      <BohleSays pose="think" side="right">Before the software, the problem. Does this sound like your shop?</BohleSays>
-
-      <section className="b-section b-trail-left" aria-labelledby="problem-title">
+      <section className="b-section" aria-labelledby="problem-title">
         <div className="b-wrap">
           <span className="b-kicker">The problem</span>
           <h2 className="b-h2" id="problem-title">Growing job shops outgrow spreadsheets before they are ready for a big ERP.</h2>
@@ -117,9 +113,7 @@ export default function Home() {
         </div>
       </section>
 
-      <BohleSays pose="point" side="left">Here is how one job runs when everything is connected.</BohleSays>
-
-      <section className="b-section b-trail-right" aria-labelledby="demo-title">
+      <section className="b-section" aria-labelledby="demo-title">
         <div className="b-wrap b-demo">
           <div>
             <span className="b-kicker">See it working</span>
@@ -136,9 +130,7 @@ export default function Home() {
         </div>
       </section>
 
-      <BohleSays pose="wave" side="right">Want to see it with your own workflow? Pick how you’d like to start.</BohleSays>
-
-      <section className="b-section b-offers-section b-trail-left" id="offers" aria-labelledby="offers-title">
+      <section className="b-section b-offers-section" id="offers" aria-labelledby="offers-title">
         <div className="b-wrap">
           <span className="b-kicker">Get started</span>
           <h2 className="b-h2" id="offers-title">Three ways to find out if BOH ERP fits.</h2>
@@ -165,9 +157,7 @@ export default function Home() {
         </div>
       </section>
 
-      <BohleSays pose="think" side="left">No surprises. This is what exists today, and what doesn’t yet.</BohleSays>
-
-      <section className="b-section b-trail-right" style={{ paddingTop: 0 }} aria-labelledby="status-title">
+      <section className="b-section" style={{ paddingTop: 0 }} aria-labelledby="status-title">
         <div className="b-wrap">
           <span className="b-kicker">Honest status</span>
           <h2 className="b-h2" id="status-title">What exists today, and what comes next.</h2>
@@ -179,9 +169,7 @@ export default function Home() {
         </div>
       </section>
 
-      <BohleSays pose="point" side="right">And these are the people behind me.</BohleSays>
-
-      <section className="b-section b-trail-left" style={{ paddingTop: 0 }} id="who-we-are" aria-labelledby="who-title">
+      <section className="b-section" style={{ paddingTop: 0 }} id="who-we-are" aria-labelledby="who-title">
         <div className="b-wrap b-who">
           <div>
             <span className="b-kicker">Who we are</span>
@@ -201,9 +189,7 @@ export default function Home() {
         </div>
       </section>
 
-      <BohleSays pose="think" side="left">Still have questions? These come up most.</BohleSays>
-
-      <section className="b-section b-trail-right" style={{ paddingTop: 0 }} aria-labelledby="faq-title">
+      <section className="b-section" style={{ paddingTop: 0 }} aria-labelledby="faq-title">
         <div className="b-wrap b-faq">
           <div><span className="b-kicker">Questions</span><h2 className="b-h2" id="faq-title">Straight answers.</h2></div>
           <div className="b-faq-list">{faqs.map(([q, a]) => <details key={q}><summary>{q}</summary><p>{a}</p></details>)}</div>
@@ -213,7 +199,7 @@ export default function Home() {
       <section className="b-section b-dark" aria-labelledby="cta-title">
         <div className="b-wrap b-cta">
           <div className="b-cta-copy">
-            <Bohle pose="cheer" size={92} />
+            <Bohle mood="cheer" size={92} />
             <div><h2 className="b-h2" id="cta-title" style={{ marginBottom: 8 }}>Which workflow slows you down?</h2><p className="b-lead">Tell us about it. We’ll tell you honestly whether BOH ERP can help.</p></div>
           </div>
           <div className="b-hero-actions" style={{ marginTop: 0 }}>
@@ -223,6 +209,7 @@ export default function Home() {
         </div>
       </section>
     </main>
+    <BohleWalker />
     <SiteFooter />
   </div>;
 }

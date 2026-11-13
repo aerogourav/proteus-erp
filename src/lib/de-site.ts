@@ -642,12 +642,4 @@ export const deSiteTranslations: [string, string][] = [
   ["Watch the tutorials", "Tutorials ansehen"],
   ["Watch the short video tutorials", "Die kurzen Video-Tutorials ansehen"],
   ["Founded by Gourav Mehta (M.Sc. Space Systems, Hochschule Bremen) and advised by Kajinder Srivastava (aerospace and defence).", "Gegründet von Gourav Mehta (M.Sc. Space Systems, Hochschule Bremen), beraten von Kajinder Srivastava (Luft- und Raumfahrt, Verteidigung)."],
-  // Bohle, the homepage guide (2026-11)
-  ["Hi, I’m Bohle. Walk with me and I’ll show you around. First stop: the two-minute film.", "Hallo, ich bin Bohle. Kommen Sie mit, ich führe Sie herum. Erste Station: der Zwei-Minuten-Film."],
-  ["Before the software, the problem. Does this sound like your shop?", "Vor der Software das Problem. Klingt das nach Ihrem Betrieb?"],
-  ["Here is how one job runs when everything is connected.", "So läuft ein Auftrag, wenn alles verbunden ist."],
-  ["Want to see it with your own workflow? Pick how you’d like to start.", "Möchten Sie es mit Ihrem eigenen Ablauf sehen? Wählen Sie, wie Sie starten möchten."],
-  ["No surprises. This is what exists today, and what doesn’t yet.", "Keine Überraschungen. Das gibt es heute, und das noch nicht."],
-  ["And these are the people behind me.", "Und das sind die Menschen hinter mir."],
-  ["Still have questions? These come up most.", "Noch Fragen? Diese kommen am häufigsten."],
 ];

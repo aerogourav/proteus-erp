@@ -468,44 +468,42 @@
 }
 @media (prefers-reduced-motion: reduce) { .b-route-stop .b-tutorial, .b-tut-teaser { transition: none; } }
 
-/* Bohle, the guide: one line between sections on a dashed trail that runs down the whole page */
-.b-guide { position: relative; }
-.b-guide-inner { position: relative; display: flex; align-items: center; gap: 18px; }
-.b-guide-right .b-guide-inner { flex-direction: row-reverse; }
-.b-guide-inner::before { content: ""; position: absolute; top: 56%; right: 0; left: 0; border-top: 3px dashed #BDB9D2; }
-.b-guide-walker { position: relative; flex: none; padding-inline: 10px; background: #EFEEF6; animation: bohle-bob 1.8s ease-in-out infinite; }
-.b-guide-bubble { position: relative; max-width: 520px; margin: 0; padding: 14px 20px; color: var(--b-ink); background: #FFFFFF; border: 1px solid var(--b-glass-edge); border-radius: 20px 20px 20px 6px; box-shadow: var(--b-shadow); font-size: 17px; font-weight: 700; line-height: 1.45; }
-.b-guide-right .b-guide-bubble { border-radius: 20px 20px 6px 20px; }
+/* Bohle, the guide: he walks along the bottom of the window as the page scrolls */
 .bohle { display: block; overflow: visible; }
-.bohle-leg { transform-box: fill-box; transform-origin: 50% 0; animation: bohle-step 0.9s ease-in-out infinite; }
-.bohle-leg-b { animation-delay: -0.45s; }
-@keyframes bohle-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-@keyframes bohle-step { 0%, 100% { transform: rotate(9deg); } 50% { transform: rotate(-9deg); } }
-.b-site main > .b-section:has(+ .b-guide), .b-site main > .b-hero:has(+ .b-guide) { padding-bottom: clamp(28px, 4vw, 44px); }
-.b-site main > .b-guide + .b-section { padding-top: clamp(28px, 4vw, 44px) !important; }
 .b-site .b-cta-copy .bohle { flex: none; border-radius: 0; box-shadow: none; }
-.b-cta-copy .bohle-leg { animation: none; }
-/* The trail continues down one side of each section, so the page reads as one path */
-@media (min-width: 1280px) {
-  .b-guide-inner::before { right: -22px; left: -22px; }
-  .b-trail-left, .b-trail-right { position: relative; }
-  .b-trail-left::after, .b-trail-right::after { content: ""; position: absolute; top: -42px; bottom: -42px; border-left: 3px dashed #BDB9D2; pointer-events: none; }
-  .b-trail-right::after { left: calc(50% + 609px); }
-  .b-trail-left::after { left: calc(50% - 612px); }
-}
-@supports (animation-timeline: view()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .b-guide-inner { animation: bohle-arrive linear both; animation-timeline: view(); animation-range: entry 10% cover 40%; }
-    .b-guide-right .b-guide-inner { animation-name: bohle-arrive-right; }
-  }
-}
-@keyframes bohle-arrive { from { opacity: 0; translate: -70px 0; } to { opacity: 1; translate: 0 0; } }
-@keyframes bohle-arrive-right { from { opacity: 0; translate: 70px 0; } to { opacity: 1; translate: 0 0; } }
+.b-walker { position: fixed; right: 0; bottom: 0; left: 0; z-index: 30; height: 0; pointer-events: none; }
+.b-walker-track { position: absolute; right: max(46px, 5vw); bottom: 10px; left: max(46px, 5vw); height: 0; }
+.b-walker-bohle { position: absolute; bottom: 0; left: calc(var(--bohle-p, 0) * 100%); width: 84px; margin-left: -42px; filter: drop-shadow(0 10px 14px rgba(27, 25, 48, .22)); }
+.b-walker-bohle::before { content: ""; position: absolute; right: 78px; bottom: 6px; width: 130px; height: 7px; background: radial-gradient(circle, rgba(110, 90, 230, .55) 0 3px, transparent 3.5px) 0 0 / 18px 7px repeat-x; -webkit-mask-image: linear-gradient(90deg, transparent, #000); mask-image: linear-gradient(90deg, transparent, #000); opacity: 0; transition: opacity .35s ease; }
+.b-walker.is-walking .b-walker-bohle::before { opacity: 1; }
+.b-walker.is-back .b-walker-bohle::before { right: auto; left: 78px; transform: scaleX(-1); }
+.b-walker-hop { display: block; animation: bohle-hop .55s cubic-bezier(.3, 1.6, .5, 1) both; }
+.b-walker.is-back .bohle { transform: scaleX(-1); }
+.b-walker .bohle-body { transform-box: fill-box; transform-origin: 50% 100%; animation: bohle-breathe 2.6s ease-in-out infinite; }
+.b-walker.is-walking .bohle-body { animation: bohle-waddle .34s ease-in-out infinite; }
+.b-walker.is-walking .bohle-foot { animation: bohle-step .34s ease-in-out infinite; }
+.b-walker.is-walking .bohle-foot-b { animation-delay: -.17s; }
+.b-walker-say { position: absolute; bottom: 90px; left: 50%; padding: 7px 13px; color: #FFFFFF; background: var(--b-ink); border-radius: 14px; box-shadow: 0 10px 22px -12px rgba(27, 25, 48, .6); font-size: 14px; font-weight: 800; line-height: 1; white-space: nowrap; transform: translateX(clamp(-88%, calc(-50% - (var(--bohle-p, 0) - .5) * 80%), -12%)); animation: bohle-say 3.2s ease both; }
+.b-walker-say::after { content: ""; position: absolute; bottom: -5px; left: clamp(14px, calc(50% + (var(--bohle-p, 0) - .5) * 80%), calc(100% - 14px)); width: 12px; height: 12px; margin-left: -6px; background: var(--b-ink); border-radius: 2px; transform: rotate(45deg); }
+@keyframes bohle-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.03, .97); } }
+@keyframes bohle-waddle { 0%, 100% { transform: rotate(-5deg) translateY(0); } 25% { transform: rotate(0deg) translateY(-5px); } 50% { transform: rotate(5deg) translateY(0); } 75% { transform: rotate(0deg) translateY(-5px); } }
+@keyframes bohle-step { 0%, 100% { transform: translate(-5px, 0); } 50% { transform: translate(5px, -5px); } }
+@keyframes bohle-hop { 0% { transform: translateY(0) scale(1, 1); } 30% { transform: translateY(-26px) scale(.94, 1.08); } 70% { transform: translateY(0) scale(1.1, .88); } 100% { transform: translateY(0) scale(1, 1); } }
+@keyframes bohle-say { 0% { opacity: 0; scale: .6; } 8%, 78% { opacity: 1; scale: 1; } 100% { opacity: 0; scale: .9; } }
+.b-site:has(.b-walker) .b-footer { padding-bottom: 96px; }
 @media (max-width: 640px) {
-  .b-guide-walker .bohle { width: 60px; height: 72px; }
-  .b-guide-bubble { padding: 12px 15px; font-size: 15px; }
+  .b-walker-track { right: 34px; bottom: 6px; left: 34px; }
+  .b-walker-bohle { width: 60px; margin-left: -30px; }
+  .b-walker-bohle .bohle { width: 60px; height: 60px; }
+  .b-walker-bohle::before { right: 56px; width: 80px; }
+  .b-walker.is-back .b-walker-bohle::before { left: 56px; }
+  .b-walker-say { bottom: 66px; font-size: 13px; }
 }
-@media (prefers-reduced-motion: reduce) { .b-guide-walker, .bohle-leg { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .b-walker-hop, .b-walker .bohle-body, .b-walker.is-walking .bohle-body, .b-walker.is-walking .bohle-foot { animation: none; }
+  .b-walker-say { animation: none; }
+}
+@media print { .b-walker { display: none; } }
 
 /* Hero proof line and the collapsed pilot details */
 .b-hero-proof { max-width: 520px; margin: 18px 0 0; color: var(--b-muted); font-size: 14px; line-height: 1.55; }
