@@ -10,7 +10,6 @@ export function SiteFooter() {
           <span className="b-footer-tagline" data-no-translate>BUILD. OPERATE. HARMONISE.</span>
         </div>
         <nav className="b-footer-links" aria-label="Footer navigation">
-          <Link href="/#how-it-works">How it works</Link>
           <Link href="/demo/start">Demo</Link>
           <Link href="/tutorials">Tutorials</Link>
           <Link href="/contact">Contact</Link>

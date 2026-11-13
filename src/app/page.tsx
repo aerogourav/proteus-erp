@@ -1,4 +1,4 @@
-import { ArrowRight, Check, CircleDashed, Cog, Factory, Layers3, PlayCircle, Repeat, ShoppingBag, Workflow } from "lucide-react";
+import { ArrowRight, Check, CircleDashed, PlayCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BohMark } from "@/components/brand/boh-logo";
@@ -16,29 +16,11 @@ const problems = [
   ["Mistakes show up late", "An outdated drawing or missing material is often found on the shop floor, not before the job starts."],
 ] as const;
 
-const pillars = [
-  { icon: Cog, title: "BUILD", sub: "We set it up around your work", body: "We learn how your work actually moves, then configure records, fields, rules and approval steps on one shared platform." },
-  { icon: Workflow, title: "OPERATE", sub: "Your team runs daily work in one place", body: "Orders, parts, drawings, operations and inspections stay linked, so everyone sees the same current information." },
-  { icon: Layers3, title: "HARMONISE", sub: "It improves as you grow", body: "Repeated needs become reusable modules and templates, so changes stay consistent instead of becoming one-off custom code." },
-] as const;
-
-const steps = [
-  ["Workflow call", "30 minutes about one process that costs you time or causes errors today. No preparation needed."],
-  ["Demo walkthrough", "We follow one job through the demo with your team and answer questions live."],
-  ["2-week pilot run", "One workflow on one production cell, with anonymised data and success criteria agreed up front."],
-  ["Paid implementation, only if you want it", "If the pilot works, we agree scope, a one-time implementation fee and a monthly subscription in writing before any paid work starts."],
-] as const;
-
 const story = [
   ["Enter the order once", "Customer, purchase order, parts and revisions, drawings, inspection and material in a short guided form."],
   ["Release only when ready", "A job cannot start without an approved drawing for the ordered revision and its material in stock. A revised drawing stops further work. Overrides need an owner or admin and a reason."],
   ["Book work on the shop floor", "Operators book good and scrap per operation, in parts across shifts. Quantities can never exceed what arrived, and the job completes only when every operation is booked."],
   ["Inspect, dispatch, invoice", "Every measurement needs an explicit result; out-of-tolerance values fail. Delivery note and invoice come from the same records, and issued invoices are cancelled with a credit note, never deleted."],
-] as const;
-
-const industries = [
-  { key: "commerce", icon: ShoppingBag, title: "E-commerce & wholesale", company: "Fjord & Fern Home Goods", body: "Products and variants, stock per warehouse, orders from every channel, pick, pack and ship, returns and invoices." },
-  { key: "saas", icon: Repeat, title: "Software & SaaS", company: "Northwind Analytics", body: "Plans and seats, subscriptions, monthly recurring revenue, renewals and churn, recurring invoices and support tickets." },
 ] as const;
 
 const today = [
@@ -91,6 +73,7 @@ export default function Home() {
               <Link className="b-btn b-btn-ghost" href="/contact?offer=walkthrough"><PlayCircle size={18} /> Demo walkthrough</Link>
             </div>
             <p className="b-hero-pilot"><Link href="/contact?offer=pilot">Join the pilot waitlist for a 2-week pilot run <ArrowRight size={15} /></Link></p>
+            <p className="b-hero-proof">Founded by Gourav Mehta (M.Sc. Space Systems, Hochschule Bremen) and advised by Kajinder Srivastava (aerospace and defence). <Link href="/#who-we-are">Who we are</Link></p>
             <span className="b-tagline" data-no-translate>BUILD. OPERATE. HARMONISE.</span>
           </div>
           <figure className="b-shot b-shot-hero">
@@ -130,52 +113,6 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="b-section b-offers-section" id="offers" aria-labelledby="offers-title">
-        <div className="b-wrap">
-          <span className="b-kicker">Get started</span>
-          <h2 className="b-h2" id="offers-title">Three ways to find out if BOH ERP fits.</h2>
-          <p className="b-lead">Start small. All three cost nothing and commit you to nothing. Any paid next step is agreed in writing before work starts.</p>
-          <div className="b-offers">{OFFERS.map((offer) => <article key={offer.key} className={`b-offer b-reveal${offer.key === "pilot" ? " is-pilot" : ""}`}>
-            <h3>{offer.title}</h3>
-            <dl>
-              <div><dt>Length</dt><dd>{offer.length}</dd></div>
-              <div><dt>Who attends</dt><dd>{offer.attendees}</dd></div>
-              <div><dt>What you get</dt><dd>{offer.youGet}</dd></div>
-              <div><dt>What we need</dt><dd>{offer.weNeed}</dd></div>
-            </dl>
-            <p className="b-offer-free">No cost · no obligation</p>
-            <Link className={`b-btn ${offer.key === "pilot" ? "b-btn-primary" : "b-btn-dark"}`} href={`/contact?offer=${offer.key}`}>{offer.key === "call" ? "Book a workflow call" : offer.key === "walkthrough" ? "Ask for a walkthrough" : "Join the pilot waitlist"} <ArrowRight size={17} /></Link>
-          </article>)}</div>
-
-          <div className="b-pilot b-reveal" aria-labelledby="pilot-title">
-            <div className="b-pilot-head">
-              <h3 id="pilot-title">The 2-week pilot run in detail</h3>
-              <p>{PILOT_PLACES} places at a time. Pilots start once our pilot readiness checks pass; until then you join the waitlist. The pilot uses early-stage software and is not a production-ready ERP: keep your current process running alongside it.</p>
-            </div>
-            <dl className="b-pilot-grid">{pilot.map(([title, body]) => <div key={title}><dt>{title}</dt><dd>{body}</dd></div>)}</dl>
-          </div>
-        </div>
-      </section>
-
-      <section className="b-section" style={{ paddingTop: 0 }} aria-labelledby="pillars-title">
-        <div className="b-wrap">
-          <span className="b-kicker">Our approach</span>
-          <h2 className="b-h2" id="pillars-title">One shared platform, configured for your business.</h2>
-          <p className="b-lead">Not a collection of custom apps. Every customer runs on the same core, set up for their own way of working.</p>
-          <div className="b-pillars">{pillars.map(({ icon: Icon, title, sub, body }) => <article className="b-pillar b-reveal" key={title}><span className="b-pillar-icon"><Icon size={22} /></span><h3 data-no-translate>{title}</h3><span className="b-pillar-sub">{sub}</span><p>{body}</p></article>)}</div>
-        </div>
-      </section>
-
-      <section className="b-section b-dark" id="how-it-works" aria-labelledby="how-title">
-        <div className="b-wrap">
-          <span className="b-kicker">How it works</span>
-          <h2 className="b-h2" id="how-title">Start with one workflow. Grow from there.</h2>
-          <p className="b-lead">The first three steps are free. You only pay if you decide to continue.</p>
-          <ol className="b-steps b-steps-4">{steps.map(([title, body]) => <li key={title} className="b-reveal"><h3>{title}</h3><p>{body}</p></li>)}</ol>
-          <p className="b-fineprint">Fees depend on scope and are agreed in writing before any paid work starts. Custom development and complex integrations are quoted separately.</p>
-        </div>
-      </section>
-
       <section className="b-section" aria-labelledby="demo-title">
         <div className="b-wrap b-demo">
           <div>
@@ -193,25 +130,30 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="b-section" style={{ paddingTop: 0 }} aria-labelledby="industries-title">
+      <section className="b-section b-offers-section" id="offers" aria-labelledby="offers-title">
         <div className="b-wrap">
-          <span className="b-kicker">Built for manufacturing first</span>
-          <h2 className="b-h2" id="industries-title">Made for job shops today. One platform for more industries later.</h2>
-          <Link href="/demo/start?industry=manufacturing" className="b-pillar b-industry b-industry-main b-reveal">
-            <span className="b-pillar-icon"><Factory size={22} /></span>
-            <h3>Manufacturing</h3>
-            <span className="b-pillar-sub">Harmonie Präzisionstechnik · fictional demo company</span>
-            <p>Customer orders, drawings and revisions, purchasing, production orders and routings, shop-floor times, inspection, dispatch and invoicing.</p>
-            <span className="b-industry-cta">Open this demo <ArrowRight size={16} /></span>
-          </Link>
-          <p className="b-lead" style={{ marginTop: 28 }}>The same core also runs these demos. They show where the platform is heading; our pilots focus on manufacturing.</p>
-          <div className="b-pillars b-industries b-industries-2">{industries.map(({ key, icon: Icon, title, company, body }) => <Link key={key} href={`/demo/start?industry=${key}`} className="b-pillar b-industry b-reveal">
-            <span className="b-pillar-icon"><Icon size={22} /></span>
-            <h3>{title}</h3>
-            <span className="b-pillar-sub">{company}</span>
-            <p>{body}</p>
-            <span className="b-industry-cta">Open this demo <ArrowRight size={16} /></span>
-          </Link>)}</div>
+          <span className="b-kicker">Get started</span>
+          <h2 className="b-h2" id="offers-title">Three ways to find out if BOH ERP fits.</h2>
+          <p className="b-lead">Start small. All three cost nothing and commit you to nothing. Any paid next step is agreed in writing before work starts.</p>
+          <div className="b-offers">{OFFERS.map((offer) => <article key={offer.key} className={`b-offer b-reveal${offer.key === "pilot" ? " is-pilot" : ""}`}>
+            <h3>{offer.title}</h3>
+            <dl>
+              <div><dt>Length</dt><dd>{offer.length}</dd></div>
+              <div><dt>Who attends</dt><dd>{offer.attendees}</dd></div>
+              <div><dt>What you get</dt><dd>{offer.youGet}</dd></div>
+              <div><dt>What we need</dt><dd>{offer.weNeed}</dd></div>
+            </dl>
+            <p className="b-offer-free">No cost · no obligation</p>
+            <Link className={`b-btn ${offer.key === "pilot" ? "b-btn-primary" : "b-btn-dark"}`} href={`/contact?offer=${offer.key}`}>{offer.key === "call" ? "Book a workflow call" : offer.key === "walkthrough" ? "Ask for a walkthrough" : "Join the pilot waitlist"} <ArrowRight size={17} /></Link>
+          </article>)}</div>
+
+          <details className="b-pilot">
+            <summary>The 2-week pilot run in detail</summary>
+            <div className="b-pilot-head">
+              <p>{PILOT_PLACES} places at a time. Pilots start once our pilot readiness checks pass; until then you join the waitlist. The pilot uses early-stage software and is not a production-ready ERP: keep your current process running alongside it.</p>
+            </div>
+            <dl className="b-pilot-grid">{pilot.map(([title, body]) => <div key={title}><dt>{title}</dt><dd>{body}</dd></div>)}</dl>
+          </details>
         </div>
       </section>
 
