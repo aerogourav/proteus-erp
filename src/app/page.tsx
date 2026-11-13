@@ -110,6 +110,15 @@ export default function Home() {
             <track kind="captions" src="/video/boh-erp-film.en.vtt" srcLang="en" label="English" />
           </video>
           <p className="b-fineprint">English voiceover · subtitles available in the player</p>
+          <Link className="b-tut-teaser" href="/tutorials">
+            <span className="b-tut-thumbs" aria-hidden="true">
+              <Image src="/video/tutorials/new-project-poster.jpg" width={256} height={144} alt="" />
+              <Image src="/video/tutorials/release-production-order-poster.jpg" width={256} height={144} alt="" />
+              <Image src="/video/tutorials/dashboard-tour-poster.jpg" width={256} height={144} alt="" />
+            </span>
+            <span className="b-tut-teaser-copy"><strong>8 short video tutorials</strong><span>One job from order to invoice, about a minute each.</span></span>
+            <span className="b-tut-teaser-go"><PlayCircle size={20} aria-hidden="true" /> Watch the tutorials</span>
+          </Link>
         </div>
       </section>
 
