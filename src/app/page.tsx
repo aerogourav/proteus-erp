@@ -175,6 +175,7 @@ export default function Home() {
             <p className="b-lead">Follow a job from customer order to invoice in the manufacturing demo. Everything runs in your browser with a fictional company.</p>
             <ol className="b-story" style={{ marginTop: 28 }}>{story.map(([title, body], index) => <li key={title} className="b-reveal"><span className="b-story-num">{index + 1}</span><div><strong>{title}</strong><span>{body}</span></div></li>)}</ol>
             <div className="b-hero-actions"><Link className="b-btn b-btn-dark" href="/demo/start?industry=manufacturing">Open the manufacturing demo <ArrowRight size={18} /></Link><Link className="b-btn b-btn-ghost" href="/contact?offer=walkthrough">Or get a free walkthrough</Link></div>
+            <p className="b-hero-pilot"><Link href="/tutorials">Watch the short video tutorials <ArrowRight size={16} /></Link></p>
           </div>
           <figure className="b-shot b-reveal">
             <Image src="/screens/shop-floor.png" width={1280} height={800} sizes="(max-width: 900px) 100vw, 560px" alt="Screenshot of the BOH ERP demo shop floor: running operations, operators and booked quantities" />
