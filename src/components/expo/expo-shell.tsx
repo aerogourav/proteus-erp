@@ -71,11 +71,13 @@ export function ExpoShell() {
 
   if (failed) return <div className="gate"><h1>BOH Expo CRM</h1><p className="err" role="alert">The app could not load. Check your connection and reload the page.</p></div>;
   if (phase === "checking") return <div className="gate"><h1>BOH Expo CRM</h1><p className="muted">Loading…</p></div>;
-  if (phase === "signed-out") return <SignIn onLocal={() => setPhase("local")} />;
+  if (phase === "signed-out") return <SignIn onLocal={() => setPhase("local")} onSignedIn={(user) => { setAccount(user); setPhase("ready"); }} />;
   return <div ref={root} />;
 }
 
-function SignIn({ onLocal }: { onLocal: () => void }) {
+function SignIn({ onLocal, onSignedIn }: { onLocal: () => void; onSignedIn: (user: { id: string; email: string }) => void }) {
+  const [code, setCode] = useState("");
+  const [codeState, setCodeState] = useState<"idle" | "checking" | "wrong">("idle");
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [link, setLink] = useState("");
@@ -88,6 +90,14 @@ function SignIn({ onLocal }: { onLocal: () => void }) {
     document.cookie = "boh_next=/expo; path=/; max-age=1800; samesite=lax";
     const { error } = await supabaseBrowser().auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/auth/callback?next=/app` } });
     setState(error && error.status !== 422 && error.code !== "otp_disabled" && error.code !== "signup_disabled" ? "error" : "sent");
+  };
+  // The code from the email signs in right here, with no redirect, so it works from the home screen and on any address.
+  const useCode = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setCodeState("checking");
+    const { data, error } = await supabaseBrowser().auth.verifyOtp({ email: email.trim(), token: code.replace(/\s/g, ""), type: "email" });
+    if (error || !data.user) { setCodeState("wrong"); return; }
+    onSignedIn({ id: data.user.id, email: data.user.email ?? email.trim() });
   };
   const openLink = (event: React.FormEvent) => {
     event.preventDefault();
@@ -107,11 +117,16 @@ function SignIn({ onLocal }: { onLocal: () => void }) {
     <p className="muted">Sign in with your BOH ERP email so your notes are saved to your account and survive a lost or dead phone.</p>
     {state === "sent"
       ? <>
-        <p className="ok" role="status">If {email} has access, a sign-in link is on its way. Open it on this phone, in this same browser.</p>
+        <p className="ok" role="status">If {email} has access, an email with a sign-in code is on its way.</p>
+        <form onSubmit={useCode}>
+          <label className="f" htmlFor="expo-code">Code from the email<input id="expo-code" className="t" inputMode="numeric" autoComplete="one-time-code" required value={code} onChange={(event) => { setCode(event.target.value); setCodeState("idle"); }} /></label>
+          {codeState === "wrong" && <p className="err" role="alert">That code did not work. Check it, or request a new email.</p>}
+          <button type="submit" className="btn" disabled={codeState === "checking"}>{codeState === "checking" ? "Checking…" : "Sign in"}</button>
+        </form>
         <form onSubmit={openLink}>
-          <label className="f" htmlFor="expo-link">Opened from the home screen? Copy the link from the email and paste it here<input id="expo-link" className="t" value={link} onChange={(event) => { setLink(event.target.value); setBadLink(false); }} autoComplete="off" /></label>
+          <label className="f" htmlFor="expo-link">No code in the email? Paste the sign-in link here instead<input id="expo-link" className="t" value={link} onChange={(event) => { setLink(event.target.value); setBadLink(false); }} autoComplete="off" /></label>
           {badLink && <p className="err" role="alert">That is not the sign-in link from the email.</p>}
-          <button type="submit" className="btn">Sign in with this link</button>
+          <button type="submit" className="btn ghost">Sign in with this link</button>
         </form>
       </>
       : <form onSubmit={send}>
