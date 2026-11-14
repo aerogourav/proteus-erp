@@ -661,7 +661,7 @@
     h += '<div class="score"><div><b>' + c.talked + "/" + c.total + '</b><span>Talked</span></div><div><b>' + c.fit + '</b><span>Good fit</span></div><div><b>' + c.cost + '</b><span>Costed pain</span></div><div><b>' + c.follow + "</b><span>Follow up</span></div></div>";
     h += '<input id="search" class="search" type="search" placeholder="Search name, stand, country" value="' + esc(search) + '" aria-label="Search companies">';
     h += '<div class="chips" role="group" aria-label="Filter">' + [["all", "All"], ["top", "Top targets"], ["todo", "To visit"], ["talked", "Talked"], ["follow", "Follow up"], ["nofit", "Not a fit"]].map(function (f) { return '<button type="button" class="chip" data-filter="' + f[0] + '" aria-pressed="' + (filter === f[0]) + '">' + f[1] + "</button>"; }).join("") + "</div>";
-    h += '<div class="chips" role="group" aria-label="Order"><button type="button" class="chip" data-sort="prio" aria-pressed="' + (sortBy === "prio") + '">Best targets first</button><button type="button" class="chip" data-sort="booth" aria-pressed="' + (sortBy === "booth") + '">Walk by stand number</button></div>';
+    h += '<div class="chips" role="group" aria-label="Order"><button type="button" class="chip" data-sort="prio" aria-pressed="' + (sortBy === "prio") + '">Sort: best targets</button><button type="button" class="chip" data-sort="booth" aria-pressed="' + (sortBy === "booth") + '">Sort: stand number</button></div>';
     if (!c.total) h += '<div class="empty">' + (loaded ? "No companies yet. Add the first one you meet." : "Loading your company list…") + "</div>";
     else if (!rows.length) h += '<div class="empty">Nothing matches this filter.</div>';
     else h += '<ul class="list" id="rows">' + rows.map(function (l) {
@@ -753,7 +753,7 @@
     var b = e.target.closest("button"); if (!b) return;
     if (b.dataset.open) openSheet(b.dataset.open);
     else if (b.dataset.filter) { filter = b.dataset.filter; render(); }
-    else if (b.dataset.sort) { sortBy = b.dataset.sort; render(); }
+    else if (b.dataset.sort) { sortBy = b.dataset.sort; try { localStorage.setItem("boh-expo-sort", sortBy); } catch (e) {} render(); }
     else if (b.dataset.link) { shareLink = b.dataset.link; render(); }
     else if (b.dataset.copy) copy(b.dataset.copy);
     else if (b.id === "add") { var id = "c" + Date.now().toString(36); leads[id] = { name: "New company", booth: "", country: "", what: "", prio: 2, status: "talked", custom: true, updatedAt: Date.now() }; pending[id] = leads[id].updatedAt; saveCache(); setSync(); push(id); openSheet(id); var f = document.getElementById("f-name"); if (f) { sheet.scrollTop = sheet.scrollHeight; f.focus(); f.select(); } }
@@ -788,6 +788,7 @@
   syncEl.addEventListener("click", function () { if (syncErr) toast("Not syncing: " + syncErr); else if (!store) toast("Sign in to sync"); else { toast("Checking…"); refresh(); } });
 
   // ---- boot ----
+  try { if (localStorage.getItem("boh-expo-sort") === "booth") sortBy = "booth"; } catch (e) {}
   loadCache(); if (!store) loaded = true;
   render(); setSync(); refresh();
   var onOnline = function () { setSync(); refresh(); }, onVisible = function () { if (document.visibilityState === "visible") refresh(); };
