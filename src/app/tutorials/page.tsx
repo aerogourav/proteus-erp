@@ -21,6 +21,9 @@ const journey: Tutorial[] = [
   { slug: "dispatch-and-invoice", stage: "Ship", length: "0:32", title: "Dispatch and invoice", body: "Dispatch the order, open the dispatch note, create the invoice from the same records and mark it paid." },
 ];
 
+// How the demo is shaped around a company. Everything shown is changed live in the demo's Configuration tab.
+const custom: Tutorial = { slug: "make-it-yours", length: "1:09", title: "Make it yours: fields, tabs, dashboard and industry", body: "Add a custom field and see it on the record, rename and hide tabs, reorder the dashboard, and switch the demo to another industry. The workflow rules are shown as they are; in the demo they cannot be edited yet." };
+
 const everyday: Tutorial[] = [
   { slug: "download-invoice", length: "0:25", title: "Download an invoice as a PDF", body: "Open Finance, find the invoice and use Print / save as PDF. The invoice in the opening seconds is an illustration, not the demo's document." },
 ];
@@ -49,6 +52,7 @@ export default function TutorialsPage() {
           <nav className="b-tut-jump" aria-label="Jump to a tutorial">
             <a href={`#${start.slug}`}>Start here</a>
             {journey.map((item) => <a key={item.slug} href={`#${item.slug}`}>{item.stage}</a>)}
+            <a href={`#${custom.slug}`}>Make it yours</a>
             <a href="#everyday">Everyday tasks</a>
           </nav>
           <p className="b-fineprint">Recorded in the manufacturing demo with a fictional company and synthetic data · English voiceover · subtitles available in the player</p>
@@ -86,6 +90,20 @@ export default function TutorialsPage() {
               </article>
             </li>)}
           </ol>
+        </div>
+      </section>
+
+      <section className="b-section" style={{ paddingTop: 0 }} aria-label="Make it yours">
+        <div className="b-wrap">
+          <article className="b-tut-feature" id={custom.slug}>
+            <Player item={custom} />
+            <div>
+              <span className="b-tut-sticker">Make it yours</span>
+              <h2>{custom.title}</h2>
+              <p>{custom.body}</p>
+              <Length value={custom.length} />
+            </div>
+          </article>
         </div>
       </section>
 
