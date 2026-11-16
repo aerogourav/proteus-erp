@@ -169,6 +169,24 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="b-section" style={{ paddingTop: 0 }} id="boh-ai" aria-labelledby="boh-ai-title">
+        <div className="b-wrap">
+          <span className="b-kicker">Where we are going</span>
+          <article className="b-tut-feature" style={{ marginTop: 18 }}>
+            <video controls playsInline preload="none" poster="/video/tutorials/boh-ai-concept-poster.jpg" aria-label="BOH-AI concept film, 1 minute 5 seconds, with English voiceover">
+              <source src="/video/tutorials/boh-ai-concept.mp4" type="video/mp4" />
+              <track kind="captions" src="/video/tutorials/boh-ai-concept.en.vtt" srcLang="en" label="English" />
+            </video>
+            <div>
+              <span className="b-tut-sticker">Concept preview</span>
+              <h2 id="boh-ai-title">Meet BOH-AI: describe your business, and the ERP sets itself up.</h2>
+              <p>Ask in plain words: trim the menu, add fields, write a workflow rule, apply your brand. In the product, you review every change and can undo it.</p>
+              <p><strong>BOH-AI is not in the demo yet.</strong> The film shows our goal. The changes were made with the demo’s own settings, and the chat was added for the film. Today we set BOH ERP up with you, by hand.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
       <section className="b-section" style={{ paddingTop: 0 }} id="who-we-are" aria-labelledby="who-title">
         <div className="b-wrap b-who">
           <div>
