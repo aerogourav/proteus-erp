@@ -6,10 +6,14 @@ import { supabaseServer } from "@/lib/supabase/server";
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const target = safeNextPath(url.searchParams.get("next"));
+  // The /expo phone app asks to come back to itself with a short-lived cookie (the redirect address itself stays the allow-listed one).
+  const wanted = request.cookies.get("boh_next")?.value;
+  const target = wanted === "/expo" ? "/expo" : safeNextPath(url.searchParams.get("next"));
   if (!supabaseConfigured() || !code) return NextResponse.redirect(new URL("/app/login?error=link", url.origin));
   const supabase = await supabaseServer();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) return NextResponse.redirect(new URL("/app/login?error=link", url.origin));
-  return NextResponse.redirect(new URL(target, url.origin));
+  const response = NextResponse.redirect(new URL(target, url.origin));
+  if (wanted) response.cookies.delete("boh_next");
+  return response;
 }
