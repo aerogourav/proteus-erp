@@ -22,9 +22,13 @@ export function Bohle({ mood = "happy", size = 72, className }: { mood?: Mood; s
       <circle cx="60" cy="19" r="12" fill="#E2654A" />
       <path d="M60 26 C88 26 102 48 100 72 C98 94 82 106 60 106 C38 106 22 94 20 72 C18 48 32 26 60 26 Z" fill="#6E5AE6" />
       <path d="M60 60 C76 60 86 70 85 82 C84 94 74 100 60 100 C46 100 36 94 35 82 C34 70 44 60 60 60 Z" fill="#8F7EF0" opacity=".55" />
-      <ellipse cx="46" cy="58" rx="9" ry="10" fill="#FFFFFF" /><ellipse cx="74" cy="58" rx="9" ry="10" fill="#FFFFFF" />
-      <circle className="bohle-pupil" cx="48.5" cy="59.5" r="4.6" fill="#1B1930" /><circle className="bohle-pupil" cx="76.5" cy="59.5" r="4.6" fill="#1B1930" />
-      <circle cx="50" cy="57.5" r="1.6" fill="#FFFFFF" /><circle cx="78" cy="57.5" r="1.6" fill="#FFFFFF" />
+      <g className="bohle-eyes">
+        <ellipse cx="46" cy="58" rx="9" ry="10" fill="#FFFFFF" /><ellipse cx="74" cy="58" rx="9" ry="10" fill="#FFFFFF" />
+        <g className="bohle-pupil">
+          <circle cx="48.5" cy="59.5" r="4.6" fill="#1B1930" /><circle cx="76.5" cy="59.5" r="4.6" fill="#1B1930" />
+          <circle cx="50" cy="57.5" r="1.6" fill="#FFFFFF" /><circle cx="78" cy="57.5" r="1.6" fill="#FFFFFF" />
+        </g>
+      </g>
       <circle cx="34" cy="72" r="5" fill="#F79A8A" opacity=".75" /><circle cx="86" cy="72" r="5" fill="#F79A8A" opacity=".75" />
       {mood === "wow" ? <ellipse cx="60" cy="78" rx="5" ry="6" fill="#1B1930" /> : <path d={mood === "cheer" ? "M50 73 Q60 90 70 73 Z" : "M51 74 Q60 84 69 74"} fill={mood === "cheer" ? "#1B1930" : "none"} stroke="#1B1930" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />}
     </g>
@@ -44,9 +48,19 @@ const stops = [
   { target: '[aria-labelledby="cta-title"]', en: "Let’s talk!", de: "Reden wir!" },
 ] as const;
 
+// What Bohle says when he is tapped, in order; the last one comes with a spin.
+const pokes = [
+  { en: "Hey!", de: "Hey!" },
+  { en: "That tickles", de: "Das kitzelt" },
+  { en: "Boing!", de: "Boing!" },
+  { en: "Again!", de: "Nochmal!" },
+  { en: "Wheee!", de: "Juhuu!" },
+] as const;
+
 /**
  * Bohle walks along the bottom of the window as the visitor scrolls: his position is the scroll progress, the dots on
- * his trail are the page's sections, and he hops and says a couple of words when he reaches one.
+ * his trail are the page's sections, and he hops and says a couple of words when he reaches one. His eyes follow the
+ * pointer, and tapping him makes him jump. Taps are read from the page, so he never blocks a button underneath him.
  */
 export function BohleWalker() {
   const { locale } = useLanguage();
@@ -54,6 +68,11 @@ export function BohleWalker() {
   const [stop, setStop] = useState(0);
   const [walking, setWalking] = useState(false);
   const [back, setBack] = useState(false);
+  const figure = useRef<HTMLDivElement>(null);
+  const facing = useRef(1);
+  const [poked, setPoked] = useState(0); // how many times he has been tapped
+  const [said, setSaid] = useState(-1); // index into pokes while a tap line is showing, -1 for the section line
+  const [startled, setStartled] = useState(false);
 
   useEffect(() => {
     let tops: number[] = [];
@@ -71,9 +90,10 @@ export function BohleWalker() {
       root.current?.style.setProperty("--bohle-p", String(Math.min(1, Math.max(0, y / range()))));
       let current = 0;
       tops.forEach((top, index) => { if (y + window.innerHeight * 0.45 >= top) current = index; });
-      setStop(current);
+      setStop((previous) => { if (previous !== current) setSaid(-1); return current; });
       if (Math.abs(y - last) > 1) {
         setBack(y < last);
+        facing.current = y < last ? -1 : 1;
         setWalking(true);
         window.clearTimeout(idle);
         idle = window.setTimeout(() => setWalking(false), 180);
@@ -88,12 +108,46 @@ export function BohleWalker() {
     return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", measure); window.clearTimeout(idle); window.clearTimeout(settle); window.cancelAnimationFrame(frame); };
   }, []);
 
+  useEffect(() => {
+    let frame = 0;
+    let calm = 0;
+    let point = { x: 0, y: 0 };
+    const box = () => figure.current?.getBoundingClientRect();
+    const look = () => {
+      frame = 0;
+      const rect = box();
+      if (!rect) return;
+      const dx = point.x - (rect.left + rect.width / 2);
+      const dy = point.y - (rect.top + rect.height * 0.45);
+      const reach = Math.max(1, Math.hypot(dx, dy));
+      const pull = Math.min(1, reach / 160);
+      root.current?.style.setProperty("--bohle-ex", ((dx / reach) * 3 * pull * facing.current).toFixed(2));
+      root.current?.style.setProperty("--bohle-ey", ((dy / reach) * 2.4 * pull).toFixed(2));
+    };
+    const onMove = (event: PointerEvent) => { point = { x: event.clientX, y: event.clientY }; if (!frame) frame = window.requestAnimationFrame(look); };
+    const onDown = (event: PointerEvent) => {
+      const rect = box();
+      if (!rect || event.clientX < rect.left - 6 || event.clientX > rect.right + 6 || event.clientY < rect.top - 6 || event.clientY > rect.bottom + 6) return;
+      setPoked((count) => count + 1);
+      setSaid((index) => (index + 1) % pokes.length);
+      setStartled(true);
+      window.clearTimeout(calm);
+      calm = window.setTimeout(() => setStartled(false), 900);
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("pointerdown", onDown, { passive: true });
+    return () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerdown", onDown); window.clearTimeout(calm); window.cancelAnimationFrame(frame); };
+  }, []);
+
   const last = stop === stops.length - 1;
+  const lang = locale === "de" ? "de" : "en";
+  const spin = said === pokes.length - 1;
   return <div ref={root} className={`b-walker${walking ? " is-walking" : ""}${back ? " is-back" : ""}`} aria-hidden="true" data-no-translate>
     <div className="b-walker-track">
-      <div className="b-walker-bohle">
-        <span key={`${stop}-${locale}`} className="b-walker-say">{stops[stop][locale === "de" ? "de" : "en"]}</span>
-        <span key={stop} className="b-walker-hop"><Bohle mood={last ? "cheer" : walking ? "wow" : "happy"} size={84} /></span>
+      <div ref={figure} className="b-walker-bohle">
+        <span key={`${stop}-${locale}-${poked}`} className="b-walker-say">{said >= 0 ? pokes[said][lang] : stops[stop][lang]}</span>
+        {(spin || last) && <span key={`pop-${poked}-${last ? 1 : 0}`} className="b-walker-pop"><i /><i /><i /><i /><i /><i /></span>}
+        <span key={`${stop}-${poked}`} className={`b-walker-hop${spin ? " is-spin" : said >= 0 ? " is-poke" : ""}`}><Bohle mood={last || spin ? "cheer" : walking || startled ? "wow" : "happy"} size={84} /></span>
       </div>
     </div>
   </div>;
