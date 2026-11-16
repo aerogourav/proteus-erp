@@ -485,6 +485,21 @@
 .b-walker.is-walking .bohle-foot-b { animation-delay: -.17s; }
 .b-walker-say { position: absolute; bottom: 90px; left: 50%; padding: 7px 13px; color: #FFFFFF; background: var(--b-ink); border-radius: 14px; box-shadow: 0 10px 22px -12px rgba(27, 25, 48, .6); font-size: 14px; font-weight: 800; line-height: 1; white-space: nowrap; transform: translateX(clamp(-88%, calc(-50% - (var(--bohle-p, 0) - .5) * 80%), -12%)); animation: bohle-say 3.2s ease both; }
 .b-walker-say::after { content: ""; position: absolute; bottom: -5px; left: clamp(14px, calc(50% + (var(--bohle-p, 0) - .5) * 80%), calc(100% - 14px)); width: 12px; height: 12px; margin-left: -6px; background: var(--b-ink); border-radius: 2px; transform: rotate(45deg); }
+.b-walker-hop.is-poke { animation: bohle-poke .6s cubic-bezier(.3, 1.6, .5, 1) both; }
+.b-walker-hop.is-spin { animation: bohle-spin .9s cubic-bezier(.4, 0, .2, 1) both; }
+.b-walker .bohle-pupil { transform: translate(calc(var(--bohle-ex, 0) * 1px), calc(var(--bohle-ey, 0) * 1px)); transition: transform .12s ease-out; }
+.b-walker .bohle-eyes { transform-box: fill-box; transform-origin: 50% 50%; animation: bohle-blink 4.6s ease-in-out infinite; }
+.b-walker:not(.is-walking) .bohle-arm-b { transform-box: fill-box; transform-origin: 50% 100%; animation: bohle-wave 7s ease-in-out infinite; }
+.b-walker-pop { position: absolute; bottom: 60px; left: 50%; width: 0; height: 0; }
+.b-walker-pop i { position: absolute; width: 10px; height: 10px; margin: -5px; border-radius: 50%; background: #E2654A; animation: bohle-pop .9s ease-out both; }
+.b-walker-pop i:nth-child(2) { --px: -46px; --py: -58px; background: #F0A93B; } .b-walker-pop i:nth-child(1) { --px: -70px; --py: -22px; }
+.b-walker-pop i:nth-child(3) { --px: -14px; --py: -78px; background: #2FA871; } .b-walker-pop i:nth-child(4) { --px: 18px; --py: -76px; }
+.b-walker-pop i:nth-child(5) { --px: 48px; --py: -56px; background: #F0A93B; } .b-walker-pop i:nth-child(6) { --px: 72px; --py: -20px; background: #2FA871; }
+@keyframes bohle-poke { 0% { transform: translateY(0) scale(1, 1); } 20% { transform: translateY(4px) scale(1.14, .82); } 50% { transform: translateY(-40px) scale(.92, 1.1); } 80% { transform: translateY(0) scale(1.08, .9); } 100% { transform: translateY(0) scale(1, 1); } }
+@keyframes bohle-spin { 0% { transform: translateY(0) rotate(0); } 45% { transform: translateY(-54px) rotate(200deg); } 80% { transform: translateY(0) rotate(360deg) scale(1.08, .9); } 100% { transform: translateY(0) rotate(360deg); } }
+@keyframes bohle-blink { 0%, 46%, 50%, 100% { transform: scaleY(1); } 48% { transform: scaleY(.1); } }
+@keyframes bohle-wave { 0%, 78%, 100% { transform: rotate(0); } 82%, 90% { transform: rotate(-38deg) translateY(-8px); } 86%, 94% { transform: rotate(-12deg) translateY(-8px); } }
+@keyframes bohle-pop { 0% { transform: translate(0, 0) scale(.4); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(var(--px, 0), var(--py, -60px)) scale(1); opacity: 0; } }
 @keyframes bohle-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.03, .97); } }
 @keyframes bohle-waddle { 0%, 100% { transform: rotate(-5deg) translateY(0); } 25% { transform: rotate(0deg) translateY(-5px); } 50% { transform: rotate(5deg) translateY(0); } 75% { transform: rotate(0deg) translateY(-5px); } }
 @keyframes bohle-step { 0%, 100% { transform: translate(-5px, 0); } 50% { transform: translate(5px, -5px); } }
@@ -500,6 +515,8 @@
   .b-walker-say { bottom: 66px; font-size: 13px; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .b-walker-hop.is-poke, .b-walker-hop.is-spin, .b-walker .bohle-eyes, .b-walker:not(.is-walking) .bohle-arm-b, .b-walker-pop i { animation: none; }
+  .b-walker-pop { display: none; }
   .b-walker-hop, .b-walker .bohle-body, .b-walker.is-walking .bohle-body, .b-walker.is-walking .bohle-foot { animation: none; }
   .b-walker-say { animation: none; }
 }
