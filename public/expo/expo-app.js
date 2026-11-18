@@ -791,6 +791,26 @@
   // ---- boot ----
   try { if (localStorage.getItem("boh-expo-sort") === "booth") sortBy = "booth"; } catch (e) {}
   loadCache(); if (!store) loaded = true;
+  // Notes taken without signing in live under the plain key. After a sign-in they are moved into the account once:
+  // a company edited on this phone wins over the account copy when it is newer, and the plain key is then retired.
+  if (store) {
+    try {
+      var local = JSON.parse(localStorage.getItem("boh-expo-crm-v2") || "null"), moved = 0;
+      if (local && local.leads) {
+        Object.keys(local.leads).forEach(function (id) {
+          var doc = local.leads[id];
+          if (!doc || (doc.updatedAt || 0) <= 10) return;
+          if (leads[id] && (leads[id].updatedAt || 0) >= doc.updatedAt) return;
+          leads[id] = doc; pending[id] = doc.updatedAt; moved++;
+        });
+        if (local.me && local.me.updatedAt > (me.updatedAt || 0)) { me = local.me; pending._me = me.updatedAt; }
+        localStorage.setItem("boh-expo-crm-v2:moved", JSON.stringify(local));
+        localStorage.removeItem("boh-expo-crm-v2");
+        saveCache();
+        if (moved) setTimeout(function () { toast(moved + (moved === 1 ? " note" : " notes") + " from this phone added to your account"); }, 600);
+      }
+    } catch (e) {}
+  }
   render(); setSync(); refresh();
   var onOnline = function () { setSync(); refresh(); }, onVisible = function () { if (document.visibilityState === "visible") refresh(); };
   window.addEventListener("online", onOnline); window.addEventListener("offline", setSync); document.addEventListener("visibilitychange", onVisible);
